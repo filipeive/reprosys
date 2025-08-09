@@ -19,7 +19,6 @@ Auth::routes();
     Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
     Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    //Route::resource('categories', CategoryController::class);
     // Rotas para categorias
     Route::prefix('categories')->name('categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
@@ -40,8 +39,6 @@ Auth::routes();
     Route::put('{product}', [ProductController::class, 'update'])->name('update');
     Route::get('{product}', [ProductController::class, 'show'])->name('show');
     });
-    // Rotas para vendas
-    //Route::resource('sales', SaleController::class);
     // Rotas para vendas
     Route::prefix('sales')->name('sales.')->group(function () {
     Route::get('/', [SaleController::class, 'index'])->name('index');
