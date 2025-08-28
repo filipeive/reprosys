@@ -1,5 +1,4 @@
-{{-- resources/views/reports/sales_by_product.blade.php --}}
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Vendas por Produto')
 

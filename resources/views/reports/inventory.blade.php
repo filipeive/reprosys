@@ -1,5 +1,4 @@
-{{-- resources/views/reports/inventory.blade.php --}}
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Relatório de Inventário')
 

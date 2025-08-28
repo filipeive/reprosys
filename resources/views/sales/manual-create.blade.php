@@ -1,168 +1,131 @@
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Registrar Venda Manual')
+@section('title-icon', 'fa-history')
+@section('page-title', 'Registrar Venda Manual')
 
-@section('content_header')
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="mb-2">
-                <i class="fas fa-history text-primary me-2"></i> 
-                <span class="fw-bold">Registrar Venda Manual</span>
-            </h1>
-            <p class="text-muted mb-0 fs-6">
-                <i class="fas fa-info-circle me-1"></i>
-                Use esta tela para lançar vendas antigas do livro físico, informando a data/hora real da venda.
-            </p>
-        </div>
-        <a href="{{ route('sales.index') }}" class="btn btn-outline-primary btn-lg">
-            <i class="fas fa-arrow-left me-2"></i> Voltar
-        </a>
-    </div>
+@section('breadcrumbs')
+    <li class="breadcrumb-item">
+        <a href="{{ route('sales.index') }}">Vendas</a>
+    </li>
+    <li class="breadcrumb-item active">Venda Manual</li>
+@endsection
 
-    <!-- Progress Steps -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="progress-steps">
-                <div class="step active">
-                    <div class="step-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <span>Data & Vendedor</span>
-                </div>
-                <div class="step">
-                    <div class="step-icon">
-                        <i class="fas fa-credit-card"></i>
-                    </div>
-                    <span>Pagamento</span>
-                </div>
-                <div class="step">
-                    <div class="step-icon">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
-                    <span>Produtos</span>
-                </div>
-                <div class="step">
-                    <div class="step-icon">
-                        <i class="fas fa-check"></i>
-                    </div>
-                    <span>Finalizar</span>
-                </div>
+@section('content')
+    <!-- Header Info -->
+    <div class="alert alert-info border-0 rounded-lg mb-4">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-info-circle fa-lg me-3"></i>
+            <div>
+                <strong>Venda Manual</strong>
+                <p class="mb-0 small">
+                    Use esta tela para lançar vendas antigas do livro físico, informando a data/hora real da venda.
+                    Os preços podem ser editados conforme necessário.
+                </p>
             </div>
         </div>
     </div>
-@stop
 
-@section('content')
     <form action="{{ route('sales.store') }}" method="POST" id="manual-sale-form">
         @csrf
         
         <!-- Card 1: Informações da Venda -->
-        <div class="card mb-4 shadow-lg border-0 modern-card">
-            <div class="card-header bg-gradient-primary text-white">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-calendar-alt me-2"></i>
                     Informações da Venda
                 </h5>
             </div>
-            <div class="card-body p-4">
-                <div class="row g-4">
+            <div class="card-body">
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <div class="form-floating">
-                            <input type="datetime-local" class="form-control form-control-lg" name="sale_date" id="sale_date" required>
-                            <label for="sale_date">
-                                <i class="fas fa-clock me-2 text-primary"></i>Data e Hora da Venda *
-                            </label>
-                        </div>
-                        <small class="text-muted mt-1 d-block">
+                        <label for="sale_date" class="form-label">
+                            <i class="fas fa-clock me-2 text-primary"></i>Data e Hora da Venda *
+                        </label>
+                        <input type="datetime-local" class="form-control form-control-lg" 
+                               name="sale_date" id="sale_date" required
+                               value="{{ old('sale_date', now()->format('Y-m-d\TH:i')) }}">
+                        <div class="form-text">
                             <i class="fas fa-lightbulb me-1"></i>
                             Informe a data/hora real quando a venda foi realizada
-                        </small>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="form-floating">
-                            <input type="text" class="form-control form-control-lg bg-light" value="{{ Auth::user()->name }}" disabled>
-                            <label>
-                                <i class="fas fa-user me-2 text-success"></i>Vendedor Responsável
-                            </label>
-                        </div>
+                        <label class="form-label">
+                            <i class="fas fa-user me-2 text-success"></i>Vendedor Responsável
+                        </label>
+                        <input type="text" class="form-control form-control-lg bg-light" 
+                               value="{{ Auth::user()->name }}" readonly>
                         <input type="hidden" name="user_id" value="{{ Auth::user()->id }}">
-                        <small class="text-muted mt-1 d-block">
+                        <div class="form-text">
                             <i class="fas fa-shield-alt me-1"></i>
                             Vendedor autenticado no sistema
-                        </small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Card 2: Dados do Cliente -->
-        <div class="card mb-4 shadow-lg border-0 modern-card">
-            <div class="card-header bg-gradient-info text-white">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-info text-white">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-users me-2"></i>
                     Dados do Cliente
                 </h5>
             </div>
-            <div class="card-body p-4">
-                <div class="row g-4">
+            <div class="card-body">
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <div class="form-floating">
-                            <input type="text" class="form-control form-control-lg" name="customer_name" id="customer_name" value="n/a">
-                            <label for="customer_name">
-                                <i class="fas fa-user-tag me-2 text-info"></i>Nome do Cliente
-                            </label>
-                        </div>
+                        <label for="customer_name" class="form-label">Nome do Cliente</label>
+                        <input type="text" class="form-control" name="customer_name" 
+                               id="customer_name" value="{{ old('customer_name', 'Cliente Avulso') }}">
                     </div>
                     <div class="col-md-6">
-                        <div class="form-floating">
-                            <input type="text" class="form-control form-control-lg" name="customer_phone" id="customer_phone" placeholder="(00) 00000-0000">
-                            <label for="customer_phone">
-                                <i class="fas fa-phone me-2 text-info"></i>Telefone de Contato
-                            </label>
-                        </div>
+                        <label for="customer_phone" class="form-label">Telefone de Contato</label>
+                        <input type="text" class="form-control" name="customer_phone" 
+                               id="customer_phone" placeholder="(00) 00000-0000"
+                               value="{{ old('customer_phone') }}">
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Card 3: Método de Pagamento -->
-        <div class="card mb-4 shadow-lg border-0 modern-card">
-            <div class="card-header bg-gradient-warning text-dark">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-warning text-dark">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-credit-card me-2"></i>
                     Método de Pagamento
                 </h5>
             </div>
-            <div class="card-body p-4">
-                <div class="row g-4">
+            <div class="card-body">
+                <div class="row g-3">
                     <div class="col-md-6">
                         <label for="payment_method" class="form-label fw-bold">
-                            <i class="fas fa-money-bill-wave me-2 text-warning"></i>
                             Forma de Pagamento *
                         </label>
                         <select class="form-select form-select-lg" name="payment_method" id="payment_method" required>
                             <option value="">Selecione uma opção...</option>
-                            <option value="cash" data-icon="fas fa-money-bill-alt">💵 Dinheiro</option>
-                            <option value="card" data-icon="fas fa-credit-card">💳 Cartão</option>
-                            <option value="transfer" data-icon="fas fa-exchange-alt">🏦 Transferência</option>
-                            <option value="credit" data-icon="fas fa-handshake">🤝 Crédito</option>
+                            <option value="cash" {{ old('payment_method') == 'cash' ? 'selected' : '' }}>💵 Dinheiro</option>
+                            <option value="card" {{ old('payment_method') == 'card' ? 'selected' : '' }}>💳 Cartão</option>
+                            <option value="transfer" {{ old('payment_method') == 'transfer' ? 'selected' : '' }}>🏦 Transferência</option>
+                            <option value="credit" {{ old('payment_method') == 'credit' ? 'selected' : '' }}>🤝 Crédito</option>
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label for="notes" class="form-label fw-bold">
-                            <i class="fas fa-sticky-note me-2 text-warning"></i>
-                            Observações
-                        </label>
-                        <textarea class="form-control form-control-lg" name="notes" id="notes" rows="3" 
-                                  placeholder="Ex: Venda referente ao livro físico, desconto aplicado, etc..."></textarea>
+                        <label for="notes" class="form-label fw-bold">Observações</label>
+                        <textarea class="form-control" name="notes" id="notes" rows="3" 
+                                  placeholder="Ex: Venda referente ao livro físico, desconto aplicado, etc...">{{ old('notes') }}</textarea>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Card 4: Produtos/Serviços -->
-        <div class="card mb-4 shadow-lg border-0 modern-card">
-            <div class="card-header bg-gradient-success text-white d-flex justify-content-between align-items-center">
+        <!-- Card 4: Produtos/Serviços com Preços Editáveis -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
                     <i class="fas fa-shopping-cart me-2"></i>
                     Produtos/Serviços
@@ -174,12 +137,38 @@
                 </div>
             </div>
             <div class="card-body p-0">
+                <!-- Filtro de produtos -->
+                <div class="bg-light p-3 border-bottom">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="product-filter" 
+                                       placeholder="Filtrar produtos por nome...">
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="clear-all-rows">
+                                <i class="fas fa-eraser me-1"></i> Limpar Tudo
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" id="add-selected">
+                                <i class="fas fa-plus me-1"></i> Adicionar Selecionados
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0 modern-table" id="products-table">
+                    <table class="table table-hover mb-0" id="products-table">
                         <thead class="table-success">
                             <tr>
                                 <th class="text-center" width="80">
-                                    <i class="fas fa-check"></i>
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="select-all">
+                                        <label class="form-check-label" for="select-all"></label>
+                                    </div>
                                 </th>
                                 <th>
                                     <i class="fas fa-box me-2"></i>Produto
@@ -200,7 +189,7 @@
                         </thead>
                         <tbody>
                             @foreach($products as $product)
-                                <tr class="product-row" data-product-id="{{ $product->id }}">
+                                <tr class="product-row" data-product-id="{{ $product->id }}" data-product-name="{{ strtolower($product->name) }}">
                                     <td class="text-center">
                                         <div class="form-check">
                                             <input type="checkbox" value="1" 
@@ -213,8 +202,12 @@
                                             <span class="fw-bold text-dark">{{ $product->name }}</span>
                                             <br>
                                             <small class="text-muted">
-                                                <i class="fas fa-barcode me-1"></i>
-                                                Cód: {{ $product->id }}
+                                                @if($product->type === 'product')
+                                                    <i class="fas fa-cubes me-1"></i>Stock: {{ $product->stock_quantity }}
+                                                @else
+                                                    <i class="fas fa-concierge-bell me-1"></i>Serviço
+                                                @endif
+                                                | Cód: {{ $product->id }}
                                             </small>
                                         </div>
                                     </td>
@@ -223,24 +216,42 @@
                                             <span class="input-group-text">MZN</span>
                                             <input type="number" step="0.01" min="0" 
                                                    value="{{ $product->selling_price }}" 
-                                                   class="form-control text-end unit-price">
+                                                   class="form-control text-end unit-price"
+                                                   data-original-price="{{ $product->selling_price }}">
+                                        </div>
+                                        <small class="text-muted d-block mt-1">
+                                            Original: {{ number_format($product->selling_price, 2, ',', '.') }}
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="number" min="0" value="0"
+                                               class="form-control form-control-sm text-center quantity" 
+                                               placeholder="0"
+                                               @if($product->type === 'product')
+                                                   max="{{ $product->stock_quantity }}"
+                                               @endif>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="subtotal-display">
+                                            <span class="fw-bold text-success subtotal" data-subtotal="0">
+                                                MZN 0,00
+                                            </span>
+                                            <div class="discount-info small text-muted mt-1" style="display: none;">
+                                                <span class="discount-amount"></span>
+                                            </div>
                                         </div>
                                     </td>
                                     <td class="text-center">
-                                        <input type="number" min="0" 
-                                               class="form-control form-control-sm text-center quantity" 
-                                               placeholder="0">
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="fw-bold text-success subtotal" data-subtotal="0">
-                                            MZN 0,00
-                                        </span>
-                                    </td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger clear-row" 
-                                                title="Limpar linha">
-                                            <i class="fas fa-eraser"></i>
-                                        </button>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-outline-success quick-add" 
+                                                    title="Adicionar 1 unidade" data-product-id="{{ $product->id }}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger clear-row" 
+                                                    title="Limpar linha">
+                                                <i class="fas fa-eraser"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -256,21 +267,41 @@
                                 </td>
                                 <td></td>
                             </tr>
+                            <tr id="discount-summary" style="display: none;">
+                                <td colspan="4" class="text-end text-muted">
+                                    <i class="fas fa-percentage me-2"></i>
+                                    Total de Descontos:
+                                </td>
+                                <td class="text-center text-danger">
+                                    MZN <span id="total-discount">0,00</span>
+                                </td>
+                                <td></td>
+                            </tr>
                         </tfoot>
                     </table>
                 </div>
                 <div class="p-3 bg-light border-top">
-                    <small class="text-muted">
-                        <i class="fas fa-lightbulb me-1 text-warning"></i>
-                        <strong>Dica:</strong> Selecione os produtos desejados e informe a quantidade. O preço pode ser editado se necessário.
-                    </small>
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <small class="text-muted">
+                                <i class="fas fa-lightbulb me-1 text-warning"></i>
+                                <strong>Dica:</strong> Os preços podem ser editados para aplicar descontos ou valores especiais.
+                                Selecione os produtos e informe as quantidades desejadas.
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="apply-discount">
+                                <i class="fas fa-percentage me-1"></i> Aplicar Desconto Geral
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Botões de Ação -->
-        <div class="card shadow-lg border-0 modern-card">
-            <div class="card-body p-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">
@@ -282,7 +313,7 @@
                         <a href="{{ route('sales.index') }}" class="btn btn-outline-secondary btn-lg">
                             <i class="fas fa-times me-2"></i>Cancelar
                         </a>
-                        <button type="submit" class="btn btn-success btn-lg px-4">
+                        <button type="submit" class="btn btn-success btn-lg px-4" id="submit-btn">
                             <i class="fas fa-save me-2"></i>
                             Registrar Venda Manual
                         </button>
@@ -291,405 +322,427 @@
             </div>
         </div>
     </form>
-@stop
 
-@section('css')
-    <style>
-        /* Cards Modernos */
-        .modern-card {
-            border-radius: 1.25rem;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .modern-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important;
-        }
+    <!-- Modal de Desconto Geral -->
+    <div class="modal fade" id="discountModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-percentage me-2"></i>Aplicar Desconto Geral
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label for="discount-type" class="form-label">Tipo de Desconto</label>
+                        <select class="form-select" id="discount-type">
+                            <option value="percentage">Percentual (%)</option>
+                            <option value="fixed">Valor Fixo (MZN)</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="discount-value" class="form-label">Valor do Desconto</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="discount-value" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Aplicar aos produtos:</label>
+                        <div class="form-check">
+                            <input type="radio" name="discount-apply" value="selected" class="form-check-input" id="discount-selected" checked>
+                            <label class="form-check-label" for="discount-selected">Apenas produtos selecionados</label>
+                        </div>
+                        <div class="form-check">
+                            <input type="radio" name="discount-apply" value="all" class="form-check-input" id="discount-all">
+                            <label class="form-check-label" for="discount-all">Todos os produtos com quantidade</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="apply-discount-btn">Aplicar Desconto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
 
-        /* Gradientes para Headers */
-        .bg-gradient-primary {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-        }
-        
-        .bg-gradient-info {
-            background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);
-        }
-        
-        .bg-gradient-warning {
-            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-        }
-        
-        .bg-gradient-success {
-            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-        }
+@push('styles')
+<style>
+    .product-row {
+        transition: all 0.2s ease;
+    }
 
-        /* Progress Steps */
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
-            position: relative;
-        }
+    .product-row:hover {
+        background: #f8f9fa;
+    }
 
-        .progress-steps::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 10%;
-            right: 10%;
-            height: 2px;
-            background: #e9ecef;
-            z-index: 1;
-        }
+    .product-row.selected {
+        background: #e3f2fd;
+        border-left: 3px solid #2196f3;
+    }
 
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            z-index: 2;
-        }
+    .product-row.hidden {
+        display: none;
+    }
 
-        .step-icon {
-            width: 3rem;
-            height: 3rem;
-            border-radius: 50%;
-            background: #e9ecef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 0.5rem;
-            transition: all 0.3s ease;
-        }
+    .unit-price {
+        font-weight: bold;
+    }
 
-        .step.active .step-icon {
-            background: #007bff;
-            color: white;
-            transform: scale(1.1);
-        }
+    .unit-price.modified {
+        background: #fff3cd;
+        border-color: #ffc107;
+    }
 
-        .step span {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #6c757d;
-        }
+    .subtotal-display {
+        min-height: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
 
-        .step.active span {
-            color: #007bff;
-        }
+    .discount-info {
+        font-style: italic;
+    }
 
-        /* Formulários Modernos */
-        .form-floating > .form-control:focus,
-        .form-floating > .form-control:not(:placeholder-shown) {
-            padding-top: 1.625rem;
-            padding-bottom: 0.625rem;
-        }
+    .quick-add:hover {
+        background: #28a745;
+        color: white;
+    }
 
-        .form-floating > label {
-            opacity: 0.65;
-            transform: scale(0.85) translateY(-0.5rem);
-        }
+    .clear-row:hover {
+        background: #dc3545;
+        color: white;
+    }
 
-        .form-control:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
+    .btn-group .btn {
+        border-radius: 0;
+    }
 
-        /* Tabela Moderna */
-        .modern-table {
-            border: none;
-        }
+    .btn-group .btn:first-child {
+        border-radius: 0.375rem 0 0 0.375rem;
+    }
 
-        .modern-table thead th {
-            border: none;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.5px;
-            padding: 1rem 0.75rem;
-        }
+    .btn-group .btn:last-child {
+        border-radius: 0 0.375rem 0.375rem 0;
+    }
 
-        .modern-table tbody tr {
-            border: none;
-            transition: all 0.2s ease;
-        }
+    .total-display .badge {
+        font-size: 1rem;
+        border-radius: 2rem;
+    }
+</style>
+@endpush
 
-        .modern-table tbody tr:hover {
-            background: #f8f9fa;
-            transform: scale(1.01);
-        }
-
-        .modern-table tbody td {
-            border: none;
-            padding: 1rem 0.75rem;
-            vertical-align: middle;
-        }
-
-        /* Product Info */
-        .product-info {
-            padding: 0.5rem 0;
-        }
-
-        /* Input Groups */
-        .input-group-text {
-            background: #f8f9fa;
-            border-color: #dee2e6;
-            font-weight: 600;
-        }
-
-        /* Botões */
-        .btn {
-            border-radius: 0.75rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .btn-lg {
-            padding: 0.75rem 1.5rem;
-        }
-
-        /* Clear Row Button */
-        .clear-row {
-            transition: all 0.2s ease;
-        }
-
-        .clear-row:hover {
-            background: #f8d7da;
-            border-color: #f5c6cb;
-            transform: scale(1.1);
-        }
-
-        /* Total Display */
-        .total-display .badge {
-            font-size: 1rem !important;
-            border-radius: 2rem;
-        }
-
-        /* Form Check */
-        .form-check-input:checked {
-            background-color: #28a745;
-            border-color: #28a745;
-        }
-
-        /* Subtotal */
-        .subtotal {
-            font-size: 1.1rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-        }
-
-        /* Responsividade */
-        @media (max-width: 768px) {
-            .progress-steps {
-                flex-wrap: wrap;
-                gap: 1rem;
-            }
-            
-            .step {
-                flex: 1;
-                min-width: 120px;
-            }
-            
-            .modern-card:hover {
-                transform: none;
-            }
-        }
-
-        /* Animações */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .modern-card {
-            animation: fadeInUp 0.6s ease forwards;
-        }
-
-        .modern-card:nth-child(2) { animation-delay: 0.1s; }
-        .modern-card:nth-child(3) { animation-delay: 0.2s; }
-        .modern-card:nth-child(4) { animation-delay: 0.3s; }
-        .modern-card:nth-child(5) { animation-delay: 0.4s; }
-    </style>
-@stop
-
-@section('js')
+@push('scripts')
 <script>
-    $(document).ready(function() {
-        // Função para calcular subtotal
-        function calculateSubtotal(row) {
-            const unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
-            const quantity = parseInt(row.find('.quantity').val()) || 0;
-            const subtotal = unitPrice * quantity;
-            
-            row.find('.subtotal').text('MZN ' + subtotal.toFixed(2).replace('.', ','));
-            row.find('.subtotal').attr('data-subtotal', subtotal);
-            
-            calculateTotal();
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    let totalDiscount = 0;
 
-        // Função para calcular total geral
-        function calculateTotal() {
-            let total = 0;
-            $('.subtotal').each(function() {
-                total += parseFloat($(this).attr('data-subtotal')) || 0;
-            });
-            
-            const formattedTotal = total.toFixed(2).replace('.', ',');
-            $('#total-amount').text(formattedTotal);
-            $('#footer-total').text(formattedTotal);
-        }
+    // Aplicar máscara no telefone
+    const phoneInput = document.getElementById('customer_phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+            }
+            e.target.value = value;
+        });
+    }
 
-        // Event listeners para cálculos
-        $(document).on('input', '.unit-price, .quantity', function() {
-            const row = $(this).closest('tr');
-            calculateSubtotal(row);
+    // Filtro de produtos
+    document.getElementById('product-filter').addEventListener('input', function() {
+        const search = this.value.toLowerCase();
+        document.querySelectorAll('.product-row').forEach(function(row) {
+            const productName = row.getAttribute('data-product-name');
+            if (productName.includes(search) || search === '') {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    });
+
+    // Selecionar todos os produtos
+    document.getElementById('select-all').addEventListener('change', function() {
+        const isChecked = this.checked;
+        document.querySelectorAll('.select-product:not(.product-row.hidden .select-product)').forEach(function(checkbox) {
+            checkbox.checked = isChecked;
+            toggleRowSelection(checkbox.closest('.product-row'), isChecked);
+        });
+    });
+
+    // Função para alternar seleção de linha
+    function toggleRowSelection(row, isSelected) {
+        if (isSelected) {
+            row.classList.add('selected');
+            const quantityInput = row.querySelector('.quantity');
+            if (quantityInput.value == '0' || quantityInput.value === '') {
+                quantityInput.value = '1';
+                calculateSubtotal(row);
+            }
+        } else {
+            row.classList.remove('selected');
+        }
+    }
+
+    // Event listeners para seleção individual
+    document.querySelectorAll('.select-product').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('.product-row');
+            toggleRowSelection(row, this.checked);
+        });
+    });
+
+    // Função para calcular subtotal
+    function calculateSubtotal(row) {
+        const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+        const originalPrice = parseFloat(row.querySelector('.unit-price').getAttribute('data-original-price')) || 0;
+        const quantity = parseInt(row.querySelector('.quantity').value) || 0;
+        const subtotal = unitPrice * quantity;
+        
+        const subtotalElement = row.querySelector('.subtotal');
+        const discountInfo = row.querySelector('.discount-info');
+        
+        subtotalElement.textContent = 'MZN ' + subtotal.toFixed(2).replace('.', ',');
+        subtotalElement.setAttribute('data-subtotal', subtotal);
+        
+        // Mostrar informação de desconto se houver diferença no preço
+        const discount = (originalPrice - unitPrice) * quantity;
+        if (discount > 0 && quantity > 0) {
+            discountInfo.style.display = 'block';
+            discountInfo.querySelector('.discount-amount').textContent = 
+                'Desconto: MZN ' + discount.toFixed(2).replace('.', ',');
+        } else {
+            discountInfo.style.display = 'none';
+        }
+        
+        // Marcar campo de preço como modificado
+        const priceInput = row.querySelector('.unit-price');
+        if (unitPrice !== originalPrice) {
+            priceInput.classList.add('modified');
+        } else {
+            priceInput.classList.remove('modified');
+        }
+        
+        calculateTotal();
+    }
+
+    // Função para calcular total geral
+    function calculateTotal() {
+        let total = 0;
+        let totalDiscountAmount = 0;
+        
+        document.querySelectorAll('.subtotal').forEach(function(element) {
+            total += parseFloat(element.getAttribute('data-subtotal')) || 0;
         });
 
-        // Ao selecionar um produto, focar na quantidade
-        $(document).on('change', '.select-product', function() {
-            if ($(this).is(':checked')) {
-                $(this).closest('tr').find('.quantity').focus();
-            } else {
-                const row = $(this).closest('tr');
-                row.find('.quantity').val('');
+        // Calcular desconto total
+        document.querySelectorAll('.product-row').forEach(function(row) {
+            const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
+            const originalPrice = parseFloat(row.querySelector('.unit-price').getAttribute('data-original-price')) || 0;
+            const quantity = parseInt(row.querySelector('.quantity').value) || 0;
+            const discount = (originalPrice - unitPrice) * quantity;
+            if (discount > 0) {
+                totalDiscountAmount += discount;
+            }
+        });
+        
+        const formattedTotal = total.toFixed(2).replace('.', ',');
+        document.getElementById('total-amount').textContent = formattedTotal;
+        document.getElementById('footer-total').textContent = formattedTotal;
+        
+        // Mostrar resumo de desconto se houver
+        const discountSummary = document.getElementById('discount-summary');
+        if (totalDiscountAmount > 0) {
+            discountSummary.style.display = 'table-row';
+            document.getElementById('total-discount').textContent = totalDiscountAmount.toFixed(2).replace('.', ',');
+        } else {
+            discountSummary.style.display = 'none';
+        }
+    }
+
+    // Event listeners para cálculos automáticos
+    document.addEventListener('input', function(e) {
+        if (e.target.classList.contains('unit-price') || e.target.classList.contains('quantity')) {
+            const row = e.target.closest('.product-row');
+            calculateSubtotal(row);
+        }
+    });
+
+    // Botões de ação rápida
+    document.querySelectorAll('.quick-add').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const row = this.closest('.product-row');
+            const checkbox = row.querySelector('.select-product');
+            const quantityInput = row.querySelector('.quantity');
+            
+            checkbox.checked = true;
+            toggleRowSelection(row, true);
+            quantityInput.value = parseInt(quantityInput.value) + 1;
+            calculateSubtotal(row);
+        });
+    });
+
+    // Limpar linha
+    document.querySelectorAll('.clear-row').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const row = this.closest('.product-row');
+            const checkbox = row.querySelector('.select-product');
+            const quantityInput = row.querySelector('.quantity');
+            const priceInput = row.querySelector('.unit-price');
+            
+            checkbox.checked = false;
+            quantityInput.value = '0';
+            priceInput.value = priceInput.getAttribute('data-original-price');
+            priceInput.classList.remove('modified');
+            
+            toggleRowSelection(row, false);
+            calculateSubtotal(row);
+        });
+    });
+
+    // Limpar tudo
+    document.getElementById('clear-all-rows').addEventListener('click', function() {
+        if (confirm('Tem certeza que deseja limpar todos os produtos?')) {
+            document.querySelectorAll('.clear-row').forEach(btn => btn.click());
+        }
+    });
+
+    // Adicionar produtos selecionados
+    document.getElementById('add-selected').addEventListener('click', function() {
+        let addedCount = 0;
+        document.querySelectorAll('.select-product:checked').forEach(function(checkbox) {
+            const row = checkbox.closest('.product-row');
+            const quantityInput = row.querySelector('.quantity');
+            if (quantityInput.value === '0' || quantityInput.value === '') {
+                quantityInput.value = '1';
+                calculateSubtotal(row);
+                addedCount++;
+            }
+        });
+        
+        if (addedCount > 0) {
+            if (typeof window.showToast === 'function') {
+                window.showToast(`${addedCount} produtos adicionados com sucesso!`, 'success');
+            }
+        }
+    });
+
+    // Modal de desconto geral
+    document.getElementById('apply-discount').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('discountModal'));
+        modal.show();
+    });
+
+    // Aplicar desconto geral
+    document.getElementById('apply-discount-btn').addEventListener('click', function() {
+        const discountType = document.getElementById('discount-type').value;
+        const discountValue = parseFloat(document.getElementById('discount-value').value) || 0;
+        const applyTo = document.querySelector('input[name="discount-apply"]:checked').value;
+        
+        if (discountValue <= 0) {
+            alert('Por favor, informe um valor de desconto válido.');
+            return;
+        }
+
+        let rowsToApply;
+        if (applyTo === 'selected') {
+            rowsToApply = document.querySelectorAll('.product-row.selected');
+        } else {
+            rowsToApply = document.querySelectorAll('.product-row');
+        }
+
+        rowsToApply.forEach(function(row) {
+            const quantityInput = row.querySelector('.quantity');
+            if (parseInt(quantityInput.value) > 0) {
+                const priceInput = row.querySelector('.unit-price');
+                const currentPrice = parseFloat(priceInput.value);
+                let newPrice;
+
+                if (discountType === 'percentage') {
+                    newPrice = currentPrice * (1 - discountValue / 100);
+                } else {
+                    newPrice = currentPrice - discountValue;
+                }
+
+                newPrice = Math.max(0, newPrice); // Não permitir preços negativos
+                priceInput.value = newPrice.toFixed(2);
                 calculateSubtotal(row);
             }
         });
 
-        // Limpar linha
-        $(document).on('click', '.clear-row', function() {
-            const row = $(this).closest('tr');
-            row.find('input[type="number"]').val('');
-            row.find('.select-product').prop('checked', false);
-            calculateSubtotal(row);
-            
-            // Animação de feedback
-            $(this).addClass('btn-danger').removeClass('btn-outline-danger');
-            setTimeout(() => {
-                $(this).removeClass('btn-danger').addClass('btn-outline-danger');
-            }, 200);
-        });
-
-        // Validação do formulário
-        $('#manual-sale-form').submit(function(event) {
-            let items = [];
-            let hasError = false;
-            
-            $('#products-table tbody tr').each(function() {
-                const row = $(this);
-                const productId = row.data('product-id');
-                const isSelected = row.find('.select-product').prop('checked');
-                const unitPrice = parseFloat(row.find('.unit-price').val());
-                const quantity = parseInt(row.find('.quantity').val());
-
-                if (isSelected && quantity > 0) {
-                    items.push({
-                        product_id: productId,
-                        unit_price: unitPrice,
-                        quantity: quantity
-                    });
-                }
-            });
-
-            // Validar se há pelo menos um item
-            if (items.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Atenção!',
-                    text: 'Selecione pelo menos um produto com quantidade maior que zero.',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#007bff'
-                });
-                event.preventDefault();
-                return false;
-            }
-
-            // Validar campos obrigatórios
-            if (!$('#sale_date').val()) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Campo obrigatório',
-                    text: 'Por favor, informe a data e hora da venda.',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#dc3545'
-                });
-                $('#sale_date').focus();
-                event.preventDefault();
-                return false;
-            }
-
-            if (!$('#payment_method').val()) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Campo obrigatório',
-                    text: 'Por favor, selecione o método de pagamento.',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#dc3545'
-                });
-                $('#payment_method').focus();
-                event.preventDefault();
-                return false;
-            }
-
-            // Converter items para JSON e adicionar ao formulário (compatibilidade com controller)
-            console.log('Items para enviar:', items); // Debug
-            
-            if ($('#items-json').length === 0) {
-                $('<input>').attr({
-                    type: 'hidden',
-                    id: 'items-json',
-                    name: 'items',
-                    value: JSON.stringify(items)
-                }).appendTo('#manual-sale-form');
-            } else {
-                $('#items-json').val(JSON.stringify(items));
-            }
-
-            console.log('JSON enviado:', JSON.stringify(items)); // Debug
-
-            // Mostrar loading
-            Swal.fire({
-                title: 'Processando...',
-                text: 'Registrando a venda manual...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-        });
-
-        // Máscara para telefone
-        $('#customer_phone').mask('(00) 00000-0000');
-
-        // Auto-calcular quando página carrega
-        calculateTotal();
-
-        // Animação dos steps (exemplo)
-        setTimeout(() => {
-            $('.progress-steps .step:nth-child(2)').addClass('active');
-        }, 2000);
+        bootstrap.Modal.getInstance(document.getElementById('discountModal')).hide();
+        
+        if (typeof window.showToast === 'function') {
+            window.showToast('Desconto aplicado com sucesso!', 'success');
+        }
     });
-</script>
 
-<!-- SweetAlert2 -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- jQuery Mask Plugin -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
-@stop
+    // Validação e submissão do formulário
+    document.getElementById('manual-sale-form').addEventListener('submit', function(e) {
+        let items = [];
+        let hasError = false;
+        
+        document.querySelectorAll('.product-row').forEach(function(row) {
+            const productId = row.getAttribute('data-product-id');
+            const isSelected = row.querySelector('.select-product').checked;
+            const unitPrice = parseFloat(row.querySelector('.unit-price').value);
+            const quantity = parseInt(row.querySelector('.quantity').value);
+
+            if ((isSelected || quantity > 0) && quantity > 0 && unitPrice >= 0) {
+                items.push({
+                    product_id: parseInt(productId),
+                    unit_price: unitPrice,
+                    quantity: quantity
+                });
+            }
+        });
+
+        // Validações
+        if (items.length === 0) {
+            alert('Selecione pelo menos um produto com quantidade maior que zero.');
+            e.preventDefault();
+            return false;
+        }
+
+        if (!document.getElementById('sale_date').value) {
+            alert('Por favor, informe a data e hora da venda.');
+            document.getElementById('sale_date').focus();
+            e.preventDefault();
+            return false;
+        }
+
+        if (!document.getElementById('payment_method').value) {
+            alert('Por favor, selecione o método de pagamento.');
+            document.getElementById('payment_method').focus();
+            e.preventDefault();
+            return false;
+        }
+
+        // Adicionar dados dos itens ao formulário
+        const existingInput = document.getElementById('items-json');
+        if (existingInput) {
+            existingInput.remove();
+        }
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = 'items-json';
+        input.name = 'items';
+        input.value = JSON.stringify(items);
+        this.appendChild(input);
+
+        // Mostrar loading
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processando...';
+    });
+
+    // Inicializar
+    calculateTotal();
+});
+</script>
+@endpush

@@ -1,13 +1,30 @@
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Detalhes da Venda #' . $sale->id . ' - Sistema Reprografia')
+@section('page-title', 'Gestão de Vendas')
+@section('title-icon', 'fa-shopping-cart')
 
-@section('content_header')
+@section('breadcrumbs')
+     Editar Venda #{{ $sale->id }}
+@endsection
+
+
+@section('content')
+    {{-- <!-- Notificações -->
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show">
+            <button type="button" class="close" data-dismiss="alert">×</button>
+            <i class="fas fa-check mr-2"></i>{{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show">
+            <button type="button" class="close" data-dismiss="alert">×</button>
+            <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
+        </div>
+    @endif --}}
     <div class="d-flex justify-content-between align-items-center">
-        <h1 class="mb-0">
-            <i class="fas fa-receipt text-primary"></i>
-            Venda #{{ $sale->id }}
-        </h1>
         <div>
             <a href="{{ route('sales.edit', $sale) }}" class="btn btn-primary">
                 <i class="fas fa-edit mr-2"></i> Editar
@@ -26,24 +43,7 @@
             </a>
         </div>
     </div>
-@stop
-
-@section('content')
-    <!-- Notificações -->
-    @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show">
-            <button type="button" class="close" data-dismiss="alert">×</button>
-            <i class="fas fa-check mr-2"></i>{{ session('success') }}
-        </div>
-    @endif
-
-    @if (session('error'))
-        <div class="alert alert-danger alert-dismissible fade show">
-            <button type="button" class="close" data-dismiss="alert">×</button>
-            <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
-        </div>
-    @endif
-
+<br>
     <div class="row">
         <!-- Informações da Venda -->
         <div class="col-md-4">
@@ -75,16 +75,19 @@
                             @switch($sale->payment_method)
                                 @case('cash')
                                     <span class="badge badge-success"><i class="fas fa-money-bill mr-1"></i>Dinheiro</span>
-                                    @break
+                                @break
+
                                 @case('card')
                                     <span class="badge badge-primary"><i class="fas fa-credit-card mr-1"></i>Cartão</span>
-                                    @break
+                                @break
+
                                 @case('transfer')
                                     <span class="badge badge-info"><i class="fas fa-exchange-alt mr-1"></i>Transferência</span>
-                                    @break
+                                @break
+
                                 @case('credit')
                                     <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Crédito</span>
-                                    @break
+                                @break
                             @endswitch
                         </div>
                     </div>
@@ -94,7 +97,7 @@
                         <div class="h4 text-success mb-0">{{ number_format($sale->total_amount, 2, ',', '.') }} MT</div>
                     </div>
 
-                    @if($sale->notes)
+                    @if ($sale->notes)
                         <div class="info-item">
                             <label class="font-weight-bold">Observações:</label>
                             <div class="text-muted">{{ $sale->notes }}</div>
@@ -123,10 +126,10 @@
                         <div>{{ $sale->customer_phone ?: 'Não informado' }}</div>
                     </div>
 
-                    @if($sale->customer_name)
+                    @if ($sale->customer_name)
                         <div class="mt-3">
-                            <a href="{{ route('sales.index', ['search' => $sale->customer_name]) }}" 
-                               class="btn btn-sm btn-outline-primary">
+                            <a href="{{ route('sales.index', ['search' => $sale->customer_name]) }}"
+                                class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-search mr-1"></i>Ver outras vendas
                             </a>
                         </div>
@@ -194,25 +197,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($sale->items as $index => $item)
+                        @foreach ($sale->items as $index => $item)
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <i class="{{ $item->product->category->icon ?? 'fas fa-box' }} mr-2 text-muted"></i>
+                                        <i
+                                            class="{{ $item->product->category->icon ?? 'fas fa-box' }} mr-2 text-muted"></i>
                                         <div>
                                             <strong>{{ $item->product->name }}</strong>
-                                            @if($item->product->code)
+                                            @if ($item->product->code)
                                                 <br><small class="text-muted">Código: {{ $item->product->code }}</small>
                                             @endif
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge badge-secondary">{{ $item->product->category->name ?? 'Sem categoria' }}</span>
+                                    <span
+                                        class="badge badge-secondary">{{ $item->product->category->name ?? 'Sem categoria' }}</span>
                                 </td>
                                 <td>
-                                    @if($item->product->type === 'product')
+                                    @if ($item->product->type === 'product')
                                         <span class="badge badge-primary">Produto</span>
                                     @else
                                         <span class="badge badge-info">Serviço</span>
@@ -232,7 +237,8 @@
                         <tr>
                             <th colspan="6" class="text-right">Total da Venda:</th>
                             <th class="text-right">
-                                <span class="h5 text-success mb-0">{{ number_format($sale->total_amount, 2, ',', '.') }} MT</span>
+                                <span class="h5 text-success mb-0">{{ number_format($sale->total_amount, 2, ',', '.') }}
+                                    MT</span>
                             </th>
                         </tr>
                     </tfoot>

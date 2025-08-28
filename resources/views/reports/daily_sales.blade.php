@@ -1,5 +1,4 @@
-{{-- resources/views/reports/daily_sales.blade.php --}}
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Vendas Diárias')
 

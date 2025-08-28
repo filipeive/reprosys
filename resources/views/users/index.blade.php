@@ -1,5 +1,4 @@
-{{-- Página de Gestão de Usuários --}}
-@extends('adminlte::page')
+@extends('layouts.app')
 @section('title', 'Gestão de Usuários')
 
 @section('content_header')

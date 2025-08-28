@@ -1,7 +1,4 @@
-<?php
-// resources/views/products/edit.blade.php
-?>
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Editar Produto')
 

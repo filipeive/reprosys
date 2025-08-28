@@ -75,6 +75,7 @@ class SaleController extends Controller
     /**
      * Armazenar nova venda
      */
+     
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -84,6 +85,7 @@ class SaleController extends Controller
             'notes' => 'nullable|string|max:500',
             'items' => 'required|string',
             'sale_date' => 'nullable|date',
+            'user_id' => 'nullable|exists:users,id', // Para vendas manuais
         ]);
 
         try {
@@ -95,17 +97,23 @@ class SaleController extends Controller
                     ->withInput();
             }
 
-            // Validar items
-            foreach ($items as $item) {
+            // Validar estrutura dos items
+            foreach ($items as $index => $item) {
                 if (!isset($item['product_id']) || !isset($item['quantity']) || !isset($item['unit_price'])) {
                     return redirect()->back()
-                        ->with('error', 'Dados do item inválidos.')
+                        ->with('error', "Dados do item #{$index} inválidos.")
                         ->withInput();
                 }
                 
                 if ($item['quantity'] <= 0) {
                     return redirect()->back()
                         ->with('error', 'Quantidade deve ser maior que zero.')
+                        ->withInput();
+                }
+
+                if ($item['unit_price'] < 0) {
+                    return redirect()->back()
+                        ->with('error', 'Preço unitário não pode ser negativo.')
                         ->withInput();
                 }
             }
@@ -116,11 +124,13 @@ class SaleController extends Controller
                     ? Carbon::parse($validated['sale_date'])
                     : now();
 
-                // Criar venda
+                // Determinar usuário (para vendas manuais pode ser diferente)
+                $userId = $validated['user_id'] ?? auth()->id();
 
+                // Criar venda
                 $sale = Sale::create([
-                    'user_id' => auth()->id(),
-                    'customer_name' => $validated['customer_name'],
+                    'user_id' => $userId,
+                    'customer_name' => $validated['customer_name'] ?: 'Cliente Avulso',
                     'customer_phone' => $validated['customer_phone'],
                     'payment_method' => $validated['payment_method'],
                     'notes' => $validated['notes'],
@@ -129,6 +139,7 @@ class SaleController extends Controller
                 ]);
 
                 $totalAmount = 0;
+                $discountTotal = 0; // Para rastrear descontos aplicados
 
                 foreach ($items as $item) {
                     $product = Product::find($item['product_id']);
@@ -144,14 +155,25 @@ class SaleController extends Controller
                         }
                     }
 
-                    $totalPrice = $item['quantity'] * $item['unit_price'];
+                    // Calcular preço total do item
+                    $unitPrice = (float) $item['unit_price'];
+                    $totalPrice = $item['quantity'] * $unitPrice;
+
+                    // Calcular desconto se o preço foi alterado
+                    $originalPrice = $product->selling_price;
+                    $discountPerUnit = $originalPrice - $unitPrice;
+                    $itemDiscount = $discountPerUnit * $item['quantity'];
+                    
+                    if ($itemDiscount > 0) {
+                        $discountTotal += $itemDiscount;
+                    }
 
                     // Criar item da venda
                     SaleItem::create([
                         'sale_id' => $sale->id,
                         'product_id' => $item['product_id'],
                         'quantity' => $item['quantity'],
-                        'unit_price' => $item['unit_price'],
+                        'unit_price' => $unitPrice,
                         'total_price' => $totalPrice,
                     ]);
 
@@ -162,7 +184,7 @@ class SaleController extends Controller
                         // Registrar movimento de stock
                         StockMovement::create([
                             'product_id' => $product->id,
-                            'user_id' => auth()->id(),
+                            'user_id' => $userId,
                             'movement_type' => 'out',
                             'quantity' => $item['quantity'],
                             'reason' => 'Venda',
@@ -174,19 +196,42 @@ class SaleController extends Controller
                     $totalAmount += $totalPrice;
                 }
 
+                // Atualizar total da venda
                 $sale->update(['total_amount' => $totalAmount]);
+
+                // Log do desconto aplicado se houver
+                if ($discountTotal > 0) {
+                    Log::info("Desconto aplicado na venda #{$sale->id}: MZN {$discountTotal}");
+                    
+                    // Adicionar informação do desconto nas observações se não houver
+                    if (!$validated['notes'] || !str_contains($validated['notes'], 'desconto')) {
+                        $discountInfo = "Desconto total aplicado: MZN " . number_format($discountTotal, 2, ',', '.');
+                        $existingNotes = $validated['notes'] ? $validated['notes'] . " | " : "";
+                        $sale->update(['notes' => $existingNotes . $discountInfo]);
+                    }
+                }
             });
 
+            // Determinar rota de retorno baseada no tipo de venda
+            $isManualSale = $request->has('sale_date') && $request->sale_date !== now()->format('Y-m-d\TH:i');
+            $successMessage = $isManualSale 
+                ? 'Venda manual registrada com sucesso.' 
+                : 'Venda registrada com sucesso.';
+
             return redirect()->route('sales.index')
-                ->with('success', 'Venda registrada com sucesso.');
+                ->with('success', $successMessage);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
-                           ->withErrors($e->errors())
-                           ->withInput()
-                           ->with('error', 'Erro de validação. Verifique os dados informados.');
+                        ->withErrors($e->errors())
+                        ->withInput()
+                        ->with('error', 'Erro de validação. Verifique os dados informados.');
         } catch (\Exception $e) {
-            Log::error('Erro ao criar venda: ' . $e->getMessage());
+            Log::error('Erro ao criar venda: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return redirect()->back()
                 ->with('error', 'Erro ao processar venda: ' . $e->getMessage())

@@ -1,5 +1,4 @@
-{{-- resources/views/reports/low_stock.blade.php --}}
-@extends('adminlte::page')
+@extends('layouts.app')
 
 @section('title', 'Produtos com Stock Baixo')
 
