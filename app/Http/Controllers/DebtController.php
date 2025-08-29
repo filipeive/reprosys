@@ -4,14 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\Debt;
 use App\Models\DebtPayment;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DebtController extends Controller
 {
+    /**
+     * Exibir lista de dívidas
+     */
     public function index(Request $request)
     {
-        $query = Debt::with(['user', 'sale', 'order'])->latest();
+        $query = Debt::with(['user', 'sale', 'payments'])
+            ->latest();
 
         // Filtros
         if ($request->filled('status')) {
@@ -42,17 +51,17 @@ class DebtController extends Controller
             'total_overdue' => Debt::overdue()->sum('remaining_amount'),
             'count_active' => Debt::active()->count(),
             'count_overdue' => Debt::overdue()->count(),
-            'count_paid_this_month' => Debt::paid()->whereMonth('updated_at', now()->month)->count()
+            'count_paid_this_month' => Debt::paid()
+                ->whereMonth('updated_at', now()->month)
+                ->count()
         ];
 
         return view('debts.index', compact('debts', 'stats'));
     }
 
-    public function create()
-    {
-        return view('debts.create');
-    }
-
+    /**
+     * Criar nova dívida (via offcanvas)
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -66,126 +75,179 @@ class DebtController extends Controller
             'notes' => 'nullable|string'
         ]);
 
-        $debt = Debt::create([
-            'user_id' => auth()->id(),
-            'customer_name' => $request->customer_name,
-            'customer_phone' => $request->customer_phone,
-            'customer_document' => $request->customer_document,
-            'original_amount' => $request->original_amount,
-            'remaining_amount' => $request->original_amount,
-            'debt_date' => $request->debt_date,
-            'due_date' => $request->due_date,
-            'description' => $request->description,
-            'notes' => $request->notes
-        ]);
+        try {
+            $debt = DB::transaction(function () use ($request) {
+                return Debt::create([
+                    'user_id' => auth()->id(),
+                    'customer_name' => $request->customer_name,
+                    'customer_phone' => $request->customer_phone,
+                    'customer_document' => $request->customer_document,
+                    'original_amount' => $request->original_amount,
+                    'remaining_amount' => $request->original_amount,
+                    'debt_date' => $request->debt_date,
+                    'due_date' => $request->due_date,
+                    'status' => 'active',
+                    'description' => $request->description,
+                    'notes' => $request->notes
+                ]);
+            });
 
-        return redirect()->route('debts.show', $debt)
-            ->with('success', 'Dívida registrada com sucesso!');
+            return response()->json([
+                'success' => true,
+                'message' => 'Dívida registrada com sucesso!',
+                'debt' => $debt
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar dívida: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar dívida.'
+            ], 500);
+        }
     }
 
-    public function show(Debt $debt)
-    {
-        $debt->load(['user', 'sale', 'order', 'payments.user']);
-        return view('debts.show', compact('debt'));
-    }
-
-    public function edit(Debt $debt)
-    {
-        return view('debts.edit', compact('debt'));
-    }
-
+    /**
+     * Atualizar dívida (via offcanvas)
+     */
     public function update(Request $request, Debt $debt)
     {
         $request->validate([
             'customer_name' => 'required|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
             'customer_document' => 'nullable|string|max:20',
-            'due_date' => 'nullable|date',
+            'due_date' => 'nullable|date|after_or_equal:debt_date',
             'description' => 'required|string',
             'notes' => 'nullable|string'
         ]);
 
-        $debt->update($request->only([
-            'customer_name', 'customer_phone', 'customer_document',
-            'due_date', 'description', 'notes'
-        ]));
+        try {
+            DB::transaction(function () use ($debt, $request) {
+                $debt->update($request->only([
+                    'customer_name', 'customer_phone', 'customer_document',
+                    'due_date', 'description', 'notes'
+                ]));
+            });
 
-        return redirect()->route('debts.show', $debt)
-            ->with('success', 'Dívida atualizada com sucesso!');
-    }
-
-    public function destroy(Debt $debt)
-    {
-        if ($debt->payments()->exists()) {
-            return redirect()->route('debts.index')
-                ->with('error', 'Não é possível excluir uma dívida que já possui pagamentos.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Dívida atualizada com sucesso!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar dívida: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar dívida.'
+            ], 500);
         }
-
-        $debt->delete();
-
-        return redirect()->route('debts.index')
-            ->with('success', 'Dívida excluída com sucesso!');
     }
 
+    /**
+     * Mostrar detalhes da dívida (para offcanvas)
+     */
+    public function showDetails(Debt $debt)
+    {
+        $debt->load(['user', 'sale.items.product.category', 'payments.user']);
+
+        $html = view('debts.partials.details', compact('debt'))->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html
+        ]);
+    }
+
+    /**
+     * Dados para edição (AJAX)
+     */
+    public function editData(Debt $debt)
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $debt
+        ]);
+    }
+
+    /**
+     * Registrar pagamento
+     */
     public function addPayment(Request $request, Debt $debt)
     {
         $request->validate([
             'amount' => 'required|numeric|min:0.01|max:' . $debt->remaining_amount,
-            'payment_method' => 'required|in:cash,card,transfer,pix',
+            'payment_method' => 'required|in:cash,card,transfer,pix,mpesa,emola',
             'payment_date' => 'required|date|before_or_equal:today',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string|max:500'
         ]);
 
         if (!$debt->canAddPayment()) {
-            return redirect()->route('debts.show', $debt)
-                ->with('error', 'Não é possível adicionar pagamento a esta dívida.');
+            return response()->json([
+                'success' => false,
+                'message' => 'Não é possível adicionar pagamento a esta dívida.'
+            ], 400);
         }
 
-        DB::transaction(function () use ($debt, $request) {
-            $debt->addPayment(
-                $request->amount,
-                $request->payment_method,
-                $request->notes
-            );
-        });
+        try {
+            DB::transaction(function () use ($debt, $request) {
+                $payment = $debt->payments()->create([
+                    'user_id' => auth()->id(),
+                    'amount' => $request->amount,
+                    'payment_method' => $request->payment_method,
+                    'payment_date' => $request->payment_date,
+                    'notes' => $request->notes
+                ]);
 
-        $message = $debt->status === 'paid' ? 
-            'Pagamento registrado! Dívida quitada completamente.' :
-            'Pagamento registrado com sucesso!';
+                $debt->updatePaymentStatus();
+            });
+
+            $message = $debt->status === 'paid'
+                ? 'Dívida quitada com sucesso! Venda concluída.'
+                : 'Pagamento registrado com sucesso.';
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao registrar pagamento: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar pagamento.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Criar dívida a partir de uma venda (opcional)
+     */
+    public function createFromSale(Sale $sale)
+    {
+        if ($sale->debt) {
+            return redirect()->back()->with('error', 'Esta venda já tem uma dívida associada.');
+        }
+
+        $debt = Debt::create([
+            'user_id' => $sale->user_id,
+            'sale_id' => $sale->id,
+            'customer_name' => $sale->customer_name,
+            'customer_phone' => $sale->customer_phone,
+            'original_amount' => $sale->total_amount,
+            'remaining_amount' => $sale->total_amount,
+            'debt_date' => $sale->sale_date,
+            'due_date' => $sale->due_date ?? now()->addDays(30),
+            'status' => 'active',
+            'description' => "Parcelamento da venda #{$sale->id}",
+            'notes' => $sale->notes
+        ]);
+
+        $sale->update(['status' => 'pending_payment']);
 
         return redirect()->route('debts.show', $debt)
-            ->with('success', $message);
+            ->with('success', 'Dívida criada com sucesso a partir da venda!');
     }
 
-    public function markAsPaid(Debt $debt)
-    {
-        if ($debt->status === 'paid') {
-            return redirect()->route('debts.show', $debt)
-                ->with('error', 'Dívida já está quitada.');
-        }
-
-        DB::transaction(function () use ($debt) {
-            $debt->markAsPaid();
-        });
-
-        return redirect()->route('debts.show', $debt)
-            ->with('success', 'Dívida marcada como paga!');
-    }
-
-    public function cancel(Debt $debt)
-    {
-        if ($debt->status === 'paid') {
-            return redirect()->route('debts.show', $debt)
-                ->with('error', 'Não é possível cancelar uma dívida já paga.');
-        }
-
-        $debt->update(['status' => 'cancelled']);
-
-        return redirect()->route('debts.index')
-            ->with('success', 'Dívida cancelada com sucesso!');
-    }
-
-    // Relatório de devedores
+    /**
+     * Relatório de devedores
+     */
     public function debtorsReport(Request $request)
     {
         $query = Debt::with(['payments'])
@@ -200,32 +262,5 @@ class DebtController extends Controller
         $debtors = $query->orderByDesc('total_debt')->paginate(20);
 
         return view('debts.debtors-report', compact('debtors'));
-    }
-
-    // Atualizar status de dívidas vencidas (comando/job)
-    public function updateOverdueStatus()
-    {
-        $updatedCount = Debt::where('due_date', '<', now()->toDateString())
-            ->where('status', 'active')
-            ->update(['status' => 'overdue']);
-
-        return response()->json([
-            'message' => "Status atualizado para {$updatedCount} dívidas vencidas."
-        ]);
-    }
-
-    // API para busca de clientes
-    public function searchCustomers(Request $request)
-    {
-        $term = $request->get('term');
-        
-        $customers = Debt::select('customer_name', 'customer_phone')
-            ->where('customer_name', 'like', '%' . $term . '%')
-            ->orWhere('customer_phone', 'like', '%' . $term . '%')
-            ->distinct()
-            ->limit(10)
-            ->get();
-
-        return response()->json($customers);
     }
 }

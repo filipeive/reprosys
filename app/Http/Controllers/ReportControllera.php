@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ReportControllera extends Controller
 {
+    // o admin tem acesso a todos os relatórios
+
     public function index()
     {
         return view('reports.index');

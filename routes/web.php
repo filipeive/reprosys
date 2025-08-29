@@ -17,10 +17,17 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Perfil do usuário
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Estatísticas
+    Route::get('/profile/stats', [ProfileController::class, 'stats'])->name('profile.stats');
+    Route::get('/profile/performance', [ProfileController::class, 'performance'])->name('profile.performance');
+    Route::get('/profile/show', [ProfileController::class, 'show'])->name('profile.show');
 });
 
 Auth::routes();
@@ -118,6 +125,12 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/{debt}/mark-as-paid', [DebtController::class, 'markAsPaid'])->name('mark-as-paid');
         Route::patch('/{debt}/cancel', [DebtController::class, 'cancel'])->name('cancel');
         
+        Route::get('/debts/{debt}/edit-data', function (\App\Models\Debt $debt) {
+            return response()->json([
+                'success' => true,
+                'data' => $debt
+            ]);
+        })->name('edit-data');
         // Relatórios
         Route::get('/reports/debtors', [DebtController::class, 'debtorsReport'])->name('debtors-report');
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
@@ -135,7 +148,7 @@ Route::middleware(['auth'])->group(function () {
     
     // ===== RELATÓRIOS =====
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('/', [ReportController::class, 'index'])->name('index')->middleware('can:admin');
+        Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/export', [ReportController::class, 'export'])->name('export');
         Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
         Route::get('/daily-sales', [ReportController::class, 'dailySales'])->name('daily-sales');

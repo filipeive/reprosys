@@ -153,7 +153,7 @@ class ExpenseController extends Controller
     /**
      * Remover despesa
      */
-    public function destroy(Expense $expense)
+    public function destroy(Expense $expense , Request $request)
     {
         //$this->authorize('delete', $expense);
 

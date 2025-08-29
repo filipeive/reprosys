@@ -5,7 +5,7 @@
 @section('title-icon', 'fa-shopping-cart')
 
 @section('breadcrumbs')
-     Editar Venda #{{ $sale->id }}
+    Editar Venda #{{ $sale->id }}
 @endsection
 
 
@@ -41,9 +41,17 @@
             <a href="{{ route('sales.index') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left mr-2"></i> Voltar
             </a>
+            @if (!$sale->debt && $sale->payment_method !== 'cash')
+                <form method="POST" action="{{ route('sales.create-debt', $sale) }}" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-credit-card"></i> Criar Dívida
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
-<br>
+    <br>
     <div class="row">
         <!-- Informações da Venda -->
         <div class="col-md-4">

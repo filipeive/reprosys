@@ -596,7 +596,7 @@
 
                 <li class="nav-item mb-2">
                     <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
-                        href="{{ route('reports.index') }}" {{-- data-permission="view_reports" --}}>
+                        href="{{ route('reports.index') }}" data-permission="view-reports">
                         <i class="fas fa-chart-bar"></i>
                         <span>Relatórios</span>
                     </a>
