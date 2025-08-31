@@ -110,8 +110,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
     });
     
-    // ===== DÍVIDAS =====
-    Route::prefix('debts')->name('debts.')->group(function () {
+   // ===== ROTAS DE DÍVIDAS =====
+        Route::prefix('debts')->name('debts.')->group(function () {
         Route::get('/', [DebtController::class, 'index'])->name('index');
         Route::get('/create', [DebtController::class, 'create'])->name('create');
         Route::post('/', [DebtController::class, 'store'])->name('store');
@@ -125,19 +125,20 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/{debt}/mark-as-paid', [DebtController::class, 'markAsPaid'])->name('mark-as-paid');
         Route::patch('/{debt}/cancel', [DebtController::class, 'cancel'])->name('cancel');
         
-        Route::get('/debts/{debt}/edit-data', function (\App\Models\Debt $debt) {
-            return response()->json([
-                'success' => true,
-                'data' => $debt
-            ]);
-        })->name('edit-data');
+        // AJAX endpoints
+        Route::get('/{debt}/details', [DebtController::class, 'showDetails'])->name('details');
+        Route::get('/{debt}/edit-data', [DebtController::class, 'editData'])->name('edit-data');
+        
         // Relatórios
         Route::get('/reports/debtors', [DebtController::class, 'debtorsReport'])->name('debtors-report');
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
-        
-        // API para busca de clientes
-        Route::get('/api/search-customers', [DebtController::class, 'searchCustomers'])->name('api.search-customers');
     });
+
+// ===== API ROUTES PARA PRODUTOS =====
+Route::prefix('api')->name('api.')->group(function () {
+    Route::get('/products/available', [DebtController::class, 'getAvailableProducts'])->name('products.available');
+    Route::get('/debts/search-customers', [DebtController::class, 'searchCustomers'])->name('debts.search-customers');
+});
     
     // ===== DESPESAS =====
     Route::get('/expenses/{expense}/details', [ExpenseController::class, 'showData'])->name('expenses.details');

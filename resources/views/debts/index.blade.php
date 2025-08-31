@@ -8,81 +8,122 @@
 @endsection
 
 @section('content')
-    <!-- Offcanvas para Criar/Editar Dívida -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="debtFormOffcanvas" style="width: 650px;">
+    <!-- Offcanvas para Criar Dívida com Itens -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="debtFormOffcanvas" style="width: 800px;">
         <div class="offcanvas-header bg-primary text-white">
             <h5 class="offcanvas-title">
                 <i class="fas fa-credit-card me-2"></i><span id="form-title">Nova Dívida</span>
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
-        <div class="offcanvas-body">
+        <div class="offcanvas-body p-0">
             <form id="debt-form" method="POST">
                 @csrf
                 <input type="hidden" name="_method" id="form-method" value="POST">
                 <input type="hidden" name="debt_id" id="debt-id">
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Cliente *</label>
-                    <input type="text" class="form-control" name="customer_name" id="customer-name" required>
-                    <div class="invalid-feedback"></div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Telefone</label>
-                            <input type="text" class="form-control" name="customer_phone" id="customer-phone">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Documento</label>
-                            <input type="text" class="form-control" name="customer_document" id="customer-document">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Valor Original *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">MT</span>
-                                <input type="number" step="0.01" class="form-control" name="original_amount" id="original-amount" required>
+                <!-- Informações do Cliente -->
+                <div class="p-4 border-bottom bg-light">
+                    <h6 class="mb-3"><i class="fas fa-user me-2"></i> Informações do Cliente</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Nome *</label>
+                                <input type="text" class="form-control" name="customer_name" id="customer-name" required>
+                                <div class="invalid-feedback"></div>
                             </div>
-                            <div class="invalid-feedback"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Telefone</label>
+                                <input type="text" class="form-control" name="customer_phone" id="customer-phone">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Data da Dívida *</label>
+                                <input type="date" class="form-control" name="debt_date" id="debt-date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Vencimento</label>
+                                <input type="date" class="form-control" name="due_date" id="due-date">
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Data da Dívida *</label>
-                            <input type="date" class="form-control" name="debt_date" id="debt-date" required>
+                </div>
+
+                <!-- Seleção de Itens -->
+                <div class="p-4 border-bottom">
+                    <h6 class="mb-3"><i class="fas fa-shopping-cart me-2"></i> Itens da Dívida</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <select class="form-select" id="product-select">
+                                <option value="">Selecione um produto ou serviço...</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}" data-name="{{ $product->name }}"
+                                        data-type="{{ $product->type }}" data-unit="{{ $product->unit }}"
+                                        data-price="{{ $product->selling_price }}"
+                                        data-stock="{{ $product->stock_quantity }}">
+                                        {{ $product->name }} - MT {{ number_format($product->selling_price, 2, ',', '.') }}
+                                        @if ($product->type === 'product')
+                                            (Estoque: {{ $product->stock_quantity }} {{ $product->unit }})
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-primary w-100" onclick="addItemToCart()">
+                                <i class="fas fa-plus me-2"></i>Adicionar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Carrinho -->
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0" id="cart-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produto/Serviço</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-end">Preço</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cart-items">
+                                <!-- Itens serão adicionados aqui -->
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end fw-bold">Total:</td>
+                                    <td class="text-end fw-bold" id="cart-total">MT 0,00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Data de Vencimento</label>
-                    <input type="date" class="form-control" name="due_date" id="due-date">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Descrição *</label>
-                    <textarea class="form-control" name="description" id="description" rows="3" required></textarea>
-                    <div class="invalid-feedback"></div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Observações</label>
-                    <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
-                </div>
-
-                <div class="alert alert-warning">
-                    <small>
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Esta dívida será vinculada a uma venda. O estoque será reduzido no momento da criação.
-                    </small>
+                <!-- Descrição e Observações -->
+                <div class="p-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Descrição *</label>
+                                <textarea class="form-control" name="description" id="description" rows="2" required></textarea>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Observações</label>
+                                <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -91,8 +132,8 @@
                 <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
                     <i class="fas fa-times me-2"></i>Cancelar
                 </button>
-                <button type="submit" form="debt-form" class="btn btn-primary flex-fill">
-                    <i class="fas fa-save me-2"></i>Salvar
+                <button type="submit" form="debt-form" class="btn btn-primary flex-fill" id="save-debt-btn">
+                    <i class="fas fa-save me-2"></i>Salvar Dívida
                 </button>
             </div>
         </div>
@@ -136,7 +177,8 @@
                     <label class="form-label fw-semibold">Valor do Pagamento *</label>
                     <div class="input-group">
                         <span class="input-group-text">MT</span>
-                        <input type="number" step="0.01" name="amount" id="payment-amount" class="form-control" required>
+                        <input type="number" step="0.01" name="amount" id="payment-amount" class="form-control"
+                            required>
                     </div>
                     <small class="text-muted">Máximo: <strong id="max-amount-text"></strong></small>
                     <div class="invalid-feedback"></div>
@@ -157,7 +199,8 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Data do Pagamento *</label>
-                    <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                    <input type="date" name="payment_date" class="form-control" value="{{ date('Y-m-d') }}"
+                        required>
                     <div class="invalid-feedback"></div>
                 </div>
 
@@ -206,7 +249,8 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Total em Aberto</h6>
-                            <h3 class="mb-0 text-warning fw-bold">MT {{ number_format($stats['total_active'], 2, ',', '.') }}</h3>
+                            <h3 class="mb-0 text-warning fw-bold">MT
+                                {{ number_format($stats['total_active'], 2, ',', '.') }}</h3>
                             <small class="text-muted">valor pendente</small>
                         </div>
                         <div class="text-warning">
@@ -238,7 +282,8 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Vencidas</h6>
-                            <h3 class="mb-0 text-danger fw-bold">MT {{ number_format($stats['total_overdue'], 2, ',', '.') }}</h3>
+                            <h3 class="mb-0 text-danger fw-bold">MT
+                                {{ number_format($stats['total_overdue'], 2, ',', '.') }}</h3>
                             <small class="text-muted">em atraso</small>
                         </div>
                         <div class="text-danger">
@@ -282,14 +327,17 @@
                         <select class="form-select" name="status">
                             <option value="">Todos</option>
                             <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Ativa</option>
-                            <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Parcial</option>
-                            <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Vencida</option>
+                            <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Parcial
+                            </option>
+                            <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Vencida
+                            </option>
                             <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paga</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Cliente</label>
-                        <input type="text" class="form-control" name="customer" placeholder="Nome do cliente..." value="{{ request('customer') }}">
+                        <input type="text" class="form-control" name="customer" placeholder="Nome do cliente..."
+                            value="{{ request('customer') }}">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Data Início</label>
@@ -301,7 +349,8 @@
                     </div>
                     <div class="col-md-2">
                         <div class="form-check mb-2">
-                            <input type="checkbox" class="form-check-input" name="overdue_only" value="1" {{ request('overdue_only') ? 'checked' : '' }}>
+                            <input type="checkbox" class="form-check-input" name="overdue_only" value="1"
+                                {{ request('overdue_only') ? 'checked' : '' }}>
                             <label class="form-check-label">Apenas Vencidas</label>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
@@ -346,7 +395,7 @@
                                 <td><strong class="text-primary">#{{ $debt->id }}</strong></td>
                                 <td>
                                     <div class="fw-semibold">{{ $debt->customer_name }}</div>
-                                    @if($debt->customer_phone)
+                                    @if ($debt->customer_phone)
                                         <small class="text-muted">
                                             <i class="fas fa-phone me-1"></i> {{ $debt->customer_phone }}
                                         </small>
@@ -354,7 +403,7 @@
                                 </td>
                                 <td>
                                     <div>{{ Str::limit($debt->description, 50) }}</div>
-                                    @if($debt->sale_id)
+                                    @if ($debt->sale_id)
                                         <small class="text-muted">Venda #{{ $debt->sale_id }}</small>
                                     @endif
                                 </td>
@@ -362,14 +411,15 @@
                                     <strong>MT {{ number_format($debt->original_amount, 2, ',', '.') }}</strong>
                                 </td>
                                 <td class="text-end">
-                                    @if($debt->paid_amount > 0)
-                                        <span class="text-success fw-bold">MT {{ number_format($debt->paid_amount, 2, ',', '.') }}</span>
+                                    @if ($debt->paid_amount > 0)
+                                        <span class="text-success fw-bold">MT
+                                            {{ number_format($debt->paid_amount, 2, ',', '.') }}</span>
                                     @else
                                         <span class="text-muted">MT 0,00</span>
                                     @endif
                                 </td>
                                 <td class="text-end">
-                                    @if($debt->remaining_amount > 0)
+                                    @if ($debt->remaining_amount > 0)
                                         <strong class="text-{{ $debt->is_overdue ? 'danger' : 'warning' }}">
                                             MT {{ number_format($debt->remaining_amount, 2, ',', '.') }}
                                         </strong>
@@ -378,13 +428,14 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($debt->due_date)
+                                    @if ($debt->due_date)
                                         <div class="{{ $debt->is_overdue ? 'text-danger' : '' }}">
                                             {{ $debt->due_date->format('d/m/Y') }}
                                         </div>
-                                        @if($debt->is_overdue)
+                                        @if ($debt->is_overdue)
                                             <small class="text-danger">
-                                                <i class="fas fa-exclamation-triangle me-1"></i> {{ abs($debt->days_overdue) }} dias
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                {{ abs($debt->days_overdue) }} dias
                                             </small>
                                         @endif
                                     @else
@@ -398,20 +449,18 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-outline-info" 
-                                                onclick="viewDebtDetails({{ $debt->id }})" 
-                                                title="Ver Detalhes">
+                                        <button type="button" class="btn btn-outline-info"
+                                            onclick="viewDebtDetails({{ $debt->id }})" title="Ver Detalhes">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-warning" 
-                                                onclick="openEditDebtOffcanvas({{ $debt->id }})" 
-                                                title="Editar Dívida">
+                                        <button type="button" class="btn btn-outline-warning"
+                                            onclick="openEditDebtOffcanvas({{ $debt->id }})" title="Editar Dívida">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        @if($debt->canAddPayment())
-                                            <button type="button" class="btn btn-outline-success" 
-                                                    onclick="openPaymentOffcanvas({{ $debt->id }}, '{{ $debt->customer_name }}', {{ $debt->remaining_amount }})" 
-                                                    title="Registrar Pagamento">
+                                        @if ($debt->canAddPayment())
+                                            <button type="button" class="btn btn-outline-success"
+                                                onclick="openPaymentOffcanvas({{ $debt->id }}, '{{ $debt->customer_name }}', {{ $debt->remaining_amount }})"
+                                                title="Registrar Pagamento">
                                                 <i class="fas fa-money-bill"></i>
                                             </button>
                                         @endif
@@ -444,10 +493,128 @@
 
 @push('scripts')
     <script>
+        let cartItems = [];
+
+        // Função para adicionar item ao carrinho
+        function addItemToCart() {
+            const select = document.getElementById('product-select');
+            const productId = select.value;
+            if (!productId) {
+                showToast('Selecione um produto ou serviço', 'warning');
+                return;
+            }
+
+            const option = select.options[select.selectedIndex];
+            const product = {
+                id: productId,
+                name: option.dataset.name,
+                type: option.dataset.type,
+                unit: option.dataset.unit || 'unid',
+                price: parseFloat(option.dataset.price),
+                stock: parseInt(option.dataset.stock) || 0,
+                quantity: 1
+            };
+
+            // Verificar se já existe no carrinho
+            const existing = cartItems.find(item => item.id === productId);
+            if (existing) {
+                if (product.type === 'product') {
+                    const newTotal = existing.quantity + 1;
+                    if (newTotal > product.stock) {
+                        showToast(`Estoque insuficiente. Máximo: ${product.stock}`, 'error');
+                        return;
+                    }
+                }
+                existing.quantity += 1;
+            } else {
+                if (product.type === 'product' && product.stock < 1) {
+                    showToast(`${product.name} está sem estoque`, 'error');
+                    return;
+                }
+                cartItems.push(product);
+            }
+
+            updateCart();
+            select.value = '';
+        }
+
+        // Função para remover item do carrinho
+        function removeCartItem(index) {
+            cartItems.splice(index, 1);
+            updateCart();
+        }
+
+        // Atualizar o carrinho
+        function updateCart() {
+            const tbody = document.getElementById('cart-items');
+            const totalEl = document.getElementById('cart-total');
+            let total = 0;
+
+            tbody.innerHTML = '';
+            cartItems.forEach((item, index) => {
+                const row = document.createElement('tr');
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+
+                row.innerHTML = `
+            <td>${item.name}</td>
+            <td class="text-center">
+                <div class="d-flex align-items-center justify-content-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="decreaseQuantity(${index})">-</button>
+                    <input type="number" class="form-control form-control-sm text-center mx-1" value="${item.quantity}" min="1" max="${item.type === 'product' ? item.stock : '999'}" style="width: 60px;" onchange="updateQuantity(${index}, this.value)">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="increaseQuantity(${index})">+</button>
+                </div>
+            </td>
+            <td class="text-end">MT ${item.price.toFixed(2).replace('.', ',')}</td>
+            <td class="text-end">MT ${itemTotal.toFixed(2).replace('.', ',')}</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeCartItem(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+                tbody.appendChild(row);
+            });
+
+            totalEl.textContent = `MT ${total.toFixed(2).replace('.', ',')}`;
+            document.getElementById('original-amount').value = total;
+        }
+
+        // Funções para quantidade
+        function increaseQuantity(index) {
+            const item = cartItems[index];
+            if (item.type === 'product' && item.quantity >= item.stock) {
+                showToast(`Estoque máximo atingido: ${item.stock}`, 'warning');
+                return;
+            }
+            item.quantity += 1;
+            updateCart();
+        }
+
+        function decreaseQuantity(index) {
+            if (cartItems[index].quantity > 1) {
+                cartItems[index].quantity -= 1;
+                updateCart();
+            }
+        }
+
+        function updateQuantity(index, value) {
+            const qty = parseInt(value);
+            if (isNaN(qty) || qty < 1) return;
+            const item = cartItems[index];
+            if (item.type === 'product' && qty > item.stock) {
+                showToast(`Estoque insuficiente. Máximo: ${item.stock}`, 'error');
+                item.quantity = item.stock;
+            } else {
+                item.quantity = qty;
+            }
+            updateCart();
+        }
         // Função para visualizar detalhes da dívida
         function viewDebtDetails(debtId) {
             const content = document.getElementById('debt-view-content');
-            content.innerHTML = '<div class="text-center py-5"><div class="loading-spinner"></div><p class="text-muted mt-3">Carregando...</p></div>';
+            content.innerHTML =
+                '<div class="text-center py-5"><div class="loading-spinner"></div><p class="text-muted mt-3">Carregando...</p></div>';
             const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtViewOffcanvas'));
             offcanvas.show();
             fetch(`/debts/${debtId}/details`)
@@ -482,25 +649,41 @@
             document.getElementById('form-method').value = 'PUT';
             document.getElementById('debt-form').action = `/debts/${debtId}`;
             document.getElementById('debt-id').value = debtId;
+
             fetch(`/debts/${debtId}/edit-data`)
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
                         const d = data.data;
-                        document.getElementById('customer-name').value = d.customer_name || '';
+                        document.getElementById('customer-name').value = d.customer_name;
                         document.getElementById('customer-phone').value = d.customer_phone || '';
-                        document.getElementById('customer-document').value = d.customer_document || '';
-                        document.getElementById('original-amount').value = d.original_amount || '';
-                        document.getElementById('debt-date').value = d.debt_date || '';
+                        document.getElementById('debt-date').value = d.debt_date;
                         document.getElementById('due-date').value = d.due_date || '';
-                        document.getElementById('description').value = d.description || '';
+                        document.getElementById('description').value = d.description;
                         document.getElementById('notes').value = d.notes || '';
+                        document.getElementById('original-amount').value = d.original_amount;
+
+                        // Carregar itens no carrinho
+                        cartItems = d.items.map(item => ({
+                            id: item.product_id,
+                            name: item.product_name,
+                            type: item.type,
+                            unit: item.unit,
+                            price: parseFloat(item.price),
+                            stock: item.stock || 0,
+                            quantity: item.quantity
+                        }));
+                        updateCart();
+
+                        const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtFormOffcanvas'));
+                        offcanvas.show();
+                    } else {
+                        showToast('Erro ao carregar dados da dívida', 'error');
                     }
                 })
-                .catch(() => showToast('Erro ao carregar dados', 'error'));
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtFormOffcanvas'));
-            offcanvas.show();
+                .catch(() => showToast('Erro de conexão', 'error'));
         }
+
 
         // Resetar formulário
         function resetDebtForm() {
@@ -542,40 +725,59 @@
         document.getElementById('debt-form').addEventListener('submit', function(e) {
             e.preventDefault();
             if (!validateDebtForm()) return;
-
-            const formData = new FormData(this);
-            const url = this.action;
-            const method = document.getElementById('form-method').value;
-
-            if (method === 'PUT') {
-                formData.append('_method', 'PUT');
+            if (cartItems.length === 0) {
+                showToast('Adicione pelo menos um item ao carrinho', 'warning');
+                return;
             }
 
+            const submitBtn = document.getElementById('save-debt-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+
+            const formData = new FormData();
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+            formData.append('_method', document.getElementById('form-method').value);
+            formData.append('customer_name', document.getElementById('customer-name').value);
+            formData.append('customer_phone', document.getElementById('customer-phone').value);
+            formData.append('debt_date', document.getElementById('debt-date').value);
+            formData.append('due_date', document.getElementById('due-date').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('notes', document.getElementById('notes').value);
+            formData.append('original_amount', document.getElementById('original-amount').value);
+            formData.append('items', JSON.stringify(cartItems));
+
+            const url = this.action;
+
             fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    bootstrap.Offcanvas.getInstance(document.getElementById('debtFormOffcanvas')).hide();
-                    showToast(data.message || 'Salvo com sucesso!', 'success');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    if (data.errors) {
-                        Object.keys(data.errors).forEach(field => {
-                            const selector = `#${field.replace('_', '-')}`;
-                            showFieldError(selector, data.errors[field][0]);
-                        });
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
                     }
-                    showToast(data.message || 'Erro ao salvar.', 'error');
-                }
-            })
-            .catch(() => showToast('Erro de conexão.', 'error'));
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Offcanvas.getInstance(document.getElementById('debtFormOffcanvas')).hide();
+                        showToast(data.message || 'Dívida salva com sucesso!', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        if (data.errors) {
+                            Object.keys(data.errors).forEach(field => {
+                                const selector = `#${field.replace('_', '-')}`;
+                                showFieldError(selector, data.errors[field][0]);
+                            });
+                        }
+                        showToast(data.message || 'Erro ao salvar dívida.', 'error');
+                    }
+                })
+                .catch(() => showToast('Erro de conexão.', 'error'))
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                });
         });
 
         // Função para abrir o offcanvas de pagamento
@@ -634,30 +836,31 @@
             const url = this.action;
 
             fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    bootstrap.Offcanvas.getInstance(document.getElementById('paymentOffcanvas')).hide();
-                    showToast(data.message || 'Pago com sucesso!', 'success');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    if (data.errors) {
-                        Object.keys(data.errors).forEach(field => {
-                            const selector = field === 'payment_method' ? 'select[name="payment_method"]' : `#${field.replace('_', '-')}`;
-                            showFieldError(selector, data.errors[field][0]);
-                        });
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
                     }
-                    showToast(data.message || 'Erro ao pagar.', 'error');
-                }
-            })
-            .catch(() => showToast('Erro de conexão.', 'error'));
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Offcanvas.getInstance(document.getElementById('paymentOffcanvas')).hide();
+                        showToast(data.message || 'Pago com sucesso!', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        if (data.errors) {
+                            Object.keys(data.errors).forEach(field => {
+                                const selector = field === 'payment_method' ?
+                                    'select[name="payment_method"]' : `#${field.replace('_', '-')}`;
+                                showFieldError(selector, data.errors[field][0]);
+                            });
+                        }
+                        showToast(data.message || 'Erro ao pagar.', 'error');
+                    }
+                })
+                .catch(() => showToast('Erro de conexão.', 'error'));
         });
 
         // Funções de utilidade
@@ -687,7 +890,9 @@
                 </div>
             `;
             document.body.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
+            const bsToast = new bootstrap.Toast(toast, {
+                delay: 5000
+            });
             bsToast.show();
             toast.addEventListener('hidden.bs.toast', () => toast.remove());
         }
@@ -700,6 +905,23 @@
                 select.addEventListener('change', () => form.submit());
             });
         });
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type} border-0`;
+            toast.role = 'alert';
+            toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>`;
+            document.body.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast, {
+                delay: 3000
+            });
+            bsToast.show();
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+        }
     </script>
 @endpush
 
@@ -709,27 +931,65 @@
             transition: all 0.3s ease;
             border-left: 4px solid transparent;
         }
-        .stats-card.primary { border-left-color: #1e3a8a; }
-        .stats-card.warning { border-left-color: #ea580c; }
-        .stats-card.danger { border-left-color: #dc2626; }
-        .stats-card.success { border-left-color: #059669; }
+
+        .stats-card.primary {
+            border-left-color: #1e3a8a;
+        }
+
+        .stats-card.warning {
+            border-left-color: #ea580c;
+        }
+
+        .stats-card.danger {
+            border-left-color: #dc2626;
+        }
+
+        .stats-card.success {
+            border-left-color: #059669;
+        }
+
         .stats-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
+
         .fade-in {
             animation: fadeIn 0.6s ease-out;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         .table-hover tbody tr:hover {
             background-color: rgba(13, 110, 253, 0.05);
         }
+
         .loading-spinner {
-            width: 30px; height: 30px; border: 3px solid #f3f4f6; border-top: 3px solid #0d6efd; border-radius: 50%; animation: spin 1s linear infinite;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #0d6efd;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 @endpush

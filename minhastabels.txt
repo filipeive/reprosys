@@ -1,0 +1,179 @@
+localhost:3306/sistema_reprografia/users/		http://localhost/phpmyadmin/index.php?route=/table/sql&db=sistema_reprografia&table=users
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+Your SQL query has been executed successfully.
+
+DESC categories;
+
+
+DESC debt_payments;
+
+
+DESC debts;
+
+
+DESC expenses;
+
+
+DESC expense_categories;
+
+
+DESC order_items;
+
+
+DESC orders;
+
+
+DESC sales;
+
+
+DESC sale_items;
+
+
+DESC stock_movements;
+
+
+DESC users;
+
+
+DESC roles;
+
+
+
+id	bigint unsigned	NO	PRI	NULL	auto_increment	
+name	varchar(100)	NO	UNI	NULL		
+description	text	YES		NULL		
+type	enum('product','service')	NO	MUL	NULL		
+color	varchar(7)	NO		#007bff		
+icon	varchar(100)	NO		fas fa-box		
+status	enum('active','inactive')	NO	MUL	active		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	bigint unsigned	NO	PRI	NULL	auto_increment	
+debt_id	bigint unsigned	NO	MUL	NULL		
+user_id	int	YES	MUL	NULL		
+amount	decimal(10,2)	NO		NULL		
+payment_method	enum('cash','card','transfer','emola','mpesa')	YES		cash		
+payment_date	date	NO		NULL		
+notes	text	YES		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	bigint unsigned	NO	PRI	NULL	auto_increment	
+user_id	int	YES	MUL	NULL		
+sale_id	int	YES	MUL	NULL		
+order_id	bigint unsigned	YES	MUL	NULL		
+customer_name	varchar(100)	NO	MUL	NULL		
+customer_phone	varchar(20)	YES		NULL		
+customer_document	varchar(20)	YES		NULL		
+original_amount	decimal(10,2)	NO		NULL		
+paid_amount	decimal(10,2)	YES		0.00		
+remaining_amount	decimal(10,2)	NO		NULL		
+debt_date	date	NO	MUL	NULL		
+due_date	date	YES		NULL		
+status	enum('active','partial','paid','overdue','cancelled')	YES	MUL	active		
+description	text	YES		NULL		
+notes	text	YES		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	int	NO	PRI	NULL	auto_increment	
+user_id	int	NO	MUL	NULL		
+description	text	NO		NULL		
+amount	decimal(10,2)	NO		NULL		
+expense_date	date	NO		NULL		
+receipt_number	varchar(50)	YES		NULL		
+notes	text	YES		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+expense_category_id	int	YES	MUL	NULL		
+id	int	NO	PRI	NULL	auto_increment	
+name	varchar(100)	NO		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	bigint unsigned	NO	PRI	NULL	auto_increment	
+order_id	bigint unsigned	NO	MUL	NULL		
+product_id	int	YES	MUL	NULL		
+item_name	varchar(150)	NO		NULL		
+description	text	YES		NULL		
+quantity	int	YES		1		
+unit_price	decimal(10,2)	NO		NULL		
+total_price	decimal(10,2)	NO		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	bigint unsigned	NO	PRI	NULL	auto_increment	
+user_id	int	NO	MUL	NULL		
+customer_name	varchar(100)	NO	MUL	NULL		
+customer_phone	varchar(20)	YES		NULL		
+customer_email	varchar(100)	YES		NULL		
+description	text	NO		NULL		
+estimated_amount	decimal(10,2)	YES		0.00		
+advance_payment	decimal(10,2)	YES		0.00		
+delivery_date	datetime	YES	MUL	NULL		
+priority	enum('low','medium','high','urgent')	YES		medium		
+status	enum('pending','in_progress','completed','delivered','cancelled')	YES	MUL	pending		
+payment_status	enum('pending','partial','paid')	YES		pending		
+notes	text	YES		NULL		
+internal_notes	text	YES		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	int	NO	PRI	NULL	auto_increment	
+user_id	int	NO	MUL	NULL		
+customer_name	varchar(100)	YES		NULL		
+customer_phone	varchar(20)	YES		NULL		
+total_amount	decimal(10,2)	NO		NULL		
+payment_method	enum('cash','card','transfer','credit')	YES		cash		
+notes	text	YES		NULL		
+sale_date	date	NO		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+id	int	NO	PRI	NULL	auto_increment	
+sale_id	int	NO	MUL	NULL		
+product_id	int	NO	MUL	NULL		
+quantity	int	NO		NULL		
+unit_price	decimal(10,2)	NO		NULL		
+total_price	decimal(10,2)	NO		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	int	NO	PRI	NULL	auto_increment	
+product_id	int	NO	MUL	NULL		
+user_id	int	NO	MUL	NULL		
+movement_type	enum('in','out','adjustment')	NO		NULL		
+quantity	int	NO		NULL		
+reason	varchar(200)	YES		NULL		
+reference_id	int	YES		NULL		
+movement_date	date	NO		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	int	NO	PRI	NULL	auto_increment	
+name	varchar(100)	NO		NULL		
+email	varchar(100)	NO	UNI	NULL		
+password	varchar(255)	NO		NULL		
+remember_token	varchar(100)	YES		NULL		
+role_id	int	YES	MUL	NULL		
+is_active	tinyint(1)	YES		1		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	
+id	int	NO	PRI	NULL	auto_increment	
+name	varchar(50)	NO	UNI	NULL		
+description	varchar(255)	YES		NULL		
+created_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED	
+updated_at	timestamp	YES		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	

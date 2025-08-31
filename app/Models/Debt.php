@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+
 class Debt extends Model
 {
     protected $fillable = [
@@ -179,5 +180,23 @@ class Debt extends Model
             $this->status = 'overdue';
             $this->save();
         }
+    }
+    public function items(): HasMany
+    {
+        return $this->hasMany(DebtItem::class);
+    }
+
+    // Método para recalcular total baseado nos itens
+    public function recalculateTotal(): void
+    {
+        $total = $this->items->sum('total_price');
+        $this->original_amount = $total;
+        
+        // Recalcular remaining_amount mantendo a proporção dos pagamentos
+        $paidAmount = $this->payments->sum('amount');
+        $this->remaining_amount = max(0, $total - $paidAmount);
+        
+        $this->save();
+        $this->updatePaymentStatus();
     }
 }
