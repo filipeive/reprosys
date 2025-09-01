@@ -93,6 +93,17 @@ class UserController extends Controller
         return view('users.show', compact('user'));
     }
 
+    public function showDetails(User $user)
+    {
+        $html = view('users.partials.details', compact('user'))->render();
+        return response()->json(['success' => true, 'html' => $html]);
+    }
+
+    public function editData(User $user)
+    {
+        return response()->json(['success' => true, 'data' => $user]);
+    }
+
     public function destroy(User $user)
     {
         $user->delete();
