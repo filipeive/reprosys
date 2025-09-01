@@ -551,22 +551,29 @@ class DebtController extends Controller
     /**
      * Relatório de devedores
      */
+    /**
+ * Relatório de devedores (apenas dívidas ativas ou vencidas)
+ */
     public function debtorsReport(Request $request)
     {
         $query = Debt::with(['payments'])
-            ->where('status', '!=', 'paid')
+            ->whereNotIn('status', ['paid', 'cancelled']) // ✅ Corrigido: exclui paid e cancelled
             ->selectRaw('customer_name, customer_phone, SUM(remaining_amount) as total_debt, COUNT(*) as debt_count, MIN(debt_date) as oldest_debt')
             ->groupBy('customer_name', 'customer_phone');
 
         if ($request->filled('customer')) {
             $query->where('customer_name', 'like', '%' . $request->customer . '%');
         }
-
+        $query->addSelect(DB::raw("
+            CASE 
+                WHEN MAX(due_date) < CURDATE() THEN 'Vencida'
+                ELSE 'Ativa'
+            END as status_group
+        "));
         $debtors = $query->orderByDesc('total_debt')->paginate(20);
 
         return view('debts.debtors-report', compact('debtors'));
     }
-
     /**
      * Atualizar status de dívidas vencidas
      */

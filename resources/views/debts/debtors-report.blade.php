@@ -16,7 +16,7 @@
                 <i class="fas fa-chart-bar me-2"></i>
                 Relatório de Devedores
             </h2>
-            <p class="text-muted mb-0">Clientes com dívidas em aberto</p>
+            <p class="text-muted mb-0">Clientes com dívidas em aberto (ativas ou vencidas)</p>
         </div>
         <a href="{{ route('debts.index') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i> Voltar
@@ -36,7 +36,8 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Cliente</label>
-                        <input type="text" class="form-control" name="customer" value="{{ request('customer') }}" placeholder="Nome do cliente...">
+                        <input type="text" class="form-control" name="customer" value="{{ request('customer') }}"
+                            placeholder="Nome do cliente...">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
@@ -57,8 +58,10 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Total em Aberto</h6>
-                            <h3 class="mb-0 text-danger fw-bold">MT {{ number_format($debtors->sum('total_debt'), 2, ',', '.') }}</h3>
-                            <small class="text-muted">de todas as dívidas</small>
+                            <h3 class="mb-0 text-danger fw-bold">
+                                MT {{ number_format($debtors->sum('total_debt'), 2, ',', '.') }}
+                            </h3>
+                            <small class="text-muted">apenas dívidas ativas/vencidas</small>
                         </div>
                         <div class="text-danger">
                             <i class="fas fa-exclamation-circle fa-2x"></i>
@@ -74,7 +77,7 @@
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Total de Devedores</h6>
                             <h3 class="mb-0 text-warning fw-bold">{{ $debtors->count() }}</h3>
-                            <small class="text-muted">clientes em débito</small>
+                            <small class="text-muted">com dívidas em aberto</small>
                         </div>
                         <div class="text-warning">
                             <i class="fas fa-users fa-2x"></i>
@@ -90,9 +93,10 @@
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Média por Cliente</h6>
                             <h3 class="mb-0 text-primary fw-bold">
-                                MT {{ $debtors->count() > 0 ? number_format($debtors->sum('total_debt') / $debtors->count(), 2, ',', '.') : '0,00' }}
+                                MT
+                                {{ $debtors->count() > 0 ? number_format($debtors->sum('total_debt') / $debtors->count(), 2, ',', '.') : '0,00' }}
                             </h3>
-                            <small class="text-muted">valor médio</small>
+                            <small class="text-muted">valor médio por devedor</small>
                         </div>
                         <div class="text-primary">
                             <i class="fas fa-chart-line fa-2x"></i>
@@ -139,6 +143,7 @@
                             <th class="text-end">Total em Dívida</th>
                             <th class="text-center">Qtd Dívidas</th>
                             <th>Primeira Dívida</th>
+                            <th class="text-center">Status</th>
                             <th class="text-center">Ações</th>
                         </tr>
                     </thead>
@@ -154,16 +159,29 @@
                                     <span class="badge bg-warning">{{ $debtor->debt_count }}</span>
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($debtor->oldest_debt)->format('d/m/Y') }}</td>
+                                {{-- <td class="text-center">
+                                    @php
+                                        $status = $debtor->total_debt > 0 ? 'Em Aberto' : 'Sem débito';
+                                        $badge = $debtor->total_debt > 0 ? 'bg-warning' : 'bg-secondary';
+                                    @endphp
+                                    <span class="badge {{ $badge }}">{{ $status }}</span>
+                                </td> --}}
                                 <td class="text-center">
-                                    <a href="{{ route('debts.index', ['customer' => $debtor->customer_name]) }}" 
-                                       class="btn btn-outline-info btn-sm" title="Ver Dívidas">
+                                    <span
+                                        class="badge {{ $debtor->status_group === 'Vencida' ? 'bg-danger' : 'bg-warning' }}">
+                                        {{ $debtor->status_group }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ route('debts.index', ['customer' => $debtor->customer_name]) }}"
+                                        class="btn btn-outline-info btn-sm" title="Ver Dívidas">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-users fa-2x mb-3 opacity-50"></i>
                                     <p>Nenhum devedor encontrado.</p>
                                 </td>

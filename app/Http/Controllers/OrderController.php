@@ -10,6 +10,7 @@ use App\Models\Debt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class OrderController extends Controller
 {
@@ -40,7 +41,7 @@ class OrderController extends Controller
 
         $orders = $query->paginate(15);
 
-        // Estatísticas rápidas
+        // Estatísticas
         $stats = [
             'pending' => Order::where('status', 'pending')->count(),
             'in_progress' => Order::where('status', 'in_progress')->count(),
@@ -50,7 +51,9 @@ class OrderController extends Controller
                             ->count()
         ];
 
-        return view('orders.index', compact('orders', 'stats'));
+        $products = Product::where('is_active', true)->get();
+
+        return view('orders.index', compact('orders', 'stats', 'products'));
     }
 
     public function create()
@@ -58,6 +61,7 @@ class OrderController extends Controller
         $products = Product::where('is_active', true)->get();
         $categories = Category::where('status', 'active')->get();
         
+        // Não passar $order para evitar erro de rota
         return view('orders.create', compact('products', 'categories'));
     }
 
@@ -254,6 +258,36 @@ class OrderController extends Controller
         }
     }
 
+    public function showDetails(Order $order)
+    {
+        $order->load(['user', 'items.product.category', 'debt']);
+
+        $html = view('orders.partials.details', compact('order'))->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html
+        ]);
+    }
+
+    public function editData(Order $order)
+    {
+        $order->load('items');
+        
+        // Transformar os itens em formato esperado pelo frontend
+        $orderData = $order->toArray();
+        $orderData['items'] = $order->items->map(function($item) {
+            return [
+                'id' => $item->product_id,
+                'name' => $item->item_name,
+                'price' => $item->unit_price,
+                'quantity' => $item->quantity
+            ];
+        });
+
+        return response()->json(['success' => true, 'data' => $orderData]);
+    }
+
     public function destroy(Order $order)
     {
         try {
@@ -347,6 +381,69 @@ class OrderController extends Controller
         $order->load('items');
         
         return view('orders.create', compact('order', 'products', 'categories'));
+    }
+
+    // Relatório de pedidos com filtros avançados
+    public function report(Request $request)
+    {
+        $query = Order::with(['user', 'items']);
+
+        // Filtros
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('customer')) {
+            $query->where('customer_name', 'like', '%' . $request->customer . '%');
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Ordenação
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortOrder = $request->get('sort_order', 'desc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        $orders = $query->get();
+
+        // Estatísticas do relatório
+        $reportStats = [
+            'total_orders' => $orders->count(),
+            'total_amount' => $orders->sum('estimated_amount'),
+            'total_advance' => $orders->sum('advance_payment'),
+            'total_pending' => $orders->sum(function($order) {
+                return $order->estimated_amount - $order->advance_payment;
+            }),
+            'by_status' => [
+                'pending' => $orders->where('status', 'pending')->count(),
+                'in_progress' => $orders->where('status', 'in_progress')->count(),
+                'completed' => $orders->where('status', 'completed')->count(),
+                'delivered' => $orders->where('status', 'delivered')->count(),
+                'cancelled' => $orders->where('status', 'cancelled')->count(),
+            ],
+            'by_priority' => [
+                'low' => $orders->where('priority', 'low')->count(),
+                'medium' => $orders->where('priority', 'medium')->count(),
+                'high' => $orders->where('priority', 'high')->count(),
+                'urgent' => $orders->where('priority', 'urgent')->count(),
+            ],
+            'overdue_count' => $orders->filter(function($order) {
+                return $order->delivery_date && $order->delivery_date < now() && 
+                       in_array($order->status, ['pending', 'in_progress']);
+            })->count()
+        ];
+
+        return view('orders.report', compact('orders', 'reportStats'));
     }
 
     // API para busca de produtos

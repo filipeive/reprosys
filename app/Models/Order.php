@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class Order extends Model
 {
+    // Campos que podem ser preenchidos em massa
     protected $fillable = [
         'user_id',
         'customer_name',
-        'customer_phone',
+        'customer_phone', 
         'customer_email',
         'description',
         'estimated_amount',
@@ -25,13 +27,18 @@ class Order extends Model
         'internal_notes'
     ];
 
+    // Casts de atributos
     protected $casts = [
         'delivery_date' => 'datetime',
         'estimated_amount' => 'decimal:2',
-        'advance_payment' => 'decimal:2'
+        'advance_payment' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
-    // Relacionamentos
+    /* ============================
+     * RELACIONAMENTOS
+     * ============================ */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -44,10 +51,173 @@ class Order extends Model
 
     public function debt(): HasOne
     {
-        return $this->hasOne(Debt::class);
+        return $this->hasOne(Debt::class, 'order_id');
     }
 
-    // Scopes
+    /* ============================
+     * ACCESSORS
+     * ============================ */
+    public function getRemainingAmountAttribute()
+    {
+        return $this->estimated_amount - $this->advance_payment;
+    }
+
+    public function getAdvancePercentageAttribute()
+    {
+        if ($this->estimated_amount <= 0) return 0;
+        return ($this->advance_payment / $this->estimated_amount) * 100;
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        $badges = [
+            'pending'     => 'bg-warning text-dark',
+            'in_progress' => 'bg-info text-white',
+            'completed'   => 'bg-success text-white',
+            'delivered'   => 'bg-primary text-white',
+            'cancelled'   => 'bg-danger text-white'
+        ];
+        
+        return $badges[$this->status] ?? 'bg-secondary text-white';
+    }
+
+    public function getStatusTextAttribute()
+    {
+        $texts = [
+            'pending'     => 'Pendente',
+            'in_progress' => 'Em Andamento',
+            'completed'   => 'Concluído',
+            'delivered'   => 'Entregue',
+            'cancelled'   => 'Cancelado'
+        ];
+        
+        return $texts[$this->status] ?? 'Desconhecido';
+    }
+
+    public function getPriorityBadgeAttribute()
+    {
+        $badges = [
+            'low'    => 'bg-secondary text-white',
+            'medium' => 'bg-primary text-white',
+            'high'   => 'bg-warning text-dark',
+            'urgent' => 'bg-danger text-white'
+        ];
+        
+        return $badges[$this->priority] ?? 'bg-secondary text-white';
+    }
+
+    public function getPriorityTextAttribute()
+    {
+        $texts = [
+            'low'    => 'Baixa',
+            'medium' => 'Média',
+            'high'   => 'Alta',
+            'urgent' => 'Urgente'
+        ];
+        
+        return $texts[$this->priority] ?? 'Não definida';
+    }
+
+    /* ============================
+     * MÉTODOS DE VERIFICAÇÃO
+     * ============================ */
+    public function isOverdue(): bool
+    {
+        return $this->delivery_date && 
+               $this->delivery_date < now() && 
+               in_array($this->status, ['pending', 'in_progress']);
+    }
+
+    public function canBeCompleted(): bool
+    {
+        return in_array($this->status, ['pending', 'in_progress']);
+    }
+
+    public function canBeDelivered(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return !in_array($this->status, ['completed', 'delivered', 'cancelled']);
+    }
+
+    public function canBeConvertedToSale(): bool
+    {
+        return in_array($this->status, ['completed', 'delivered']);
+    }
+
+    /* ============================
+     * MÉTODOS DE NEGÓCIO
+     * ============================ */
+    public function convertToSale()
+    {
+        if (!$this->canBeConvertedToSale()) {
+            throw new \Exception('Pedido não pode ser convertido em venda neste status.');
+        }
+
+        return DB::transaction(function () {
+            // Criar venda baseada no pedido
+            $sale = Sale::create([
+                'user_id'        => $this->user_id,
+                'customer_name'  => $this->customer_name,
+                'customer_phone' => $this->customer_phone,
+                'customer_email' => $this->customer_email,
+                'total_amount'   => $this->estimated_amount,
+                'payment_method' => 'mixed',
+                'payment_status' => $this->advance_payment >= $this->estimated_amount ? 'paid' : 'partial',
+                'notes'          => "Convertido do pedido #{$this->id}",
+                'sale_date'      => now(),
+                'order_id'       => $this->id
+            ]);
+
+            // Criar itens da venda
+            foreach ($this->items as $orderItem) {
+                SaleItem::create([
+                    'sale_id'     => $sale->id,
+                    'product_id'  => $orderItem->product_id,
+                    'item_name'   => $orderItem->item_name,
+                    'quantity'    => $orderItem->quantity,
+                    'unit_price'  => $orderItem->unit_price,
+                    'total_price' => $orderItem->total_price
+                ]);
+
+                // Atualizar estoque
+                if ($orderItem->product) {
+                    $orderItem->product->decrement('stock_quantity', $orderItem->quantity);
+                }
+            }
+
+            // Marcar como entregue
+            if ($this->status !== 'delivered') {
+                $this->update(['status' => 'delivered']);
+            }
+
+            return $sale;
+        });
+    }
+
+    public function duplicate()
+    {
+        $newOrder = $this->replicate();
+        $newOrder->status = 'pending';
+        $newOrder->created_at = now();
+        $newOrder->updated_at = now();
+        $newOrder->save();
+
+        foreach ($this->items as $item) {
+            $newItem = $item->replicate();
+            $newItem->order_id = $newOrder->id;
+            $newItem->save();
+        }
+
+        return $newOrder;
+    }
+
+    /* ============================
+     * SCOPES
+     * ============================ */
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
@@ -66,114 +236,28 @@ class Order extends Model
     public function scopeOverdue($query)
     {
         return $query->where('delivery_date', '<', now())
-                    ->whereNotIn('status', ['delivered', 'cancelled']);
+                     ->whereIn('status', ['pending', 'in_progress']);
     }
 
-    // Accessors
-    public function getRemainingAmountAttribute()
+    public function scopeByStatus($query, $status)
     {
-        return $this->estimated_amount - $this->advance_payment;
+        return $query->where('status', $status);
     }
 
-    public function getStatusBadgeAttribute()
+    public function scopeByPriority($query, $priority)
     {
-        $badges = [
-            'pending' => 'bg-warning text-dark',
-            'in_progress' => 'bg-primary',
-            'completed' => 'bg-success',
-            'delivered' => 'bg-info',
-            'cancelled' => 'bg-danger'
-        ];
-
-        return $badges[$this->status] ?? 'bg-secondary';
+        return $query->where('priority', $priority);
     }
 
-    public function getStatusTextAttribute()
+    public function scopeByCustomer($query, $customerName)
     {
-        $texts = [
-            'pending' => 'Pendente',
-            'in_progress' => 'Em Andamento',
-            'completed' => 'Concluído',
-            'delivered' => 'Entregue',
-            'cancelled' => 'Cancelado'
-        ];
-
-        return $texts[$this->status] ?? 'Status Desconhecido';
+        return $query->where('customer_name', 'like', "%{$customerName}%");
     }
 
-    public function getPriorityBadgeAttribute()
+    public function scopeInDateRange($query, $from, $to)
     {
-        $badges = [
-            'low' => 'bg-secondary',
-            'medium' => 'bg-info',
-            'high' => 'bg-warning text-dark',
-            'urgent' => 'bg-danger'
-        ];
-
-        return $badges[$this->priority] ?? 'bg-secondary';
-    }
-
-    public function getPriorityTextAttribute()
-    {
-        $texts = [
-            'low' => 'Baixa',
-            'medium' => 'Média',
-            'high' => 'Alta',
-            'urgent' => 'Urgente'
-        ];
-
-        return $texts[$this->priority] ?? 'Média';
-    }
-
-    // Métodos de negócio
-    public function canBeCompleted(): bool
-    {
-        return in_array($this->status, ['pending', 'in_progress']);
-    }
-
-    public function canBeDelivered(): bool
-    {
-        return $this->status === 'completed';
-    }
-
-    public function canBeCancelled(): bool
-    {
-        return !in_array($this->status, ['delivered', 'cancelled']);
-    }
-
-    public function isOverdue(): bool
-    {
-        return $this->delivery_date && 
-               $this->delivery_date < now() && 
-               !in_array($this->status, ['delivered', 'cancelled']);
-    }
-
-    // Método para converter pedido em venda
-    public function convertToSale(): Sale
-    {
-        $sale = Sale::create([
-            'user_id' => $this->user_id,
-            'customer_name' => $this->customer_name,
-            'customer_phone' => $this->customer_phone,
-            'total_amount' => $this->estimated_amount,
-            'payment_method' => 'cash', // padrão
-            'notes' => "Convertido do pedido #{$this->id} - {$this->description}",
-            'sale_date' => now()->toDateString()
-        ]);
-
-        // Criar itens da venda baseado nos itens do pedido
-        foreach ($this->items as $orderItem) {
-            $sale->items()->create([
-                'product_id' => $orderItem->product_id,
-                'quantity' => $orderItem->quantity,
-                'unit_price' => $orderItem->unit_price,
-                'total_price' => $orderItem->total_price
-            ]);
-        }
-
-        // Atualizar status do pedido
-        $this->update(['status' => 'delivered']);
-
-        return $sale;
+        if ($from) $query->whereDate('created_at', '>=', $from);
+        if ($to) $query->whereDate('created_at', '<=', $to);
+        return $query;
     }
 }

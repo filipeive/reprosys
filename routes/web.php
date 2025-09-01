@@ -66,24 +66,31 @@ Route::middleware(['auth'])->group(function () {
         Route::get('api/products', [ProductController::class, 'getProducts'])->name('getProducts');
     });
     
-    // ===== PEDIDOS =====
+        // ===== PEDIDOS =====
     Route::prefix('orders')->name('orders.')->group(function () {
+        // Rotas principais
         Route::get('/', [OrderController::class, 'index'])->name('index');
         Route::get('/create', [OrderController::class, 'create'])->name('create');
         Route::post('/', [OrderController::class, 'store'])->name('store');
+        Route::get('/reports/orders', [OrderController::class, 'report'])->name('report');
+                
+        // API endpoints - devem vir antes das rotas com parâmetros
+        Route::get('/api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
+        
+        // Rotas com parâmetros específicos
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
         Route::put('/{order}', [OrderController::class, 'update'])->name('update');
         Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
         
-        // Ações específicas
+        // Ações específicas do pedido
         Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status');
         Route::post('/{order}/convert-to-sale', [OrderController::class, 'convertToSale'])->name('convert-to-sale');
         Route::get('/{order}/duplicate', [OrderController::class, 'duplicate'])->name('duplicate');
-        
-        // API para busca de produtos
-        Route::get('api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
+        Route::get('/{order}/details', [OrderController::class, 'showDetails'])->name('details');
+        Route::get('/{order}/edit-data', [OrderController::class, 'editData'])->name('edit-data');
     });
+        
     
     // ===== VENDAS =====
     Route::prefix('sales')->name('sales.')->group(function () {
