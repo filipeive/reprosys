@@ -110,7 +110,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
     });
     
-   // ===== ROTAS DE DÍVIDAS =====
+   // ===== ROTAS DE DÍVIDAS ===== (remover duplicação da linha 77)
         Route::prefix('debts')->name('debts.')->group(function () {
         Route::get('/', [DebtController::class, 'index'])->name('index');
         Route::get('/create', [DebtController::class, 'create'])->name('create');
@@ -118,6 +118,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{debt}', [DebtController::class, 'show'])->name('show');
         Route::get('/{debt}/edit', [DebtController::class, 'edit'])->name('edit');
         Route::put('/{debt}', [DebtController::class, 'update'])->name('update');
+        // cancelar dívida com metodo patch
         Route::delete('/{debt}', [DebtController::class, 'destroy'])->name('destroy');
         
         // Pagamentos
@@ -134,10 +135,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
     });
 
-// ===== API ROUTES PARA PRODUTOS =====
-Route::prefix('api')->name('api.')->group(function () {
-    Route::get('/products/available', [DebtController::class, 'getAvailableProducts'])->name('products.available');
-    Route::get('/debts/search-customers', [DebtController::class, 'searchCustomers'])->name('debts.search-customers');
+        // ===== API ROUTES PARA PRODUTOS =====
+        Route::prefix('api')->name('api.')->group(function () {
+        Route::get('/products/available', [DebtController::class, 'getAvailableProducts'])->name('products.available');
+        Route::get('/debts/search-customers', [DebtController::class, 'searchCustomers'])->name('debts.search-customers');
 });
     
     // ===== DESPESAS =====

@@ -8,7 +8,7 @@
 @endsection
 
 @section('content')
-    <!-- Offcanvas para Criar Dívida com Itens -->
+    <!-- Offcanvas para Criar/Editar Dívida -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="debtFormOffcanvas" style="width: 800px;">
         <div class="offcanvas-header bg-primary text-white">
             <h5 class="offcanvas-title">
@@ -28,7 +28,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Nome *</label>
+                                <label class="form-label fw-semibold">Nome do Cliente *</label>
                                 <input type="text" class="form-control" name="customer_name" id="customer-name" required>
                                 <div class="invalid-feedback"></div>
                             </div>
@@ -41,65 +41,71 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
+                                <label class="form-label fw-semibold">Documento</label>
+                                <input type="text" class="form-control" name="customer_document" id="customer-document">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
                                 <label class="form-label fw-semibold">Data da Dívida *</label>
                                 <input type="date" class="form-control" name="debt_date" id="debt-date" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Vencimento</label>
+                                <label class="form-label fw-semibold">Data de Vencimento</label>
                                 <input type="date" class="form-control" name="due_date" id="due-date">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Seleção de Itens -->
+                <!-- Seleção de Produtos -->
                 <div class="p-4 border-bottom">
-                    <h6 class="mb-3"><i class="fas fa-shopping-cart me-2"></i> Itens da Dívida</h6>
+                    <h6 class="mb-3"><i class="fas fa-shopping-cart me-2"></i> Produtos da Dívida</h6>
                     <div class="row g-3 mb-3">
                         <div class="col-md-8">
                             <select class="form-select" id="product-select">
                                 <option value="">Selecione um produto ou serviço...</option>
                                 @foreach ($products as $product)
                                     <option value="{{ $product->id }}" data-name="{{ $product->name }}"
-                                        data-type="{{ $product->type }}" data-unit="{{ $product->unit }}"
+                                        data-type="{{ $product->type }}" data-unit="{{ $product->unit ?? 'unid' }}"
                                         data-price="{{ $product->selling_price }}"
-                                        data-stock="{{ $product->stock_quantity }}">
+                                        data-stock="{{ $product->stock_quantity ?? 0 }}">
                                         {{ $product->name }} - MT {{ number_format($product->selling_price, 2, ',', '.') }}
-                                        @if ($product->type === 'product')
-                                            (Estoque: {{ $product->stock_quantity }} {{ $product->unit }})
+                                        @if ($product->type === 'product' && $product->stock_quantity)
+                                            (Estoque: {{ $product->stock_quantity }} {{ $product->unit ?? 'unid' }})
                                         @endif
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <button type="button" class="btn btn-primary w-100" onclick="addItemToCart()">
+                            <button type="button" class="btn btn-primary w-100" onclick="addProductToCart()">
                                 <i class="fas fa-plus me-2"></i>Adicionar
                             </button>
                         </div>
                     </div>
 
-                    <!-- Carrinho -->
+                    <!-- Carrinho de Produtos -->
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0" id="cart-table">
+                        <table class="table table-sm mb-0" id="products-cart-table">
                             <thead class="table-light">
                                 <tr>
                                     <th>Produto/Serviço</th>
                                     <th class="text-center">Qtd</th>
-                                    <th class="text-end">Preço</th>
+                                    <th class="text-end">Preço Unit.</th>
                                     <th class="text-end">Total</th>
                                     <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="cart-items">
-                                <!-- Itens serão adicionados aqui -->
+                            <tbody id="products-cart-items">
+                                <!-- Produtos serão adicionados aqui via JS -->
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colspan="3" class="text-end fw-bold">Total:</td>
-                                    <td class="text-end fw-bold" id="cart-total">MT 0,00</td>
+                                    <td colspan="3" class="text-end fw-bold">Total Geral:</td>
+                                    <td class="text-end fw-bold" id="products-cart-total">MT 0,00</td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -112,18 +118,32 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label fw-semibold">Descrição *</label>
-                                <textarea class="form-control" name="description" id="description" rows="2" required></textarea>
+                                <label class="form-label fw-semibold">Descrição da Dívida *</label>
+                                <textarea class="form-control" name="description" id="description" rows="3" required></textarea>
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Observações</label>
-                                <textarea class="form-control" name="notes" id="notes" rows="2"></textarea>
+                                <textarea class="form-control" name="notes" id="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Pagamento Inicial (Opcional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">MT</span>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                        name="initial_payment" id="initial-payment">
+                                </div>
+                                <small class="text-muted">Deixe em branco se não houver pagamento inicial</small>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Campo hidden para os produtos (JSON) -->
+                    <input type="hidden" name="products" id="products-json">
                 </div>
             </form>
         </div>
@@ -243,7 +263,7 @@
 
     <!-- Cards de Estatísticas -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card warning h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -260,7 +280,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card primary h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -276,7 +296,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card danger h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -293,7 +313,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card success h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -327,11 +347,11 @@
                         <select class="form-select" name="status">
                             <option value="">Todos</option>
                             <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Ativa</option>
-                            <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Parcial
-                            </option>
                             <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Vencida
                             </option>
                             <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>Paga</option>
+                            <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Cancelada
+                            </option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -391,7 +411,8 @@
                     </thead>
                     <tbody>
                         @forelse($debts as $debt)
-                            <tr class="{{ $debt->is_overdue ? 'table-warning' : '' }}">
+                            <tr
+                                class="{{ $debt->status === 'overdue' || ($debt->status === 'active' && $debt->due_date && $debt->due_date->isPast()) ? 'table-warning' : '' }}">
                                 <td><strong class="text-primary">#{{ $debt->id }}</strong></td>
                                 <td>
                                     <div class="fw-semibold">{{ $debt->customer_name }}</div>
@@ -411,16 +432,26 @@
                                     <strong>MT {{ number_format($debt->original_amount, 2, ',', '.') }}</strong>
                                 </td>
                                 <td class="text-end">
-                                    @if ($debt->paid_amount > 0)
+                                    @php
+                                        $paidAmount = $debt->original_amount - $debt->remaining_amount;
+                                    @endphp
+                                    @if ($paidAmount > 0)
                                         <span class="text-success fw-bold">MT
-                                            {{ number_format($debt->paid_amount, 2, ',', '.') }}</span>
+                                            {{ number_format($paidAmount, 2, ',', '.') }}</span>
                                     @else
                                         <span class="text-muted">MT 0,00</span>
                                     @endif
                                 </td>
                                 <td class="text-end">
                                     @if ($debt->remaining_amount > 0)
-                                        <strong class="text-{{ $debt->is_overdue ? 'danger' : 'warning' }}">
+                                        @php
+                                            $isOverdue =
+                                                $debt->status === 'overdue' ||
+                                                ($debt->status === 'active' &&
+                                                    $debt->due_date &&
+                                                    $debt->due_date->isPast());
+                                        @endphp
+                                        <strong class="text-{{ $isOverdue ? 'danger' : 'warning' }}">
                                             MT {{ number_format($debt->remaining_amount, 2, ',', '.') }}
                                         </strong>
                                     @else
@@ -429,13 +460,19 @@
                                 </td>
                                 <td>
                                     @if ($debt->due_date)
-                                        <div class="{{ $debt->is_overdue ? 'text-danger' : '' }}">
+                                        @php
+                                            $isOverdue =
+                                                $debt->status === 'overdue' ||
+                                                ($debt->status === 'active' && $debt->due_date->isPast());
+                                            $daysOverdue = $isOverdue ? $debt->due_date->diffInDays(now()) : 0;
+                                        @endphp
+                                        <div class="{{ $isOverdue ? 'text-danger' : '' }}">
                                             {{ $debt->due_date->format('d/m/Y') }}
                                         </div>
-                                        @if ($debt->is_overdue)
+                                        @if ($isOverdue)
                                             <small class="text-danger">
                                                 <i class="fas fa-exclamation-triangle me-1"></i>
-                                                {{ abs($debt->days_overdue) }} dias
+                                                {{ $daysOverdue }} dias
                                             </small>
                                         @endif
                                     @else
@@ -443,9 +480,23 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge {{ $debt->status_badge }}">
-                                        {{ $debt->status_text }}
-                                    </span>
+                                    @php
+                                        $statusBadge = match ($debt->status) {
+                                            'active' => 'bg-warning',
+                                            'paid' => 'bg-success',
+                                            'cancelled' => 'bg-secondary',
+                                            'overdue' => 'bg-danger',
+                                            default => 'bg-secondary',
+                                        };
+                                        $statusText = match ($debt->status) {
+                                            'active' => 'Ativa',
+                                            'paid' => 'Paga',
+                                            'cancelled' => 'Cancelada',
+                                            'overdue' => 'Vencida',
+                                            default => ucfirst($debt->status),
+                                        };
+                                    @endphp
+                                    <span class="badge {{ $statusBadge }}">{{ $statusText }}</span>
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
@@ -453,15 +504,28 @@
                                             onclick="viewDebtDetails({{ $debt->id }})" title="Ver Detalhes">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-warning"
-                                            onclick="openEditDebtOffcanvas({{ $debt->id }})" title="Editar Dívida">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        @if ($debt->canAddPayment())
+                                        @if ($debt->status !== 'paid' && $debt->status !== 'cancelled')
+                                            <button type="button" class="btn btn-outline-warning"
+                                                onclick="openEditDebtOffcanvas({{ $debt->id }})"
+                                                title="Editar Dívida">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        @endif
+                                        @if ($debt->status === 'active' && $debt->remaining_amount > 0)
                                             <button type="button" class="btn btn-outline-success"
                                                 onclick="openPaymentOffcanvas({{ $debt->id }}, '{{ $debt->customer_name }}', {{ $debt->remaining_amount }})"
                                                 title="Registrar Pagamento">
                                                 <i class="fas fa-money-bill"></i>
+                                            </button>
+                                        @endif
+                                        <a href="{{ route('debts.show', $debt) }}" class="btn btn-outline-primary btn-sm"
+                                            title="Ver Página Completa">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                        @if ($debt->status === 'active')
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                onclick="cancelDebt({{ $debt->id }})" title="Cancelar Dívida">
+                                                <i class="fas fa-ban"></i>
                                             </button>
                                         @endif
                                     </div>
@@ -493,12 +557,13 @@
 
 @push('scripts')
     <script>
-        let cartItems = [];
+        let productsCart = [];
 
-        // Função para adicionar item ao carrinho
-        function addItemToCart() {
+        // Função para adicionar produto ao carrinho
+        function addProductToCart() {
             const select = document.getElementById('product-select');
             const productId = select.value;
+
             if (!productId) {
                 showToast('Selecione um produto ou serviço', 'warning');
                 return;
@@ -506,17 +571,17 @@
 
             const option = select.options[select.selectedIndex];
             const product = {
-                id: productId,
+                product_id: parseInt(productId),
                 name: option.dataset.name,
                 type: option.dataset.type,
                 unit: option.dataset.unit || 'unid',
-                price: parseFloat(option.dataset.price),
+                unit_price: parseFloat(option.dataset.price),
                 stock: parseInt(option.dataset.stock) || 0,
                 quantity: 1
             };
 
             // Verificar se já existe no carrinho
-            const existing = cartItems.find(item => item.id === productId);
+            const existing = productsCart.find(item => item.product_id === product.product_id);
             if (existing) {
                 if (product.type === 'product') {
                     const newTotal = existing.quantity + 1;
@@ -531,113 +596,126 @@
                     showToast(`${product.name} está sem estoque`, 'error');
                     return;
                 }
-                cartItems.push(product);
+                productsCart.push(product);
             }
 
-            updateCart();
+            updateProductsCart();
             select.value = '';
         }
 
-        // Função para remover item do carrinho
-        function removeCartItem(index) {
-            cartItems.splice(index, 1);
-            updateCart();
+        // Função para remover produto do carrinho
+        function removeCartProduct(index) {
+            productsCart.splice(index, 1);
+            updateProductsCart();
         }
 
-        // Atualizar o carrinho
-        function updateCart() {
-            const tbody = document.getElementById('cart-items');
-            const totalEl = document.getElementById('cart-total');
+        // Atualizar carrinho de produtos
+        function updateProductsCart() {
+            const tbody = document.getElementById('products-cart-items');
+            const totalEl = document.getElementById('products-cart-total');
             let total = 0;
 
             tbody.innerHTML = '';
-            cartItems.forEach((item, index) => {
+            productsCart.forEach((item, index) => {
                 const row = document.createElement('tr');
-                const itemTotal = item.price * item.quantity;
+                const itemTotal = item.unit_price * item.quantity;
                 total += itemTotal;
 
                 row.innerHTML = `
-            <td>${item.name}</td>
-            <td class="text-center">
-                <div class="d-flex align-items-center justify-content-center">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="decreaseQuantity(${index})">-</button>
-                    <input type="number" class="form-control form-control-sm text-center mx-1" value="${item.quantity}" min="1" max="${item.type === 'product' ? item.stock : '999'}" style="width: 60px;" onchange="updateQuantity(${index}, this.value)">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="increaseQuantity(${index})">+</button>
-                </div>
-            </td>
-            <td class="text-end">MT ${item.price.toFixed(2).replace('.', ',')}</td>
-            <td class="text-end">MT ${itemTotal.toFixed(2).replace('.', ',')}</td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeCartItem(${index})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
+                    <td>
+                        <div class="fw-semibold">${item.name}</div>
+                        <small class="text-muted">${item.type === 'product' ? 'Produto' : 'Serviço'}</small>
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="decreaseProductQuantity(${index})">-</button>
+                            <input type="number" class="form-control form-control-sm text-center mx-1" value="${item.quantity}" min="1" max="${item.type === 'product' ? item.stock : '999'}" style="width: 60px;" onchange="updateProductQuantity(${index}, this.value)">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="increaseProductQuantity(${index})">+</button>
+                        </div>
+                    </td>
+                    <td class="text-end">MT ${item.unit_price.toFixed(2).replace('.', ',')}</td>
+                    <td class="text-end fw-semibold">MT ${itemTotal.toFixed(2).replace('.', ',')}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeCartProduct(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
                 tbody.appendChild(row);
             });
 
             totalEl.textContent = `MT ${total.toFixed(2).replace('.', ',')}`;
-            document.getElementById('original-amount').value = total;
+
+            // Atualizar campo hidden com os produtos em formato JSON
+            document.getElementById('products-json').value = JSON.stringify(productsCart);
         }
 
-        // Funções para quantidade
-        function increaseQuantity(index) {
-            const item = cartItems[index];
+        // Funções para quantidade de produtos
+        function increaseProductQuantity(index) {
+            const item = productsCart[index];
             if (item.type === 'product' && item.quantity >= item.stock) {
                 showToast(`Estoque máximo atingido: ${item.stock}`, 'warning');
                 return;
             }
             item.quantity += 1;
-            updateCart();
+            updateProductsCart();
         }
 
-        function decreaseQuantity(index) {
-            if (cartItems[index].quantity > 1) {
-                cartItems[index].quantity -= 1;
-                updateCart();
+        function decreaseProductQuantity(index) {
+            if (productsCart[index].quantity > 1) {
+                productsCart[index].quantity -= 1;
+                updateProductsCart();
             }
         }
 
-        function updateQuantity(index, value) {
+        function updateProductQuantity(index, value) {
             const qty = parseInt(value);
             if (isNaN(qty) || qty < 1) return;
-            const item = cartItems[index];
+
+            const item = productsCart[index];
             if (item.type === 'product' && qty > item.stock) {
                 showToast(`Estoque insuficiente. Máximo: ${item.stock}`, 'error');
-                item.quantity = item.stock;
-            } else {
-                item.quantity = qty;
+                document.querySelector(`input[onchange="updateProductQuantity(${index}, this.value)"]`).value = item
+                    .quantity;
+                return;
             }
-            updateCart();
+            item.quantity = qty;
+            updateProductsCart();
         }
+
         // Função para visualizar detalhes da dívida
         function viewDebtDetails(debtId) {
             const content = document.getElementById('debt-view-content');
             content.innerHTML =
                 '<div class="text-center py-5"><div class="loading-spinner"></div><p class="text-muted mt-3">Carregando...</p></div>';
+
             const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtViewOffcanvas'));
             offcanvas.show();
+
             fetch(`/debts/${debtId}/details`)
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         content.innerHTML = data.html;
                     } else {
-                        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar detalhes.</div>';
+                        content.innerHTML =
+                        '<div class="alert alert-danger">Erro ao carregar detalhes da dívida.</div>';
                     }
                 })
-                .catch(() => {
-                    content.innerHTML = '<div class="alert alert-danger">Erro de conexão.</div>';
+                .catch(error => {
+                    console.error('Erro:', error);
+                    content.innerHTML = '<div class="alert alert-danger">Erro de conexão ao carregar detalhes.</div>';
                 });
         }
 
-        // Função para abrir o offcanvas de nova dívida
+        // Função para abrir offcanvas de nova dívida
         function openCreateDebtOffcanvas() {
             resetDebtForm();
             document.getElementById('form-title').textContent = 'Nova Dívida';
             document.getElementById('form-method').value = 'POST';
             document.getElementById('debt-form').action = "{{ route('debts.store') }}";
             document.getElementById('debt-date').value = new Date().toISOString().split('T')[0];
+
             const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtFormOffcanvas'));
             offcanvas.show();
         }
@@ -650,30 +728,43 @@
             document.getElementById('debt-form').action = `/debts/${debtId}`;
             document.getElementById('debt-id').value = debtId;
 
+            // Carregar dados da dívida
             fetch(`/debts/${debtId}/edit-data`)
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const d = data.data;
-                        document.getElementById('customer-name').value = d.customer_name;
-                        document.getElementById('customer-phone').value = d.customer_phone || '';
-                        document.getElementById('debt-date').value = d.debt_date;
-                        document.getElementById('due-date').value = d.due_date || '';
-                        document.getElementById('description').value = d.description;
-                        document.getElementById('notes').value = d.notes || '';
-                        document.getElementById('original-amount').value = d.original_amount;
+                        const debt = data.data;
 
-                        // Carregar itens no carrinho
-                        cartItems = d.items.map(item => ({
-                            id: item.product_id,
-                            name: item.product_name,
-                            type: item.type,
-                            unit: item.unit,
-                            price: parseFloat(item.price),
-                            stock: item.stock || 0,
-                            quantity: item.quantity
-                        }));
-                        updateCart();
+                        // Preencher campos básicos
+                        document.getElementById('customer-name').value = debt.customer_name;
+                        document.getElementById('customer-phone').value = debt.customer_phone || '';
+                        document.getElementById('customer-document').value = debt.customer_document || '';
+                        document.getElementById('debt-date').value = debt.debt_date;
+                        document.getElementById('due-date').value = debt.due_date || '';
+                        document.getElementById('description').value = debt.description;
+                        document.getElementById('notes').value = debt.notes || '';
+
+                        // Carregar produtos no carrinho (apenas para visualização - produtos não editáveis após criação)
+                        if (debt.items && debt.items.length > 0) {
+                            productsCart = debt.items.map(item => ({
+                                product_id: item.product_id,
+                                name: item.product.name,
+                                type: item.product.type,
+                                unit: item.product.unit || 'unid',
+                                unit_price: parseFloat(item.unit_price),
+                                stock: item.product.stock_quantity || 0,
+                                quantity: item.quantity
+                            }));
+                            updateProductsCart();
+
+                            // Desabilitar edição de produtos para dívidas existentes
+                            document.getElementById('product-select').disabled = true;
+                            document.querySelector('button[onclick="addProductToCart()"]').disabled = true;
+                            document.querySelectorAll('#products-cart-items button').forEach(btn => btn.disabled =
+                            true);
+                            document.querySelectorAll('#products-cart-items input').forEach(input => input.disabled =
+                                true);
+                        }
 
                         const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtFormOffcanvas'));
                         offcanvas.show();
@@ -681,40 +772,57 @@
                         showToast('Erro ao carregar dados da dívida', 'error');
                     }
                 })
-                .catch(() => showToast('Erro de conexão', 'error'));
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showToast('Erro de conexão', 'error');
+                });
         }
-
 
         // Resetar formulário
         function resetDebtForm() {
             document.getElementById('debt-form').reset();
             document.getElementById('debt-id').value = '';
+            productsCart = [];
+            updateProductsCart();
             clearValidation();
+
+            // Reabilitar campos de produtos
+            document.getElementById('product-select').disabled = false;
+            document.querySelector('button[onclick="addProductToCart()"]').disabled = false;
         }
 
-        // Validar formulário
+        // Validar formulário de dívida
         function validateDebtForm() {
             clearValidation();
             let isValid = true;
-            const name = document.getElementById('customer-name').value.trim();
-            const amount = parseFloat(document.getElementById('original-amount').value);
-            const date = document.getElementById('debt-date').value;
+
+            const customerName = document.getElementById('customer-name').value.trim();
+            const debtDate = document.getElementById('debt-date').value;
             const description = document.getElementById('description').value.trim();
 
-            if (!name) {
-                showFieldError('customer-name', 'Nome é obrigatório');
+            if (!customerName) {
+                showFieldError('customer-name', 'Nome do cliente é obrigatório');
                 isValid = false;
             }
-            if (!amount || amount <= 0) {
-                showFieldError('original-amount', 'Valor deve ser maior que zero');
+
+            if (!debtDate) {
+                showFieldError('debt-date', 'Data da dívida é obrigatória');
                 isValid = false;
             }
-            if (!date) {
-                showFieldError('debt-date', 'Data é obrigatória');
-                isValid = false;
-            }
+
             if (!description) {
                 showFieldError('description', 'Descrição é obrigatória');
+                isValid = false;
+            }
+
+            if (productsCart.length === 0) {
+                showToast('Adicione pelo menos um produto ao carrinho', 'warning');
+                isValid = false;
+            }
+
+            const dueDate = document.getElementById('due-date').value;
+            if (dueDate && debtDate && new Date(dueDate) < new Date(debtDate)) {
+                showFieldError('due-date', 'Data de vencimento deve ser posterior à data da dívida');
                 isValid = false;
             }
 
@@ -724,29 +832,15 @@
         // Submit do formulário de dívida
         document.getElementById('debt-form').addEventListener('submit', function(e) {
             e.preventDefault();
+
             if (!validateDebtForm()) return;
-            if (cartItems.length === 0) {
-                showToast('Adicione pelo menos um item ao carrinho', 'warning');
-                return;
-            }
 
             const submitBtn = document.getElementById('save-debt-btn');
             const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
 
-            const formData = new FormData();
-            formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-            formData.append('_method', document.getElementById('form-method').value);
-            formData.append('customer_name', document.getElementById('customer-name').value);
-            formData.append('customer_phone', document.getElementById('customer-phone').value);
-            formData.append('debt_date', document.getElementById('debt-date').value);
-            formData.append('due_date', document.getElementById('due-date').value);
-            formData.append('description', document.getElementById('description').value);
-            formData.append('notes', document.getElementById('notes').value);
-            formData.append('original_amount', document.getElementById('original-amount').value);
-            formData.append('items', JSON.stringify(cartItems));
-
+            const formData = new FormData(this);
             const url = this.action;
 
             fetch(url, {
@@ -757,57 +851,69 @@
                         'Accept': 'application/json'
                     }
                 })
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         bootstrap.Offcanvas.getInstance(document.getElementById('debtFormOffcanvas')).hide();
                         showToast(data.message || 'Dívida salva com sucesso!', 'success');
-                        setTimeout(() => window.location.reload(), 1000);
+
+                        if (data.redirect) {
+                            setTimeout(() => window.location.href = data.redirect, 1000);
+                        } else {
+                            setTimeout(() => window.location.reload(), 1000);
+                        }
                     } else {
                         if (data.errors) {
                             Object.keys(data.errors).forEach(field => {
-                                const selector = `#${field.replace('_', '-')}`;
-                                showFieldError(selector, data.errors[field][0]);
+                                const fieldId = field.replace('_', '-');
+                                showFieldError(fieldId, data.errors[field][0]);
                             });
                         }
                         showToast(data.message || 'Erro ao salvar dívida.', 'error');
                     }
                 })
-                .catch(() => showToast('Erro de conexão.', 'error'))
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showToast('Erro de conexão.', 'error');
+                })
                 .finally(() => {
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalText;
                 });
         });
 
-        // Função para abrir o offcanvas de pagamento
+        // Função para abrir offcanvas de pagamento
         function openPaymentOffcanvas(debtId, customerName, remainingAmount) {
             document.getElementById('payment-debt-id').value = debtId;
             document.getElementById('payment-customer-name').textContent = customerName;
-            document.getElementById('payment-remaining-amount').textContent = `MT ${remainingAmount.toFixed(2)}`;
+            document.getElementById('payment-remaining-amount').textContent =
+                `MT ${remainingAmount.toFixed(2).replace('.', ',')}`;
             document.getElementById('payment-amount').max = remainingAmount;
-            document.getElementById('max-amount-text').textContent = `MT ${remainingAmount.toFixed(2)}`;
+            document.getElementById('max-amount-text').textContent = `MT ${remainingAmount.toFixed(2).replace('.', ',')}`;
             document.getElementById('payment-form').action = `/debts/${debtId}/add-payment`;
             document.getElementById('payment-form').reset();
+            document.querySelector('input[name="payment_date"]').value = new Date().toISOString().split('T')[0];
             clearValidation();
+
             const offcanvas = new bootstrap.Offcanvas(document.getElementById('paymentOffcanvas'));
             offcanvas.show();
         }
 
-        // Validar pagamento
+        // Validar formulário de pagamento
         function validatePaymentForm() {
             clearValidation();
             let isValid = true;
+
             const amount = parseFloat(document.getElementById('payment-amount').value);
             const maxAmount = parseFloat(document.getElementById('payment-amount').max);
             const paymentMethod = document.querySelector('select[name="payment_method"]').value;
             const paymentDate = document.querySelector('input[name="payment_date"]').value;
 
             if (!amount || amount <= 0) {
-                showFieldError('payment-amount', 'Valor é obrigatório');
+                showFieldError('payment-amount', 'Valor do pagamento é obrigatório');
                 isValid = false;
             } else if (amount > maxAmount) {
-                showFieldError('payment-amount', `Máximo: MT ${maxAmount.toFixed(2)}`);
+                showFieldError('payment-amount', `Valor máximo: MT ${maxAmount.toFixed(2)}`);
                 isValid = false;
             }
 
@@ -817,7 +923,7 @@
             }
 
             if (!paymentDate) {
-                showFieldError('input[name="payment_date"]', 'Data é obrigatória');
+                showFieldError('input[name="payment_date"]', 'Data do pagamento é obrigatória');
                 isValid = false;
             } else if (new Date(paymentDate) > new Date()) {
                 showFieldError('input[name="payment_date"]', 'Data não pode ser futura');
@@ -827,9 +933,10 @@
             return isValid;
         }
 
-        // Submit do pagamento
+        // Submit do formulário de pagamento
         document.getElementById('payment-form').addEventListener('submit', function(e) {
             e.preventDefault();
+
             if (!validatePaymentForm()) return;
 
             const formData = new FormData(this);
@@ -843,33 +950,77 @@
                         'Accept': 'application/json'
                     }
                 })
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         bootstrap.Offcanvas.getInstance(document.getElementById('paymentOffcanvas')).hide();
-                        showToast(data.message || 'Pago com sucesso!', 'success');
+                        showToast(data.message || 'Pagamento registrado com sucesso!', 'success');
                         setTimeout(() => window.location.reload(), 1000);
                     } else {
                         if (data.errors) {
                             Object.keys(data.errors).forEach(field => {
                                 const selector = field === 'payment_method' ?
-                                    'select[name="payment_method"]' : `#${field.replace('_', '-')}`;
+                                    'select[name="payment_method"]' :
+                                    `input[name="${field}"], #${field.replace('_', '-')}`;
                                 showFieldError(selector, data.errors[field][0]);
                             });
                         }
-                        showToast(data.message || 'Erro ao pagar.', 'error');
+                        showToast(data.message || 'Erro ao registrar pagamento.', 'error');
                     }
                 })
-                .catch(() => showToast('Erro de conexão.', 'error'));
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showToast('Erro de conexão.', 'error');
+                });
         });
+        // Função para cancelar dívida
+        function cancelDebt(debtId) {
+            if (!confirm('Tem certeza que deseja cancelar esta dívida? O estoque será devolvido.')) {
+                return;
+            }
 
-        // Funções de utilidade
+            const url = `/debts/${debtId}/cancel`;
+            const button = document.querySelector(`[onclick="cancelDebt(${debtId})"]`);
+
+            // Desabilitar botão
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message || 'Dívida cancelada com sucesso!', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.message || 'Erro ao cancelar dívida.', 'error');
+                }
+            })
+            .catch(() => showToast('Erro de conexão.', 'error'))
+            .finally(() => {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
+        }
+        // Funções utilitárias
         function showFieldError(fieldSelector, message) {
-            const field = document.querySelector(fieldSelector);
+            const field = document.querySelector(fieldSelector) || document.getElementById(fieldSelector);
             if (field) {
                 field.classList.add('is-invalid');
-                const feedback = field.parentNode.querySelector('.invalid-feedback') || field.nextElementSibling;
-                if (feedback) feedback.textContent = message;
+                const feedback = field.parentNode.querySelector('.invalid-feedback') ||
+                    field.nextElementSibling?.classList.contains('invalid-feedback') ?
+                    field.nextElementSibling : null;
+                if (feedback) {
+                    feedback.textContent = message;
+                }
             }
         }
 
@@ -879,9 +1030,12 @@
         }
 
         function showToast(message, type = 'info') {
-            const bg = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-primary';
+            const bgClass = type === 'success' ? 'bg-success' :
+                type === 'error' ? 'bg-danger' :
+                type === 'warning' ? 'bg-warning' : 'bg-primary';
+
             const toast = document.createElement('div');
-            toast.className = `toast align-items-center text-white ${bg} border-0`;
+            toast.className = `toast align-items-center text-white ${bgClass} border-0`;
             toast.style = 'position: fixed; top: 20px; right: 20px; z-index: 10000; width: 350px;';
             toast.innerHTML = `
                 <div class="d-flex">
@@ -889,11 +1043,13 @@
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
                 </div>
             `;
+
             document.body.appendChild(toast);
             const bsToast = new bootstrap.Toast(toast, {
                 delay: 5000
             });
             bsToast.show();
+
             toast.addEventListener('hidden.bs.toast', () => toast.remove());
         }
 
@@ -905,23 +1061,6 @@
                 select.addEventListener('change', () => form.submit());
             });
         });
-
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast align-items-center text-white bg-${type} border-0`;
-            toast.role = 'alert';
-            toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>`;
-            document.body.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast, {
-                delay: 3000
-            });
-            bsToast.show();
-            toast.addEventListener('hidden.bs.toast', () => toast.remove());
-        }
     </script>
 @endpush
 
@@ -980,6 +1119,7 @@
             border-top: 3px solid #0d6efd;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin: 0 auto;
         }
 
         @keyframes spin {
@@ -990,6 +1130,41 @@
             100% {
                 transform: rotate(360deg);
             }
+        }
+
+        .offcanvas {
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .offcanvas-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .btn-group-sm .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .table th {
+            font-weight: 600;
+            background-color: #f8f9fa;
+            border-top: none;
+        }
+
+        .badge {
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+
+        #products-cart-table input[type="number"] {
+            border: 1px solid #ced4da;
+        }
+
+        #products-cart-table .btn-sm {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1.2;
         }
     </style>
 @endpush

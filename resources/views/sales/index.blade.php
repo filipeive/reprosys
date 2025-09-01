@@ -146,7 +146,7 @@
 
     <!-- Cards de Estatísticas -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card primary h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -163,7 +163,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card success h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -181,7 +181,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card warning h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
@@ -199,7 +199,7 @@
             </div>
         </div>
 
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+        <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stats-card info h-100">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">

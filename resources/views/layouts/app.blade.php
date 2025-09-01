@@ -495,7 +495,7 @@
                 <i class="fas fa-print text-white fs-1"></i>
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning">+</span>
             </div>
-            <h4>PrintCenter<span class="text-warning">+</span></h4>
+            <h4>FDSMS<span class="text-warning">+</span></h4>
             <small>Sistema de Reprografia Completo</small>
         </div>
 
@@ -762,20 +762,27 @@
             @yield('content')
 
             <!-- Footer -->
-            <footer class="text-center py-4 mt-5"
-                style="background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border-radius: var(--border-radius);">
-                <div class="container">
+            <footer class="mt-5 bg-white bg-opacity-75 backdrop-blur-sm border-top shadow-sm">
+                <div class="container py-3">
                     <div class="row align-items-center">
-                        <div class="col-md-6 text-md-start">
+
+                        <!-- Lado Esquerdo -->
+                        <div class="col-md-6 text-center text-md-start">
                             <small class="text-muted">
-                                © {{ date('Y') }} PrintCenter+ | Sistema de Reprografia
+                                © {{ date('Y') }} <strong>FDSMULTSERVICES+</strong> | Sistema de Reprografia
+                            </small>
+                            <br>
+                            <small class="text-muted">
+                                Desenvolvido por <strong>Eng. Filipe dos Santos</strong>
                             </small>
                         </div>
-                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                            <small>
-                                Versão 1.0.0 |
-                                <a href="#" class="text-primary text-decoration-none">Suporte</a> |
-                                <a href="#" class="text-primary text-decoration-none">Manual</a>
+
+                        <!-- Lado Direito -->
+                        <div class="col-md-6 text-center text-md-end mt-2 mt-md-0">
+                            <small class="text-muted">
+                                Versão <span class="fw-semibold">1.1.0</span> |
+                                <a href="http://163.192.7.41/" class="text-decoration-none link-primary">Suporte</a> |
+                                <a href="#" class="text-decoration-none link-primary">Manual</a>
                             </small>
                         </div>
                     </div>

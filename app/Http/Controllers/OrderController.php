@@ -6,8 +6,10 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\Debt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -43,7 +45,9 @@ class OrderController extends Controller
             'pending' => Order::where('status', 'pending')->count(),
             'in_progress' => Order::where('status', 'in_progress')->count(),
             'completed' => Order::where('status', 'completed')->count(),
-            'overdue' => Order::overdue()->count()
+            'overdue' => Order::where('delivery_date', '<', now())
+                            ->whereIn('status', ['pending', 'in_progress'])
+                            ->count()
         ];
 
         return view('orders.index', compact('orders', 'stats'));
@@ -64,66 +68,130 @@ class OrderController extends Controller
             'customer_phone' => 'nullable|string|max:20',
             'customer_email' => 'nullable|email|max:100',
             'description' => 'required|string',
-            'estimated_amount' => 'required|numeric|min:0',
+            'estimated_amount' => 'required|numeric|min:0.01',
             'advance_payment' => 'nullable|numeric|min:0',
             'delivery_date' => 'nullable|date|after:today',
             'priority' => 'required|in:low,medium,high,urgent',
             'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
-            'items.*.item_name' => 'required|string|max:150',
-            'items.*.description' => 'nullable|string',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0'
+            'items' => 'required|string', // JSON string dos itens
+            'create_debt' => 'boolean',
+            'debt_due_date' => 'nullable|date|after_or_equal:delivery_date'
         ]);
 
-        DB::transaction(function () use ($request) {
-            // Criar o pedido
-            $order = Order::create([
-                'user_id' => auth()->id(),
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'description' => $request->description,
-                'estimated_amount' => $request->estimated_amount,
-                'advance_payment' => $request->advance_payment ?? 0,
-                'delivery_date' => $request->delivery_date,
-                'priority' => $request->priority,
-                'notes' => $request->notes
+        try {
+            // Decodificar itens
+            $items = json_decode($request->items, true);
+            
+            if (!$items || !is_array($items) || empty($items)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nenhum item foi fornecido para o pedido.'
+                ], 400);
+            }
+
+            // Validar estrutura dos itens
+            foreach ($items as $index => $item) {
+                if (!isset($item['item_name']) || !isset($item['quantity']) || !isset($item['unit_price'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Item #{$index} com dados incompletos."
+                    ], 400);
+                }
+
+                if ($item['quantity'] <= 0 || $item['unit_price'] < 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Quantidade e preço devem ser valores positivos."
+                    ], 400);
+                }
+            }
+
+            $order = DB::transaction(function () use ($request, $items) {
+                // Validar valor estimado com soma dos itens
+                $calculatedTotal = array_sum(array_map(function($item) {
+                    return $item['quantity'] * $item['unit_price'];
+                }, $items));
+
+                $estimatedAmount = (float) $request->estimated_amount;
+                
+                // Permitir diferença de até 5% para flexibilidade
+                if (abs($calculatedTotal - $estimatedAmount) > ($calculatedTotal * 0.05)) {
+                    $estimatedAmount = $calculatedTotal;
+                }
+
+                // Criar o pedido
+                $order = Order::create([
+                    'user_id' => auth()->id(),
+                    'customer_name' => $request->customer_name,
+                    'customer_phone' => $request->customer_phone,
+                    'customer_email' => $request->customer_email,
+                    'description' => $request->description,
+                    'estimated_amount' => $estimatedAmount,
+                    'advance_payment' => $request->advance_payment ?? 0,
+                    'delivery_date' => $request->delivery_date,
+                    'priority' => $request->priority,
+                    'notes' => $request->notes,
+                    'status' => 'pending'
+                ]);
+
+                // Criar os itens do pedido
+                foreach ($items as $item) {
+                    $totalPrice = $item['quantity'] * $item['unit_price'];
+                    
+                    OrderItem::create([
+                        'order_id' => $order->id,
+                        'product_id' => $item['product_id'] ?? null,
+                        'item_name' => $item['item_name'],
+                        'description' => $item['description'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $totalPrice
+                    ]);
+                }
+
+                // Criar dívida se solicitado
+                $remainingAmount = $order->estimated_amount - $order->advance_payment;
+                if ($request->create_debt && $remainingAmount > 0) {
+                    Debt::create([
+                        'user_id' => auth()->id(),
+                        'customer_name' => $order->customer_name,
+                        'customer_phone' => $order->customer_phone,
+                        'original_amount' => $remainingAmount,
+                        'remaining_amount' => $remainingAmount,
+                        'debt_date' => now()->toDateString(),
+                        'due_date' => $request->debt_due_date ?: now()->addDays(30)->toDateString(),
+                        'description' => "Pedido #{$order->id} - {$order->description}",
+                        'status' => 'active',
+                        'notes' => "Valor em aberto do pedido #{$order->id}"
+                    ]);
+                }
+
+                return $order;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido criado com sucesso!',
+                'redirect' => route('orders.show', $order)
             ]);
 
-            // Criar os itens do pedido
-            foreach ($request->items as $item) {
-                $orderItem = new OrderItem([
-                    'product_id' => $item['product_id'],
-                    'item_name' => $item['item_name'],
-                    'description' => $item['description'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price']
-                ]);
-                
-                $orderItem->total_price = $orderItem->quantity * $orderItem->unit_price;
-                $order->items()->save($orderItem);
-            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Dados inválidos: ' . implode(' ', $e->validator->errors()->all())
+            ], 422);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar pedido: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'request_data' => $request->all()
+            ]);
 
-            // Se há valor em aberto e o cliente vai pagar depois, criar dívida
-            $remainingAmount = $order->estimated_amount - $order->advance_payment;
-            if ($remainingAmount > 0 && $request->create_debt) {
-                $order->debt()->create([
-                    'user_id' => auth()->id(),
-                    'customer_name' => $order->customer_name,
-                    'customer_phone' => $order->customer_phone,
-                    'original_amount' => $remainingAmount,
-                    'remaining_amount' => $remainingAmount,
-                    'debt_date' => now()->toDateString(),
-                    'due_date' => $request->debt_due_date,
-                    'description' => "Pedido #{$order->id} - {$order->description}"
-                ]);
-            }
-        });
-
-        return redirect()->route('orders.index')
-            ->with('success', 'Pedido criado com sucesso!');
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar pedido: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function show(Order $order)
@@ -157,30 +225,67 @@ class OrderController extends Controller
             'internal_notes' => 'nullable|string'
         ]);
 
-        $order->update($request->all());
+        try {
+            $order->update($request->all());
 
-        return redirect()->route('orders.show', $order)
-            ->with('success', 'Pedido atualizado com sucesso!');
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pedido atualizado com sucesso!'
+                ]);
+            }
+
+            return redirect()->route('orders.show', $order)
+                ->with('success', 'Pedido atualizado com sucesso!');
+                
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar pedido: ' . $e->getMessage());
+            
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao atualizar pedido.'
+                ], 500);
+            }
+
+            return redirect()->back()
+                ->with('error', 'Erro ao atualizar pedido.')
+                ->withInput();
+        }
     }
 
     public function destroy(Order $order)
     {
-        if (!$order->canBeCancelled()) {
-            return redirect()->route('orders.index')
-                ->with('error', 'Este pedido não pode ser cancelado.');
-        }
-
-        DB::transaction(function () use ($order) {
-            // Se há dívida relacionada, cancelar também
-            if ($order->debt) {
-                $order->debt->update(['status' => 'cancelled']);
+        try {
+            if (in_array($order->status, ['completed', 'delivered'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pedidos concluídos ou entregues não podem ser cancelados.'
+                ], 400);
             }
-            
-            $order->delete();
-        });
 
-        return redirect()->route('orders.index')
-            ->with('success', 'Pedido cancelado com sucesso!');
+            DB::transaction(function () use ($order) {
+                // Se há dívida relacionada, cancelar também
+                if ($order->debt) {
+                    $order->debt->update(['status' => 'cancelled']);
+                }
+                
+                $order->update(['status' => 'cancelled']);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido cancelado com sucesso!'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao cancelar pedido: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao cancelar pedido.'
+            ], 500);
+        }
     }
 
     public function updateStatus(Request $request, Order $order)
@@ -189,15 +294,36 @@ class OrderController extends Controller
             'status' => 'required|in:pending,in_progress,completed,delivered,cancelled'
         ]);
 
-        $order->update(['status' => $request->status]);
+        try {
+            $order->update(['status' => $request->status]);
 
-        return redirect()->route('orders.show', $order)
-            ->with('success', 'Status do pedido atualizado!');
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Status atualizado com sucesso!'
+                ]);
+            }
+
+            return redirect()->route('orders.show', $order)
+                ->with('success', 'Status do pedido atualizado!');
+                
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar status: ' . $e->getMessage());
+            
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao atualizar status.'
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Erro ao atualizar status.');
+        }
     }
 
     public function convertToSale(Order $order)
     {
-        if (!$order->canBeDelivered()) {
+        if (!in_array($order->status, ['completed', 'delivered'])) {
             return redirect()->route('orders.show', $order)
                 ->with('error', 'Pedido deve estar concluído para ser convertido em venda.');
         }
@@ -208,6 +334,7 @@ class OrderController extends Controller
             return redirect()->route('sales.show', $sale)
                 ->with('success', 'Pedido convertido em venda com sucesso!');
         } catch (\Exception $e) {
+            Log::error('Erro ao converter pedido: ' . $e->getMessage());
             return redirect()->route('orders.show', $order)
                 ->with('error', 'Erro ao converter pedido em venda: ' . $e->getMessage());
         }
@@ -225,7 +352,7 @@ class OrderController extends Controller
     // API para busca de produtos
     public function searchProducts(Request $request)
     {
-        $term = $request->get('term');
+        $term = $request->get('term', $request->get('q', ''));
         
         $products = Product::where('is_active', true)
             ->where(function ($query) use ($term) {
@@ -234,7 +361,17 @@ class OrderController extends Controller
             })
             ->with('category')
             ->limit(10)
-            ->get();
+            ->get()
+            ->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'description' => $product->description,
+                    'price' => $product->selling_price,
+                    'stock' => $product->stock_quantity,
+                    'category' => $product->category->name ?? 'Sem categoria'
+                ];
+            });
 
         return response()->json($products);
     }
