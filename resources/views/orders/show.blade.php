@@ -140,7 +140,7 @@
                         @endif
 
                         @if ($order->canBeDelivered())
-                            <form action="{{ route('orders.convertToSale', $order) }}" method="POST">
+                            <form action="{{ route('orders.convert-to-sale', $order) }}" method="POST">
                                 @csrf
                                 <button type="submit" class="btn btn-lg btn-success">
                                     <i class="fas fa-exchange-alt me-2"></i> Converter em Venda

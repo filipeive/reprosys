@@ -4,9 +4,13 @@
 @section('title-icon', 'fa-cash-register')
 @section('page-title', 'Nova Venda')
 
+@php
+    $titleIcon = 'fa-cash-register';
+@endphp
+
 @section('breadcrumbs')
     <li class="breadcrumb-item">
-        <a href="{{ route('sales.index') }}">Vendas</a>
+        <a href="{{ route('sales.index') }}"> <i class="fas fa-shopping-cart"></i> Vendas</a>
     </li>
     <li class="breadcrumb-item active">Nova Venda</li>
 @endsection
@@ -149,15 +153,13 @@
                                 placeholder="Observações sobre a venda..."></textarea>
                         </div>
 
-                        <!-- Botão Finalizar -->
+                        <!-- Botões -->
                         <button type="submit" class="btn btn-success w-100" id="finalize-sale" disabled>
                             <i class="fas fa-check me-2"></i> Finalizar Venda
                         </button>
-                        <!-- Botão Salvar como Pedido -->
                         <button type="button" class="btn btn-warning w-100 mt-2" id="save-as-order">
                             <i class="fas fa-clipboard-list me-2"></i> Salvar como Pedido
                         </button>
-                        <!-- Botão Salvar como Dívida -->
                         <button type="button" class="btn btn-danger w-100 mt-2" id="save-as-debt">
                             <i class="fas fa-hand-holding-usd me-2"></i> Registrar como Dívida
                         </button>
@@ -166,7 +168,8 @@
             </div>
         </div>
     </div>
-    <!-- Offcanvas para Criar Pedido a partir da Venda -->
+
+    <!-- Offcanvas para Criar Pedido -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="orderCreationOffcanvas">
         <div class="offcanvas-header bg-warning text-dark">
             <h5 class="offcanvas-title">
@@ -252,6 +255,7 @@
             </div>
         </div>
     </div>
+
     <!-- Offcanvas para Criar Dívida -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="debtCreationOffcanvas">
         <div class="offcanvas-header bg-danger text-white">
@@ -320,27 +324,27 @@
     <style>
         .product-card {
             transition: all 0.3s ease;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
             cursor: pointer;
         }
 
         .product-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border-color: #007bff;
+            box-shadow: var(--shadow);
+            border-color: var(--primary-blue);
         }
 
         .cart-item {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
             padding: 12px;
             margin-bottom: 8px;
-            background: #f8f9fa;
+            background: var(--content-bg);
             transition: all 0.2s ease;
         }
 
         .cart-item:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-sm);
         }
 
         .quantity-controls {
@@ -352,44 +356,47 @@
         .quantity-btn {
             width: 28px;
             height: 28px;
-            border: 1px solid #ccc;
-            background: white;
-            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             transition: all 0.2s ease;
+            color: var(--text-secondary);
         }
 
         .quantity-btn:hover {
-            background: #f8f9fa;
-            border-color: #007bff;
-            color: #007bff;
+            background: var(--content-bg);
+            border-color: var(--primary-blue);
+            color: var(--primary-blue);
         }
 
         .quantity-input {
             width: 50px;
             text-align: center;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
             padding: 2px 4px;
             height: 28px;
+            background: var(--card-bg);
+            color: var(--text-primary);
         }
 
         .remove-btn {
             background: none;
             border: none;
-            color: #dc3545;
+            color: var(--danger-red);
             cursor: pointer;
             padding: 4px;
-            border-radius: 4px;
+            border-radius: var(--border-radius);
             transition: all 0.2s ease;
         }
 
         .remove-btn:hover {
-            background: #f8d7da;
+            background: rgba(220, 53, 69, 0.1);
             transform: scale(1.1);
         }
 
@@ -398,9 +405,9 @@
         }
 
         .add-product-btn:hover {
-            background: #007bff;
+            background: var(--primary-blue);
             color: white;
-            border-color: #007bff;
+            border-color: var(--primary-blue);
         }
 
         .fade-in {
@@ -418,6 +425,22 @@
                 transform: translateY(0);
             }
         }
+
+        /* Ajustes para tema escuro */
+        [data-bs-theme="dark"] .product-card {
+            background: var(--card-bg);
+        }
+
+        [data-bs-theme="dark"] .cart-item {
+            background: var(--card-bg);
+        }
+
+        [data-bs-theme="dark"] .quantity-btn,
+        [data-bs-theme="dark"] .quantity-input {
+            background: var(--content-bg);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
     </style>
 @endpush
 
@@ -425,6 +448,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let cart = [];
+
+            // Usar o sistema de toast profissional do layout
+            function showToast(message, type = 'success') {
+                if (window.FDSMULTSERVICES && window.FDSMULTSERVICES.Toast) {
+                    window.FDSMULTSERVICES.Toast.show(message, type);
+                } else if (window.ProfessionalToast) {
+                    window.ProfessionalToast.show(message, type);
+                } else {
+                    console.warn('Sistema de toast não encontrado, usando alert');
+                    alert(message);
+                }
+            }
 
             // Aplicar máscara no telefone
             const phoneInput = document.getElementById('customer_phone');
@@ -451,15 +486,6 @@
                 });
             });
 
-            // Função para mostrar notificações
-            function showNotification(type, message) {
-                if (typeof window.showToast === 'function') {
-                    window.showToast(message, type);
-                } else {
-                    alert(message);
-                }
-            }
-
             // Adicionar produto ao carrinho
             document.querySelectorAll('.add-product-btn').forEach(button => {
                 button.addEventListener('click', function() {
@@ -469,21 +495,13 @@
                     const productType = this.getAttribute('data-type');
                     const stockQuantity = parseInt(this.getAttribute('data-stock'));
 
-                    console.log('Produto clicado:', {
-                        productId,
-                        productName,
-                        productPrice,
-                        productType,
-                        stockQuantity
-                    });
-
                     // Verificar stock para produtos
                     if (productType === 'product') {
                         const currentItem = cart.find(item => item.product_id === productId);
                         const quantityInCart = currentItem ? currentItem.quantity : 0;
 
                         if (quantityInCart >= stockQuantity) {
-                            showNotification('error', `Stock insuficiente para ${productName}`);
+                            showToast(`Stock insuficiente para ${productName}`, 'error');
                             return;
                         }
                     }
@@ -504,9 +522,8 @@
                         });
                     }
 
-                    console.log('Carrinho atualizado:', cart);
                     updateCartDisplay();
-                    showNotification('success', `${productName} adicionado ao carrinho!`);
+                    showToast(`${productName} adicionado ao carrinho!`, 'success');
                 });
             });
 
@@ -514,8 +531,6 @@
             function updateCartDisplay() {
                 const cartItemsList = document.getElementById('cart-items-list');
                 const emptyMessage = document.getElementById('empty-cart-message');
-
-                console.log('Atualizando carrinho, items:', cart.length);
 
                 if (cart.length === 0) {
                     emptyMessage.style.display = 'block';
@@ -533,34 +548,34 @@
                     const icon = item.type === 'service' ? 'fa-tools text-info' : 'fa-box text-primary';
 
                     const cartItemHtml = `
-                <div class="cart-item fade-in" data-index="${index}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center mb-1">
-                                <i class="fas ${icon} me-2"></i>
-                                <strong class="small">${item.name}</strong>
+                    <div class="cart-item fade-in" data-index="${index}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-1">
+                                    <i class="fas ${icon} me-2"></i>
+                                    <strong class="small">${item.name}</strong>
+                                </div>
+                                <small class="text-muted">
+                                    MZN ${item.unit_price.toFixed(2).replace('.', ',')} x ${item.quantity}
+                                </small>
                             </div>
-                            <small class="text-muted">
-                                MZN ${item.unit_price.toFixed(2).replace('.', ',')} x ${item.quantity}
-                            </small>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <div class="quantity-controls me-2">
-                                <button type="button" class="quantity-btn decrease-qty" data-index="${index}">-</button>
-                                <input type="number" class="quantity-input" value="${item.quantity}" 
-                                       min="1" data-index="${index}">
-                                <button type="button" class="quantity-btn increase-qty" data-index="${index}">+</button>
+                            <div class="d-flex align-items-center">
+                                <div class="quantity-controls me-2">
+                                    <button type="button" class="quantity-btn decrease-qty" data-index="${index}">-</button>
+                                    <input type="number" class="quantity-input" value="${item.quantity}" 
+                                           min="1" data-index="${index}">
+                                    <button type="button" class="quantity-btn increase-qty" data-index="${index}">+</button>
+                                </div>
+                                <div class="text-end me-2" style="min-width: 80px;">
+                                    <strong class="text-success small">MZN ${itemTotal.toFixed(2).replace('.', ',')}</strong>
+                                </div>
+                                <button type="button" class="remove-btn" data-index="${index}" title="Remover">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
-                            <div class="text-end me-2" style="min-width: 80px;">
-                                <strong class="text-success small">MZN ${itemTotal.toFixed(2).replace('.', ',')}</strong>
-                            </div>
-                            <button type="button" class="remove-btn" data-index="${index}" title="Remover">
-                                <i class="fas fa-trash"></i>
-                            </button>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
 
                     cartItemsList.insertAdjacentHTML('beforeend', cartItemHtml);
                 });
@@ -582,11 +597,6 @@
                 document.getElementById('total-items').textContent = totalItems;
                 document.getElementById('total-amount').textContent = 'MZN ' + totalAmount.toFixed(2).replace('.',
                     ',');
-
-                console.log('Totais atualizados:', {
-                    totalItems,
-                    totalAmount
-                });
             }
 
             // Event delegation para botões dinâmicos
@@ -599,7 +609,7 @@
                 if (target.classList.contains('increase-qty')) {
                     const item = cart[index];
                     if (item.type === 'product' && item.quantity >= item.stock) {
-                        showNotification('error', `Stock insuficiente para ${item.name}`);
+                        showToast(`Stock insuficiente para ${item.name}`, 'error');
                         return;
                     }
                     cart[index].quantity++;
@@ -612,7 +622,7 @@
                 } else if (target.classList.contains('remove-btn')) {
                     const removedItem = cart.splice(index, 1)[0];
                     updateCartDisplay();
-                    showNotification('success', `${removedItem.name} removido do carrinho!`);
+                    showToast(`${removedItem.name} removido do carrinho!`, 'success');
                 }
             });
 
@@ -624,13 +634,13 @@
                     const item = cart[index];
 
                     if (isNaN(newQuantity) || newQuantity < 1) {
-                        showNotification('error', 'Quantidade inválida!');
+                        showToast('Quantidade inválida!', 'error');
                         e.target.value = item.quantity;
                         return;
                     }
 
                     if (item.type === 'product' && newQuantity > item.stock) {
-                        showNotification('error', `Stock insuficiente para ${item.name}`);
+                        showToast(`Stock insuficiente para ${item.name}`, 'error');
                         e.target.value = item.quantity;
                         return;
                     }
@@ -646,21 +656,21 @@
                     if (confirm('Tem certeza que deseja limpar o carrinho?')) {
                         cart = [];
                         updateCartDisplay();
-                        showNotification('success', 'Carrinho limpo!');
+                        showToast('Carrinho limpo!', 'success');
                     }
                 }
             });
 
-            // Submeter formulário
+            // Submeter formulário principal
             document.getElementById('sale-form').addEventListener('submit', function(e) {
                 if (cart.length === 0) {
-                    showNotification('error', 'Adicione pelo menos um produto ao carrinho!');
+                    showToast('Adicione pelo menos um produto ao carrinho!', 'error');
                     e.preventDefault();
                     return false;
                 }
 
                 if (!document.getElementById('payment_method').value) {
-                    showNotification('error', 'Selecione o método de pagamento!');
+                    showToast('Selecione o método de pagamento!', 'error');
                     e.preventDefault();
                     return false;
                 }
@@ -682,22 +692,15 @@
                 input.value = cartData;
                 this.appendChild(input);
 
-                document.getElementById('finalize-sale').disabled = true;
-                document.getElementById('finalize-sale').innerHTML =
-                    '<i class="fas fa-spinner fa-spin me-2"></i> Processando...';
-
-                console.log('Enviando dados:', {
-                    cart: cartData
-                });
+                const submitBtn = document.getElementById('finalize-sale');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processando...';
             });
 
-            // Inicializar
-            updateCartDisplay();
-
-            // ===== ABRIR OFFCANVAS DE PEDIDO =====
+            // ===== GERENCIAMENTO DE PEDIDOS =====
             document.getElementById('save-as-order').addEventListener('click', function() {
                 if (cart.length === 0) {
-                    showNotification('error', 'Adicione itens ao carrinho para criar um pedido!');
+                    showToast('Adicione itens ao carrinho para criar um pedido!', 'error');
                     return;
                 }
 
@@ -739,8 +742,9 @@
 
             // ===== CONTROLE DE DÍVIDA NO PEDIDO =====
             document.getElementById('create_debt').addEventListener('change', function() {
-                document.getElementById('debt_due_date_container').style.display = this.checked ? 'block' :
-                    'none';
+                const container = document.getElementById('debt_due_date_container');
+                container.style.display = this.checked ? 'block' : 'none';
+
                 if (this.checked && !document.getElementById('debt_due_date').value) {
                     // Definir data de vencimento para 30 dias após a entrega
                     const deliveryDate = document.getElementById('delivery_date').value;
@@ -764,7 +768,7 @@
                 const formData = new FormData(form);
                 const errorMessages = [];
 
-                // Validação mínima
+                // Validação
                 if (!formData.get('customer_name').trim()) {
                     errorMessages.push('Nome do cliente é obrigatório.');
                 }
@@ -776,7 +780,7 @@
                 }
 
                 if (errorMessages.length > 0) {
-                    showNotification('error', errorMessages.join(' '));
+                    showToast(errorMessages.join(' '), 'error');
                     return;
                 }
 
@@ -802,7 +806,7 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            showNotification('success', data.message || 'Pedido criado com sucesso!');
+                            showToast(data.message || 'Pedido criado com sucesso!', 'success');
 
                             // Limpar carrinho
                             cart = [];
@@ -826,7 +830,7 @@
                     })
                     .catch(err => {
                         console.error('Erro:', err);
-                        showNotification('error', err.message || 'Erro de conexão. Tente novamente.');
+                        showToast(err.message || 'Erro de conexão. Tente novamente.', 'error');
                     })
                     .finally(() => {
                         this.disabled = false;
@@ -834,14 +838,12 @@
                     });
             });
 
-            // ===== ABRIR OFFCANVAS DE DÍVIDA =====
+            // ===== GERENCIAMENTO DE DÍVIDAS =====
             document.getElementById('save-as-debt').addEventListener('click', function() {
                 if (cart.length === 0) {
-                    showNotification('error', 'Adicione itens ao carrinho!');
+                    showToast('Adicione itens ao carrinho!', 'error');
                     return;
                 }
-
-                const totalAmount = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
 
                 // Preencher dados
                 document.getElementById('debt_customer_name').value = document.getElementById(
@@ -890,7 +892,7 @@
                 }
 
                 if (errorMessages.length > 0) {
-                    showNotification('error', errorMessages.join(' '));
+                    showToast(errorMessages.join(' '), 'error');
                     return;
                 }
 
@@ -924,7 +926,7 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            showNotification('success', data.message || 'Dívida criada com sucesso!');
+                            showToast(data.message || 'Dívida criada com sucesso!', 'success');
 
                             // Limpar carrinho
                             cart = [];
@@ -948,13 +950,16 @@
                     })
                     .catch(err => {
                         console.error('Erro:', err);
-                        showNotification('error', err.message || 'Erro de conexão. Tente novamente.');
+                        showToast(err.message || 'Erro de conexão. Tente novamente.', 'error');
                     })
                     .finally(() => {
                         this.disabled = false;
                         this.innerHTML = '<i class="fas fa-save me-2"></i> Criar Dívida';
                     });
             });
+
+            // Inicializar display do carrinho
+            updateCartDisplay();
         });
     </script>
 @endpush

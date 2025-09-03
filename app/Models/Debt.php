@@ -136,6 +136,43 @@ class Debt extends Model
         return $payment;
     }
 
+    public function createDebt(Request $request, Sale $sale)
+    {
+        // 1. Validate the request (e.g., check for due date)
+        // You might not need validation if the form is simple.
+
+        // 2. Check if a debt already exists for this sale
+        if ($sale->debt) {
+            return redirect()->back()->with('error', 'Uma dívida já existe para esta venda.');
+        }
+
+        // 3. Create the debt record
+        try {
+            // Logic to calculate remaining amount
+            $remainingAmount = $sale->total_amount - ($sale->advance_payment ?? 0);
+
+            if ($remainingAmount <= 0) {
+                return redirect()->back()->with('error', 'O valor em aberto é zero. Não é possível criar uma dívida.');
+            }
+
+            Debt::create([
+                'user_id' => $sale->user_id,
+                'customer_name' => $sale->customer_name,
+                'customer_phone' => $sale->customer_phone,
+                'original_amount' => $remainingAmount,
+                'remaining_amount' => $remainingAmount,
+                'debt_date' => $sale->sale_date,
+                'due_date' => now()->addDays(30), // Example: Due in 30 days
+                'description' => "Dívida referente à venda #{$sale->id}",
+                'status' => 'active',
+            ]);
+
+            return redirect()->back()->with('success', 'Dívida criada com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar dívida para venda: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Erro ao criar a dívida.');
+        }
+    }
     public function updatePaymentStatus(): void
     {
         $totalPaid = $this->payments()->sum('amount');

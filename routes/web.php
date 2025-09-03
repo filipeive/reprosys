@@ -14,6 +14,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\HomeController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -45,45 +47,50 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::get('/show', [ProfileController::class, 'show'])->name('show');
     });
     
-    // ===== PONTO DE VENDA - Acesso para todos =====
-    Route::get('/sales/create', [SaleController::class, 'create'])
-        ->name('sales.create');
+    // ===== PONTO DE VENDA - create_sales permission =====
+    Route::middleware('permissions:create_sales')->group(function () {
+        Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+    });
     
-    // ===== PRODUTOS - Permissões diferenciadas =====
+    // ===== PRODUTOS - Permissões ajustadas =====
     Route::prefix('products')->name('products.')->group(function () {
-        // Visualizar produtos - todos podem
-        Route::get('/', [ProductController::class, 'index'])->name('index');
-        Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+        // Visualizar produtos - view_products permission
+        Route::middleware('permissions:view_products')->group(function () {
+            Route::get('/', [ProductController::class, 'index'])->name('index');
+            Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+        });
         
-        // Criar produtos - admin e manager
+        // Criar produtos - create_products permission
         Route::middleware('permissions:create_products')->group(function () {
             Route::get('/create', [ProductController::class, 'create'])->name('create');
             Route::post('/', [ProductController::class, 'store'])->name('store');
         });
         
-        // Editar produtos - admin, manager e staff
+        // Editar produtos - edit_products permission
         Route::middleware('permissions:edit_products')->group(function () {
             Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
             Route::put('/{product}', [ProductController::class, 'update'])->name('update');
             Route::get('/{product}/edit-data', [ProductController::class, 'editData'])->name('edit-data');
         });
         
-        // Deletar produtos - apenas admin
+        // Deletar produtos - delete_products permission
         Route::middleware('permissions:delete_products')->group(function () {
             Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
         });
         
-        // Ajustar estoque - admin, manager e staff
+        // Ajustar estoque - adjust_stock permission
         Route::middleware('permissions:adjust_stock')->group(function () {
             Route::post('/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('adjust-stock');
         });
         
-        // APIs
-        Route::get('/api/categories', [ProductController::class, 'getCategories'])->name('getCategories');
-        Route::get('/api/products', [ProductController::class, 'getProducts'])->name('getProducts');
+        // APIs - require view_products
+        Route::middleware('permissions:view_products')->group(function () {
+            Route::get('/api/categories', [ProductController::class, 'getCategories'])->name('getCategories');
+            Route::get('/api/products', [ProductController::class, 'getProducts'])->name('getProducts');
+        });
     });
     
-    // ===== CATEGORIAS - Apenas admin pode gerenciar =====
+    // ===== CATEGORIAS - manage_categories permission =====
     Route::prefix('categories')->name('categories.')->middleware('permissions:manage_categories')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
         Route::get('/create', [CategoryController::class, 'create'])->name('create');
@@ -96,15 +103,20 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     
     // ===== PEDIDOS =====
     Route::prefix('orders')->name('orders.')->group(function () {
-        // Visualizar e criar pedidos - todos podem
+        // Visualizar pedidos - todos podem ver
         Route::get('/', [OrderController::class, 'index'])->name('index');
-        Route::get('/create', [OrderController::class, 'create'])->name('create');
-        Route::post('/', [OrderController::class, 'store'])->name('store');
-        Route::get('/api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
         Route::get('/{order}/details', [OrderController::class, 'showDetails'])->name('details');
+        Route::get('/{order}/duplicate', [OrderController::class, 'duplicate'])->name('duplicate');
         
-        // Editar pedidos - verificação de propriedade
+        // Criar pedidos - create_orders permission
+        Route::middleware('permissions:create_orders')->group(function () {
+            Route::get('/create', [OrderController::class, 'create'])->name('create');
+            Route::post('/', [OrderController::class, 'store'])->name('store');
+            Route::get('/api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
+        });
+        
+        // Editar pedidos - edit_orders permission
         Route::middleware('permissions:edit_orders')->group(function () {
             Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
             Route::put('/{order}', [OrderController::class, 'update'])->name('update');
@@ -112,79 +124,94 @@ Route::middleware(['auth', 'permissions'])->group(function () {
             Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status');
         });
         
-        // Converter para venda - admin e manager
+        // Converter para venda - convert_orders permission
         Route::middleware('permissions:convert_orders')->group(function () {
             Route::post('/{order}/convert-to-sale', [OrderController::class, 'convertToSale'])->name('convert-to-sale');
         });
         
-        // Deletar pedidos - apenas admin
+        // Deletar pedidos - delete_orders permission
         Route::middleware('permissions:delete_orders')->group(function () {
             Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
         });
         
-        // Duplicar e relatórios
-        Route::get('/{order}/duplicate', [OrderController::class, 'duplicate'])->name('duplicate');
-        Route::get('/reports/orders', [OrderController::class, 'report'])->name('report');
+        // Relatórios - view_reports permission
+        Route::middleware('permissions:view_reports')->group(function () {
+            Route::get('/reports/orders', [OrderController::class, 'report'])->name('report');
+        });
     });
     
     // ===== VENDAS =====
     Route::prefix('sales')->name('sales.')->group(function () {
-        // Operações básicas - todos podem
-        Route::get('/', [SaleController::class, 'index'])->name('index');
-        Route::post('/', [SaleController::class, 'store'])->name('store');
-        Route::get('/manual-create', [SaleController::class, 'manualCreate'])->name('manual-create');
-        Route::get('/{sale}', [SaleController::class, 'show'])->name('show');
-        Route::get('/{sale}/print', [SaleController::class, 'print'])->name('print');
-        Route::get('/{sale}/quick-view', [SaleController::class, 'quickView'])->name('quick-view');
-        Route::get('/{sale}/duplicate', [SaleController::class, 'duplicate'])->name('duplicate');
-        Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
+        // Visualizar vendas - view_sales permission
+        Route::middleware('permissions:view_sales')->group(function () {
+            Route::get('/', [SaleController::class, 'index'])->name('index');
+            Route::get('/{sale}', [SaleController::class, 'show'])->name('show');
+            Route::get('/{sale}/print', [SaleController::class, 'print'])->name('print');
+            Route::get('/{sale}/quick-view', [SaleController::class, 'quickView'])->name('quick-view');
+            Route::get('/{sale}/duplicate', [SaleController::class, 'duplicate'])->name('duplicate');
+        });
         
-        // Editar vendas - verificação de propriedade ou permissão admin
+        // Criar vendas - create_sales permission
+        Route::middleware('permissions:create_sales')->group(function () {
+            Route::post('/', [SaleController::class, 'store'])->name('store');
+            Route::get('/manual-create', [SaleController::class, 'manualCreate'])->name('manual-create');
+            Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
+             // Route to create a new debt from a sale
+            Route::post('/{sale}/create-debt', [SaleController::class, 'createDebt'])->name('create-debt');
+        });
+        
+        // Editar vendas - edit_sales permission
         Route::middleware('permissions:edit_sales')->group(function () {
             Route::get('/{sale}/edit', [SaleController::class, 'edit'])->name('edit');
             Route::put('/{sale}', [SaleController::class, 'update'])->name('update');
             Route::patch('/{sale}/payment-status', [SaleController::class, 'updatePaymentStatus'])->name('update-payment-status');
         });
         
-        // Deletar vendas - apenas admin
+        // Deletar vendas - delete_sales permission
         Route::middleware('permissions:delete_sales')->group(function () {
             Route::delete('/{sale}', [SaleController::class, 'destroy'])->name('destroy');
         });
-        
-        // Relatórios - admin e manager
+
+        // Relatórios - view_reports permission
         Route::middleware('permissions:view_reports')->group(function () {
-            Route::get('/reports/dashboard', [SaleController::class, 'dashboard'])->name('report');
+            Route::get('/reports/dashboard', [SaleController::class, 'dashboard'])->name('reports');
             Route::get('/reports/export', [SaleController::class, 'export'])->name('export');
         });
     });
     
     // ===== DÍVIDAS =====
     Route::prefix('debts')->name('debts.')->group(function () {
-        // Operações básicas - todos podem
+        // Visualizar dívidas - todos podem
         Route::get('/', [DebtController::class, 'index'])->name('index');
-        Route::get('/create', [DebtController::class, 'create'])->name('create');
-        Route::post('/', [DebtController::class, 'store'])->name('store');
         Route::get('/{debt}', [DebtController::class, 'show'])->name('show');
         Route::get('/{debt}/details', [DebtController::class, 'showDetails'])->name('details');
         
-        // Pagamentos - todos podem receber
-        Route::post('/{debt}/add-payment', [DebtController::class, 'addPayment'])->name('add-payment');
-        Route::patch('/{debt}/mark-as-paid', [DebtController::class, 'markAsPaid'])->name('mark-as-paid');
+        // Criar dívidas - create_debts permission
+        Route::middleware('permissions:create_debts')->group(function () {
+            Route::get('/create', [DebtController::class, 'create'])->name('create');
+            Route::post('/', [DebtController::class, 'store'])->name('store');
+        });
         
-        // Editar dívidas - verificação de propriedade
+        // Gerenciar pagamentos - manage_payments permission
+        Route::middleware('permissions:manage_payments')->group(function () {
+            Route::post('/{debt}/add-payment', [DebtController::class, 'addPayment'])->name('add-payment');
+            Route::patch('/{debt}/mark-as-paid', [DebtController::class, 'markAsPaid'])->name('mark-as-paid');
+        });
+        
+        // Editar dívidas - edit_debts permission
         Route::middleware('permissions:edit_debts')->group(function () {
             Route::get('/{debt}/edit', [DebtController::class, 'edit'])->name('edit');
             Route::put('/{debt}', [DebtController::class, 'update'])->name('update');
             Route::get('/{debt}/edit-data', [DebtController::class, 'editData'])->name('edit-data');
         });
-        
-        // Cancelar/deletar dívidas - admin e manager
+    
+        // Cancelar/deletar dívidas - delete_debts permission
         Route::middleware('permissions:delete_debts')->group(function () {
             Route::patch('/{debt}/cancel', [DebtController::class, 'cancel'])->name('cancel');
             Route::delete('/{debt}', [DebtController::class, 'destroy'])->name('destroy');
         });
         
-        // Relatórios
+        // Relatórios - view_reports permission
         Route::middleware('permissions:view_reports')->group(function () {
             Route::get('/reports/debtors', [DebtController::class, 'debtorsReport'])->name('debtors-report');
         });
@@ -194,22 +221,24 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     
     // ===== DESPESAS =====
     Route::prefix('expenses')->name('expenses.')->group(function () {
-        // Visualizar - todos podem
+        // Visualizar despesas - todos podem
         Route::get('/', [ExpenseController::class, 'index'])->name('index');
         Route::get('/{expense}', [ExpenseController::class, 'show'])->name('show');
         Route::get('/{expense}/details', [ExpenseController::class, 'showData'])->name('details');
         
-        // Criar - todos podem
-        Route::get('/create', [ExpenseController::class, 'create'])->name('create');
-        Route::post('/', [ExpenseController::class, 'store'])->name('store');
+        // Criar despesas - create_expenses permission
+        Route::middleware('permissions:create_expenses')->group(function () {
+            Route::get('/create', [ExpenseController::class, 'create'])->name('create');
+            Route::post('/', [ExpenseController::class, 'store'])->name('store');
+        });
         
-        // Editar - admin e manager
+        // Editar despesas - edit_expenses permission
         Route::middleware('permissions:edit_expenses')->group(function () {
             Route::get('/{expense}/edit', [ExpenseController::class, 'edit'])->name('edit');
             Route::put('/{expense}', [ExpenseController::class, 'update'])->name('update');
         });
         
-        // Deletar - apenas admin
+        // Deletar despesas - delete_expenses permission
         Route::middleware('permissions:delete_expenses')->group(function () {
             Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
         });
@@ -217,17 +246,19 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     
     // ===== MOVIMENTAÇÕES DE ESTOQUE =====
     Route::prefix('stock-movements')->name('stock-movements.')->group(function () {
-        // Visualizar - todos podem
-        Route::get('/', [StockMovementController::class, 'index'])->name('index');
-        Route::get('/{stockMovement}', [StockMovementController::class, 'show'])->name('show');
+        // Visualizar movimentações - view_stock_movements permission
+        Route::middleware('permissions:view_stock_movements')->group(function () {
+            Route::get('/', [StockMovementController::class, 'index'])->name('index');
+            Route::get('/{stockMovement}', [StockMovementController::class, 'show'])->name('show');
+        });
         
-        // Criar - admin e manager
+        // Criar movimentações - create_stock_movements permission
         Route::middleware('permissions:create_stock_movements')->group(function () {
             Route::get('/create', [StockMovementController::class, 'create'])->name('create');
             Route::post('/', [StockMovementController::class, 'store'])->name('store');
         });
         
-        // Editar/Deletar - apenas admin
+        // Gerenciar estoque - manage_stock permission (admin only)
         Route::middleware('permissions:manage_stock')->group(function () {
             Route::get('/{stockMovement}/edit', [StockMovementController::class, 'edit'])->name('edit');
             Route::put('/{stockMovement}', [StockMovementController::class, 'update'])->name('update');
@@ -237,27 +268,27 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     
     // ===== RELATÓRIOS =====
     Route::prefix('reports')->name('reports.')->group(function () {
-        // Relatórios básicos - todos podem ver alguns
+        // Relatórios básicos - todos podem ver
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::get('/daily-sales', [ReportController::class, 'dailySales'])->name('daily-sales');
         Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory');
         Route::get('/low-stock', [ReportController::class, 'lowStock'])->name('low-stock');
         
-        // Relatórios avançados - admin e manager
+        // Relatórios avançados - view_reports permission
         Route::middleware('permissions:view_reports')->group(function () {
             Route::get('/monthly-sales', [ReportController::class, 'monthlySales'])->name('monthly-sales');
             Route::get('/sales-by-product', [ReportController::class, 'salesByProduct'])->name('sales-by-product');
             Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->name('profit-loss');
         });
         
-        // Exportar relatórios - admin e manager
+        // Exportar relatórios - export_reports permission
         Route::middleware('permissions:export_reports')->group(function () {
             Route::get('/export', [ReportController::class, 'export'])->name('export');
             Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
         });
     });
     
-    // ===== USUÁRIOS - Apenas admin =====
+    // ===== USUÁRIOS - manage_users permission =====
     Route::prefix('users')->name('users.')->middleware('permissions:manage_users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/create', [UserController::class, 'create'])->name('create');
@@ -274,13 +305,28 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/products/available', [DebtController::class, 'getAvailableProducts'])->name('products.available');
         Route::get('/debts/search-customers', [DebtController::class, 'searchCustomers'])->name('debts.search-customers');
+        Route::get('/dashboard/counters', [DashboardController::class, 'getCounters']);
     });
-
-    Route::middleware(['auth'])->group(function () {
-        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
-        Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
+    
+    // ===== ADMINISTRAÇÃO - Permissões específicas =====
+    Route::middleware('permissions:manage_settings')->group(function () {
+        Route::post('/admin/settings', [AdminController::class, 'saveSettings']);
     });
+    
+    Route::middleware('permissions:backup_system')->group(function () {
+        Route::post('/admin/backup', [AdminController::class, 'createBackup']);
+    });
+    
+    Route::middleware('permissions:view_logs')->group(function () {
+        Route::get('/admin/logs', [AdminController::class, 'getLogs']);
+        Route::get('/admin/logs/export', [AdminController::class, 'exportLogs']);
+        Route::delete('/admin/logs/clear', [AdminController::class, 'clearLogs']);
+    });
+    
+    // ===== NOTIFICAÇÕES - Todos os usuários logados =====
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
 });
 
 require __DIR__.'/auth.php';

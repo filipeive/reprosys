@@ -6,166 +6,192 @@
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,600&display=swap" rel="stylesheet" />
+    <!-- Bootstrap & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <!-- Styles -->
     <style>
-        body {
-            font-family: 'Figtree', sans-serif;
-            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
-            color: #343a40;
-            line-height: 1.6;
-            min-height: 100vh;
+        :root {
+            --print-blue: #1e3a8a;
+            --print-cyan: #0891b2;
+            --print-orange: #ea580c;
+            --primary-gradient: linear-gradient(135deg, var(--print-blue) 0%, var(--print-cyan) 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-strong: 0 30px 60px rgba(0, 0, 0, 0.15);
         }
 
-        .container {
-            max-width: 420px;
-            margin: 4rem auto;
-            padding: 2.5rem 2rem;
-            background-color: #fff;
-            border-radius: 1rem;
-            box-shadow: 0 1rem 2rem rgba(0, 123, 255, 0.08);
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .welcome-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: var(--shadow-strong);
+            max-width: 1000px;
+            width: 100%;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .welcome-brand {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
         }
 
-        h1 {
-            font-size: 2.2rem;
+        .welcome-brand i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-brand h1 {
+            font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: #007bff;
+            margin-bottom: .5rem;
         }
 
-        h2 {
-            font-size: 1.2rem;
-            font-weight: 400;
-            margin-bottom: 1.2rem;
-            color: #495057;
+        .welcome-brand p {
+            font-size: 1rem;
+            opacity: 0.9;
         }
 
-        p {
-            margin-bottom: 2rem;
-            color: #6c757d;
-        }
-
-        .buttons {
+        .welcome-content {
+            padding: 3rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-            align-items: stretch;
-            margin-bottom: 1.5rem;
-        }
-
-        .button {
-            padding: 0.8rem 0;
-            font-size: 1.05rem;
-            font-weight: 600;
-            border-radius: 0.4rem;
-            border: none;
-            text-decoration: none;
-            transition: background 0.2s, color 0.2s;
-            cursor: pointer;
-        }
-
-        .button-primary {
-            background: linear-gradient(90deg, #007bff 60%, #0056b3 100%);
-            color: #fff;
-            border: 1px solid #007bff;
-        }
-
-        .button-secondary {
-            background-color: #f1f3f6;
-            color: #007bff;
-            border: 1px solid #007bff;
-        }
-
-        .button-primary:hover {
-            background: #0056b3;
-        }
-
-        .button-secondary:hover {
-            background-color: #e9ecef;
-        }
-
-        .links {
-            display: flex;
             justify-content: center;
-            gap: 1.5rem;
-            margin-top: 1.5rem;
+            text-align: center;
         }
 
-        .links a {
+        .welcome-content h2 {
+            color: var(--print-blue);
+            font-weight: 700;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-content p {
+            color: #374151;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .welcome-buttons a {
+            display: block;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
             text-decoration: none;
-            color: #007bff;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary-custom {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary-custom {
+            background: #f8fafc;
+            border: 2px solid var(--print-blue);
+            color: var(--print-blue);
+        }
+
+        .btn-secondary-custom:hover {
+            background: #e0e7ff;
+        }
+
+        .welcome-links {
+            margin-top: 1rem;
+        }
+
+        .welcome-links a {
+            margin: 0 0.5rem;
+            color: var(--print-blue);
+            text-decoration: none;
             font-weight: 500;
-            transition: color 0.2s;
         }
 
-        .links a:hover {
-            color: #0056b3;
+        .welcome-links a:hover {
+            color: var(--print-cyan);
             text-decoration: underline;
         }
 
-        .forgot {
-            margin-top: 0.5rem;
-            text-align: right;
-        }
-
-        .forgot a {
-            font-size: 0.95rem;
-            color: #6c757d;
-            text-decoration: none;
-        }
-
-        .forgot a:hover {
-            color: #007bff;
-            text-decoration: underline;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 1.2rem 0.5rem;
-                margin: 1.5rem;
+        @media (max-width: 768px) {
+            .welcome-card {
+                grid-template-columns: 1fr;
             }
-            h1 {
-                font-size: 1.5rem;
+            .welcome-brand {
+                padding: 2rem;
             }
-            h2 {
-                font-size: 1rem;
+            .welcome-content {
+                padding: 2rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Bem-vindo ao Sistema</h1>
-        <h2>Sua solução completa para gestão de utilizadores, despesas e muito mais.</h2>
-
-        <p>Este sistema oferece ferramentas para simplificar operações. Gerencie utilizadores com diferentes funções, controle despesas de forma eficiente e obtenha insights valiosos para o seu negócio.</p>
-
-        <div class="buttons">
-            @auth
-                <a href="{{ url('/dashboard') }}" class="button button-primary">Ir para o Painel</a>
-            @else
-                <a href="{{ route('login') }}" class="button button-primary">Entrar</a>
-                @if (Route::has('register'))
-                    <a href="{{ route('register') }}" class="button button-secondary">Registar-se</a>
-                @endif
-            @endauth
+    <div class="welcome-card">
+        <!-- Brand -->
+        <div class="welcome-brand">
+            <i class="fas fa-print"></i>
+            <h1>{{ config('app.name', 'Laravel') }}</h1>
+            <p>Sistema de Reprografia Completo</p>
         </div>
 
-        @guest
-            @if (Route::has('password.request'))
-                <div class="forgot">
-                    <a href="{{ route('password.request') }}">Esqueceu a senha?</a>
-                </div>
-            @endif
-        @endguest
+        <!-- Content -->
+        <div class="welcome-content">
+            <h2>Bem-vindo ao Sistema</h2>
+            <p>
+                Gerencie utilizadores, controle despesas e tenha insights valiosos para o seu negócio com uma interface moderna e intuitiva.
+            </p>
 
-        <div class="links">
-            <a href="#">Saiba Mais</a>
-            <a href="#">Contacte-nos</a>
+            <div class="welcome-buttons">
+                @auth
+                    <a href="{{ url('/dashboard') }}" class="btn-primary-custom">Ir para o Painel</a>
+                @else
+                    <a href="{{ route('login') }}" class="btn-primary-custom">Entrar</a>
+                    @if (Route::has('register'))
+                        <a href="{{ route('register') }}" class="btn-secondary-custom">Registar-se</a>
+                    @endif
+                @endauth
+            </div>
+
+            @guest
+                @if (Route::has('password.request'))
+                    <div class="mt-2">
+                        <a href="{{ route('password.request') }}">Esqueceu a senha?</a>
+                    </div>
+                @endif
+            @endguest
+
+            <div class="welcome-links">
+                <a href="#">Saiba Mais</a> | 
+                <a href="#">Contacte-nos</a>
+            </div>
         </div>
     </div>
 </body>

@@ -104,11 +104,11 @@ return [
     // Menu items configuration
     'menu_items' => [
         'dashboard' => ['icon' => 'fa-tachometer-alt', 'permission' => null],
-        'pos' => ['icon' => 'fa-cash-register', 'permission' => null],
-        'products' => ['icon' => 'fa-box', 'permission' => null],
+        'pos' => ['icon' => 'fa-cash-register', 'permission' => 'create_sales'],
+        'products' => ['icon' => 'fa-box', 'permission' => 'view_products'],
         'categories' => ['icon' => 'fa-tags', 'permission' => 'manage_categories', 'admin_only' => true],
         'orders' => ['icon' => 'fa-clipboard-list', 'permission' => null],
-        'sales' => ['icon' => 'fa-shopping-cart', 'permission' => null],
+        'sales' => ['icon' => 'fa-shopping-cart', 'permission' => 'view_sales'],
         'debts' => ['icon' => 'fa-credit-card', 'permission' => null],
         'expenses' => ['icon' => 'fa-receipt', 'permission' => null],
         'stock' => ['icon' => 'fa-exchange-alt', 'permission' => null],

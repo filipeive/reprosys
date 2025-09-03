@@ -151,7 +151,7 @@ class Order extends Model
     /* ============================
      * MÉTODOS DE NEGÓCIO
      * ============================ */
-    public function convertToSale()
+    /* public function convertToSale()
     {
         if (!$this->canBeConvertedToSale()) {
             throw new \Exception('Pedido não pode ser convertido em venda neste status.');
@@ -196,6 +196,65 @@ class Order extends Model
 
             return $sale;
         });
+    } */
+    public function convertToSale()
+    {
+        // Esta função deve ser chamada dentro de um try/catch no controller
+        // para garantir que transações de banco de dados e outros erros sejam capturados.
+        
+        // 1. Crie a venda
+        $sale = new Sale();
+        $sale->user_id = $this->user_id;
+        $sale->customer_name = $this->customer_name;
+        $sale->customer_phone = $this->customer_phone;
+        $sale->total_amount = $this->estimated_amount;
+        
+        // Use o novo valor 'order_conversion' que agora é válido no seu ENUM
+        $sale->payment_method = 'order_conversion'; 
+        
+        // Adicione uma nota para rastreabilidade
+        $sale->notes = "Venda convertida do pedido #{$this->id}. Sinal recebido: MZN {$this->advance_payment}";
+        $sale->sale_date = now();
+        $sale->save();
+
+        // 2. Crie os itens da venda a partir dos itens do pedido
+        foreach ($this->items as $orderItem) {
+            $saleItem = new SaleItem();
+            $saleItem->sale_id = $sale->id;
+            $saleItem->product_id = $orderItem->product_id;
+            $saleItem->quantity = $orderItem->quantity;
+            $saleItem->unit_price = $orderItem->unit_price;
+            $saleItem->total_price = $orderItem->total_price;
+            $saleItem->save();
+            
+            // Se for um produto (e não um serviço), baixe o estoque
+            if ($orderItem->product && $orderItem->product->type === 'product') {
+                $orderItem->product->decrement('stock_quantity', $orderItem->quantity);
+            }
+        }
+        
+        // 3. Atualize o status do pedido para indicar que foi concluído
+        $this->status = 'delivered'; 
+        $this->save();
+
+        // 4. Verifique se existe uma dívida e atualize-a se necessário
+        if ($this->advance_payment < $this->estimated_amount) {
+            $remainingAmount = $this->estimated_amount - $this->advance_payment;
+            Debt::create([
+                'user_id' => $this->user_id,
+                'customer_name' => $this->customer_name,
+                'customer_phone' => $this->customer_phone,
+                'original_amount' => $remainingAmount,
+                'remaining_amount' => $remainingAmount,
+                'debt_date' => now()->toDateString(),
+                'due_date' => $this->delivery_date ? now()->addDays(30) : now()->addDays(30),
+                'description' => "Venda a crédito do pedido #{$this->id}",
+                'status' => 'active',
+                'notes' => 'Gerado automaticamente ao converter o pedido em venda'
+            ]);
+        }
+        
+        return $sale;
     }
 
     public function duplicate()

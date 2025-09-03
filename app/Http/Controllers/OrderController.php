@@ -357,23 +357,56 @@ class OrderController extends Controller
 
     public function convertToSale(Order $order)
     {
+        // Verifique se o pedido está em um estado válido para conversão.
         if (!in_array($order->status, ['completed', 'delivered'])) {
-            return redirect()->route('orders.show', $order)
-                ->with('error', 'Pedido deve estar concluído para ser convertido em venda.');
+            $message = 'Pedido deve estar concluído ou entregue para ser convertido em venda.';
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message
+                ], 400); // Bad Request
+            }
+            return redirect()->route('orders.show', $order)->with('error', $message);
         }
 
         try {
+            // A lógica de conversão foi movida para o modelo Order.php
             $sale = $order->convertToSale();
             
-            return redirect()->route('sales.show', $sale)
-                ->with('success', 'Pedido convertido em venda com sucesso!');
+            $message = 'Pedido convertido em venda com sucesso!';
+            
+            // Retorne JSON se a requisição for AJAX
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'redirect_url' => route('sales.show', $sale)
+                ]);
+            }
+            
+            // Ou redirecione para navegação tradicional
+            return redirect()->route('sales.show', $sale)->with('success', $message);
+            
         } catch (\Exception $e) {
-            Log::error('Erro ao converter pedido: ' . $e->getMessage());
-            return redirect()->route('orders.show', $order)
-                ->with('error', 'Erro ao converter pedido em venda: ' . $e->getMessage());
+            Log::error('Erro ao converter pedido para venda: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'exception' => $e
+            ]);
+
+            $message = 'Erro ao converter pedido em venda: ' . $e->getMessage();
+            
+            // Retorne JSON para o JavaScript
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message
+                ], 500); // Internal Server Error
+            }
+            
+            // Ou redirecione para o navegador
+            return redirect()->route('orders.show', $order)->with('error', $message);
         }
     }
-
     public function duplicate(Order $order)
     {
         $products = Product::where('is_active', true)->get();

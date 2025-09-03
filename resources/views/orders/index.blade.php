@@ -2,13 +2,14 @@
 
 @section('title', 'Pedidos')
 @section('page-title', 'Gestão de Pedidos')
-@section('title-icon', 'fa-clipboard-list')
-
 @section('breadcrumbs')
     <li class="breadcrumb-item active">Pedidos</li>
 @endsection
 
 @section('content')
+    @php
+        $titleIcon = 'fa-clipboard-list';
+    @endphp
     <!-- Offcanvas para Criar/Editar Pedido -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="orderFormOffcanvas" style="width: 800px;">
         <div class="offcanvas-header bg-primary text-white">
@@ -499,6 +500,24 @@
                     {{ $orders->appends(request()->query())->links('pagination::bootstrap-5') }}
                 </div>
             @endif
+        </div>
+    </div>
+    <div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmActionModalLabel">Confirmar Ação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja continuar com esta ação?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmActionButton">Confirmar</button>
+                </div>
+            </div>
         </div>
     </div>
 @endsection
@@ -1007,7 +1026,63 @@
             document.getElementById('create-debt').checked = false;
             document.getElementById('debt-due-date-container').style.display = 'none';
         }
+        // ==== AÇÕES ADICIONAIS DE PEDIDOS ====
+        async function convertToSale(orderId) {
+            try {
+                const url = `{{ route('orders.convert-to-sale', ['order' => ':orderId']) }}`.replace(':orderId',
+                    orderId);
 
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            'content'),
+                        'Accept': 'application/json', // <--- Isso aqui é o que faz o server saber que você quer JSON
+                        'Content-Type': 'application/json'
+                    },
+                });
+
+                // Verifica se a resposta foi bem-sucedida (status 200) antes de tentar o .json()
+                if (!response.ok) {
+                    throw new Error(`Erro de rede ou servidor: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message || 'Pedido convertido em venda com sucesso!', 'success');
+                    setTimeout(() => {
+                        // Usa a URL de redirecionamento retornada pelo servidor
+                        window.location.href = result.redirect_url;
+                    }, 1500);
+                } else {
+                    showToast(result.message || 'Erro ao converter pedido para venda', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao converter para venda:', error);
+                showToast('Erro de conexão ao converter para venda', 'error');
+            }
+        }
+
+        // Nova função para mostrar o modal de confirmação
+        function showConfirmModal(message, confirmCallback) {
+            const modal = new bootstrap.Modal(document.getElementById('confirmActionModal'));
+            const modalBody = document.querySelector('#confirmActionModal .modal-body p');
+            const confirmButton = document.getElementById('confirmActionButton');
+
+            modalBody.textContent = message;
+
+            // Remove qualquer evento de clique anterior para evitar múltiplos disparos
+            confirmButton.onclick = null;
+
+            // Define o novo evento de clique para o botão "Confirmar"
+            confirmButton.onclick = () => {
+                confirmCallback(); // Executa a função de callback passada
+                modal.hide(); // Esconde o modal
+            };
+
+            modal.show();
+        }
         // ==== FILTROS AUTOMÁTICOS ====
         function initializeAutoFilters() {
             const form = document.getElementById('filters-form');
