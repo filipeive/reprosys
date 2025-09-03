@@ -65,17 +65,17 @@
                             <select class="form-select" id="product-select">
                                 <option value="">Selecione um produto ou serviço...</option>
                                 @foreach ($products as $product)
-                                    <option value="{{ $product->id }}" 
-                                            data-name="{{ $product->name }}"
-                                            data-description="{{ $product->description }}"
-                                            data-price="{{ $product->selling_price }}">
+                                    <option value="{{ $product->id }}" data-name="{{ $product->name }}"
+                                        data-description="{{ $product->description }}"
+                                        data-price="{{ $product->selling_price }}">
                                         {{ $product->name }} - MT {{ number_format($product->selling_price, 2, ',', '.') }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <input type="number" class="form-control" id="item-quantity" placeholder="Qtd" min="1" value="1">
+                            <input type="number" class="form-control" id="item-quantity" placeholder="Qtd" min="1"
+                                value="1">
                         </div>
                         <div class="col-md-3">
                             <button type="button" class="btn btn-primary w-100" onclick="addSelectedItem()">
@@ -467,7 +467,8 @@
                                         <!-- Cancelar -->
                                         @if ($order->canBeCancelled())
                                             <button type="button" class="btn btn-outline-danger"
-                                                onclick="cancelOrder({{ $order->id }})" title="Cancelar">
+                                                onclick="cancelOrder({{ $order->id }})"
+                                                data-url="{{ route('orders.destroy', $order->id) }}" title="Cancelar">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         @endif
@@ -640,7 +641,12 @@
 
         async function openEditOrderOffcanvas(orderId) {
             try {
-                const response = await fetch(`{{ route('orders.index') }}/${orderId}/edit-data`);
+                const response = await fetch(`{{ route('orders.index') }}/${orderId}/edit-data`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
                 const result = await response.json();
 
                 if (!result.success) {
@@ -768,19 +774,19 @@
         }
 
         async function cancelOrder(orderId) {
-            if (!confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
-                return;
-            }
+            const btn = document.querySelector(`[onclick="cancelOrder(${orderId})"]`);
+            const url = btn.dataset.url;
+
+            if (!confirm('Tem certeza que deseja cancelar este pedido?')) return;
 
             try {
-                const response = await fetch(`{{ route('orders.index') }}/${orderId}`, {
+                const response = await fetch(url, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
                             'content'),
                         'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
+                    },
                 });
 
                 const result = await response.json();
@@ -1041,14 +1047,14 @@
                 'error': 'bg-danger',
                 'warning': 'bg-warning text-dark',
                 'info': 'bg-info'
-            }[type] || 'bg-primary';
+            } [type] || 'bg-primary';
 
             const iconClass = {
                 'success': 'fas fa-check-circle',
                 'error': 'fas fa-exclamation-circle',
                 'warning': 'fas fa-exclamation-triangle',
                 'info': 'fas fa-info-circle'
-            }[type] || 'fas fa-info-circle';
+            } [type] || 'fas fa-info-circle';
 
             const toast = document.createElement('div');
             toast.className = `toast align-items-center text-white ${bgClass} border-0 mb-2`;

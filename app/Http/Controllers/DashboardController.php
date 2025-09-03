@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
+    //construct de permissoes userCan
+    
     public function index()
     {
         $today = Carbon::today();

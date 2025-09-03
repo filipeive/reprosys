@@ -1,46 +1,41 @@
+
 <?php
+
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AuthServiceProvider extends ServiceProvider
 {
-    /**
-     * The policy mappings for the application.
-     *
-     * @var array<class-string, class-string>
-     */
     protected $policies = [
         // 'App\Models\Model' => 'App\Policies\ModelPolicy',
     ];
 
-    /**
-     * Register any authentication / authorization services.
-     */
-    public function boot(): void
+    public function boot()
     {
         $this->registerPolicies();
 
-        // ===== ADMIN: Pode fazer TUDO =====
-        Gate::define('admin', function ($user) {
-            return $user->role === 'admin';
-        });
-
-        // ===== Exemplo =====
-        Gate::define('view-products', function ($user) {
-            return in_array($user->role, ['admin', 'manager', 'user']);
-        });
-
-        Gate::define('delete-product', function ($user) {
-            return $user->role === 'admin';
-        });
-
-        // ===== GATE GLOBAL: ADMIN PODE TUDO =====
-        Gate::before(function ($user, $ability) {
-            if ($user->role === 'admin') {
-                return true; // Admin pode tudo
+        // Definir Gates baseados nas permissões
+        $permissions = config('auth_permissions.role_permissions');
+        
+        foreach ($permissions as $role => $rolePermissions) {
+            foreach ($rolePermissions as $permission) {
+                Gate::define($permission, function (User $user) use ($permission) {
+                    return $user->hasPermission($permission);
+                });
             }
+        }
+
+        // Gate para verificar se user pode editar próprios recursos
+        Gate::define('edit-own-resource', function (User $user, $resource) {
+            return $user->isAdmin() || $user->id === $resource->user_id;
+        });
+
+        // Gate para verificar se user pode ver todos os recursos ou apenas próprios
+        Gate::define('view-all-resources', function (User $user) {
+            return $user->isAdmin() || $user->role === 'manager';
         });
     }
 }
