@@ -22,23 +22,21 @@
         </button>
     </div>
 
-    <!-- Offcanvas para Criar/Editar Despesa -->
+    <!-- Offcanvas para Criar Despesa -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="expenseFormOffcanvas" style="width: 500px;">
         <div class="offcanvas-header bg-success text-white">
             <h5 class="offcanvas-title">
-                <i class="fas fa-money-bill-wave me-2"></i><span id="offcanvas-title">Nova Despesa</span>
+                <i class="fas fa-money-bill-wave me-2"></i>Nova Despesa
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body">
-            <form id="expense-form" method="POST">
+            <form id="expense-form" method="POST" action="{{ route('expenses.store') }}">
                 @csrf
-                <input type="hidden" name="_method" id="form-method" value="POST">
-                <input type="hidden" name="id" id="expense-id">
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Categoria *</label>
-                    <select class="form-select" name="expense_category_id" id="expense-category" required>
+                    <select class="form-select" name="expense_category_id" required>
                         <option value="">Selecione uma categoria</option>
                         @foreach($categories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -49,30 +47,30 @@
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Descrição *</label>
-                    <input type="text" class="form-control" name="description" id="expense-description" required>
+                    <input type="text" class="form-control" name="description" required>
                     <div class="invalid-feedback"></div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Valor (MT) *</label>
-                    <input type="number" class="form-control" name="amount" id="expense-amount" step="0.01" min="0" required>
+                    <input type="number" class="form-control" name="amount" step="0.01" min="0" required>
                     <div class="invalid-feedback"></div>
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Data *</label>
-                        <input type="date" class="form-control" name="expense_date" id="expense-date" required>
+                        <input type="date" class="form-control" name="expense_date" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Número do Recibo</label>
-                        <input type="text" class="form-control" name="receipt_number" id="receipt-number">
+                        <input type="text" class="form-control" name="receipt_number">
                     </div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Observações</label>
-                    <textarea class="form-control" name="notes" id="expense-notes" rows="3" maxlength="500"></textarea>
+                    <textarea class="form-control" name="notes" rows="3" maxlength="500"></textarea>
                 </div>
             </form>
         </div>
@@ -107,32 +105,6 @@
                 <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
                     <i class="fas fa-times me-2"></i>Fechar
                 </button>
-                <button type="button" class="btn btn-warning flex-fill" id="edit-from-details-btn" data-bs-dismiss="offcanvas" onclick="editBtn.onclick = () => openEditCategoryOffcanvas(categoryId);">
-                    <i class="fas fa-edit me-2"></i>Editar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast para Confirmação de Exclusão -->
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-        <div id="deleteToast" class="toast hide" role="alert">
-            <div class="toast-header bg-danger text-white">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong class="me-auto">Confirmar Exclusão</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                <p class="mb-2">Excluir despesa: <strong id="delete-expense-description"></strong>?</p>
-                <small class="text-muted">Esta ação não pode ser desfeita.</small>
-                <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="toast">Cancelar</button>
-                    <form id="delete-form" method="POST" style="display: inline;">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
-                    </form>
-                </div>
             </div>
         </div>
     </div>
@@ -214,12 +186,13 @@
             </h5>
         </div>
         <div class="card-body">
-            <form id="filters-form">
+            <form method="GET" action="{{ route('expenses.index') }}">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Pesquisar Descrição</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="search" placeholder="Descrição da despesa...">
+                            <input type="text" class="form-control" name="search" 
+                                   value="{{ request('search') }}" placeholder="Descrição da despesa...">
                             <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
                                 <i class="fas fa-times"></i>
                             </button>
@@ -227,16 +200,16 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Data Inicial</label>
-                        <input type="date" class="form-control" id="date_from">
+                        <input type="date" class="form-control" name="date_from" value="{{ request('date_from') }}">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Data Final</label>
-                        <input type="date" class="form-control" id="date_to">
+                        <input type="date" class="form-control" name="date_to" value="{{ request('date_to') }}">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary" onclick="filterExpenses()">
+                            <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-search me-1"></i>Filtrar
                             </button>
                         </div>
@@ -271,7 +244,7 @@
                             <th class="text-center">Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="expenses-tbody">
+                    <tbody>
                         @forelse($expenses as $expense)
                             <tr data-id="{{ $expense->id }}"
                                 data-category="{{ $expense->category?->name }}"
@@ -284,20 +257,29 @@
                                 <td><strong class="text-danger">#{{ $expense->id }}</strong></td>
                                 <td><strong>{{ $expense->expense_date->format('d/m/Y') }}</strong></td>
                                 <td><span class="badge bg-light text-dark">{{ $expense->category?->name ?? 'N/A' }}</span></td>
-                                <td>{{ $expense->description }}</td>
+                                <td>{{ Str::limit($expense->description, 50) }}</td>
                                 <td><strong class="text-danger">{{ number_format($expense->amount, 2, ',', '.') }} MT</strong></td>
                                 <td><small>{{ $expense->user?->name ?? 'N/A' }}</small></td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-info view-btn" title="Ver Detalhes">
+                                        <button class="btn btn-outline-info view-btn" title="Ver Detalhes"
+                                                data-bs-toggle="tooltip" data-bs-placement="top">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="btn btn-outline-warning edit-btn" title="Editar">
+                                        <a href="{{ route('expenses.edit', $expense) }}" 
+                                           class="btn btn-outline-warning" title="Editar"
+                                           data-bs-toggle="tooltip" data-bs-placement="top">
                                             <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger delete-btn" title="Excluir">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        </a>
+                                        <form method="POST" action="{{ route('expenses.destroy', $expense) }}" 
+                                              class="d-inline" onsubmit="return confirmDelete('{{ $expense->description }}')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger" title="Excluir"
+                                                    data-bs-toggle="tooltip" data-bs-placement="top">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -307,7 +289,7 @@
                                     <div class="d-flex flex-column align-items-center text-muted">
                                         <i class="fas fa-money-bill-wave fa-3x mb-3 opacity-50"></i>
                                         <h5>Nenhuma despesa encontrada</h5>
-                                        <p class="mb-3">Registre sua primeira despesa.</p>
+                                        <p class="mb-3">Registre sua primeira despesa ou ajuste os filtros.</p>
                                         <button class="btn btn-success" onclick="openCreateExpenseOffcanvas()">
                                             <i class="fas fa-plus me-2"></i>Adicionar Despesa
                                         </button>
@@ -318,12 +300,14 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    Mostrando {{ $expenses->firstItem() ?? 0 }} a {{ $expenses->lastItem() ?? 0 }} de {{ $expenses->total() }}
-                </small>
-                {{ $expenses->appends(request()->query())->links('pagination::bootstrap-5') }}
-            </div>
+            @if($expenses->hasPages())
+                <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        Mostrando {{ $expenses->firstItem() ?? 0 }} a {{ $expenses->lastItem() ?? 0 }} de {{ $expenses->total() }}
+                    </small>
+                    {{ $expenses->appends(request()->query())->links('pagination::bootstrap-5') }}
+                </div>
+            @endif
         </div>
     </div>
 @endsection
@@ -332,19 +316,10 @@
     <script>
         // Função para abrir o offcanvas de criação
         function openCreateExpenseOffcanvas() {
-            document.getElementById('offcanvas-title').textContent = 'Nova Despesa';
-            document.getElementById('form-method').value = 'POST';
-            document.getElementById('expense-form').action = '{{ route('expenses.store') }}';
-            resetForm();
+            document.getElementById('expense-form').reset();
+            clearValidation();
             const offcanvas = new bootstrap.Offcanvas(document.getElementById('expenseFormOffcanvas'));
             offcanvas.show();
-        }
-
-        // Resetar formulário
-        function resetForm() {
-            document.getElementById('expense-form').reset();
-            document.getElementById('expense-id').value = '';
-            clearValidation();
         }
 
         // Limpar validação
@@ -389,90 +364,23 @@
                 toastEl.remove();
             });
         }
-        // Função GLOBAL para abrir o offcanvas de edição
-            function openEditCategoryOffcanvas(categoryId) {
-                const tr = document.querySelector(`tr[data-id="${categoryId}"]`);
-                if (!tr) {
-                    showToast('Categoria não encontrada na tabela.', 'error');
-                    return;
-                }
 
-                // Preencher formulário
-                document.getElementById('offcanvas-title').textContent = 'Editar Categoria';
-                document.getElementById('form-method').value = 'PUT';
-                document.getElementById('category-form').action = `/categories/${categoryId}`;
-                document.getElementById('category-id').value = categoryId;
-                document.getElementById('category-name').value = tr.dataset.name;
-                document.getElementById('category-description').value = tr.dataset.description;
-                document.getElementById('category-type').value = tr.dataset.type;
-                document.getElementById('category-color').value = tr.dataset.color;
-                document.getElementById('category-icon').value = tr.dataset.icon;
-                document.getElementById('category-active').checked = tr.dataset.status === 'active';
+        // Confirmação de exclusão
+        function confirmDelete(description) {
+            return confirm(`Tem certeza que deseja excluir a despesa "${description}"?\n\nEsta ação não pode ser desfeita.`);
+        }
 
-                // Limpar validação
-                clearValidation();
+        // Limpar pesquisa
+        function clearSearch() {
+            document.querySelector('input[name="search"]').value = '';
+            document.querySelector('form').submit();
+        }
 
-                // Abrir offcanvas
-                const offcanvas = new bootstrap.Offcanvas(document.getElementById('categoryFormOffcanvas'));
-                offcanvas.show();
-
-                // Fechar o offcanvas de detalhes
-                const detailsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('categoryDetailsOffcanvas'));
-                if (detailsOffcanvas) {
-                    detailsOffcanvas.hide();
-                }
-            }
-        document.addEventListener('DOMContentLoaded', () => {
-            const searchInput = document.getElementById('search');
-            const dateFrom = document.getElementById('date_from');
-            const dateTo = document.getElementById('date_to');
-
-            // Filtros
-            const filterExpenses = () => {
-                const search = searchInput.value.toLowerCase();
-                const from = dateFrom.value;
-                const to = dateTo.value;
-
-                document.querySelectorAll('#expenses-tbody tr').forEach(tr => {
-                    if (tr.querySelector('.text-muted')) return;
-
-                    const description = tr.dataset.description.toLowerCase();
-                    const date = tr.dataset.date;
-
-                    const matchesSearch = !search || description.includes(search);
-                    const matchesDateFrom = !from || date >= from;
-                    const matchesDateTo = !to || date <= to;
-
-                    tr.style.display = matchesSearch && matchesDateFrom && matchesDateTo ? '' : 'none';
-                });
-            };
-
-            searchInput.addEventListener('input', filterExpenses);
-            dateFrom.addEventListener('change', filterExpenses);
-            dateTo.addEventListener('change', filterExpenses);
-
-            // Editar despesa
-            document.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tr = this.closest('tr');
-                    const id = tr.dataset.id;
-
-                    document.getElementById('offcanvas-title').textContent = 'Editar Despesa';
-                    document.getElementById('form-method').value = 'PUT';
-                    document.getElementById('expense-form').action = `/expenses/${id}`;
-                    document.getElementById('expense-id').value = id;
-                    document.getElementById('expense-category').value = Array.from(document.querySelectorAll('#expense-category option'))
-                        .find(opt => opt.text === tr.dataset.category)?.value || '';
-                    document.getElementById('expense-description').value = tr.dataset.description;
-                    document.getElementById('expense-amount').value = tr.dataset.amount;
-                    document.getElementById('expense-date').value = tr.dataset.date;
-                    document.getElementById('receipt-number').value = tr.dataset.receipt || '';
-                    document.getElementById('expense-notes').value = tr.dataset.notes || '';
-
-                    clearValidation();
-                    const offcanvas = new bootstrap.Offcanvas(document.getElementById('expenseFormOffcanvas'));
-                    offcanvas.show();
-                });
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
             // Ver detalhes
@@ -484,10 +392,8 @@
                     const offcanvas = new bootstrap.Offcanvas(document.getElementById('expenseDetailsOffcanvas'));
                     const content = document.getElementById('expense-details-content');
                     const idSpan = document.getElementById('expense-details-id');
-                    const editBtn = document.getElementById('edit-from-details-btn');
 
                     idSpan.textContent = id;
-                    editBtn.onclick = () => openEditExpenseOffcanvas(id);
 
                     content.innerHTML = `
                         <div class="text-center py-5">
@@ -499,59 +405,43 @@
                     offcanvas.show();
 
                     // Simular dados (ou usar API real)
-                    content.innerHTML = `
-                        <div class="card mb-4">
-                            <div class="card-body text-center">
-                                <h4 class="card-title text-danger">${tr.dataset.description}</h4>
-                                <p class="text-muted">${tr.dataset.category}</p>
-                                <span class="badge bg-danger fs-5">${tr.dataset.amount} MT</span>
-                            </div>
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="alert alert-light">
-                                    <strong>Data:</strong> ${tr.dataset.date.split('-').reverse().join('/')}<br>
-                                    <strong>Recibo:</strong> ${tr.dataset.receipt || 'N/A'}<br>
-                                    <strong>Usuário:</strong> ${tr.dataset.user || 'Você'}
+                    setTimeout(() => {
+                        content.innerHTML = `
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <h4 class="card-title text-danger">${tr.dataset.description}</h4>
+                                    <p class="text-muted">${tr.dataset.category}</p>
+                                    <span class="badge bg-danger fs-5">${parseFloat(tr.dataset.amount).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT</span>
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h6 class="card-title">Observações</h6>
-                                        <p class="text-muted">${tr.dataset.notes || 'Nenhuma observação registrada.'}</p>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <div class="alert alert-light">
+                                        <strong><i class="fas fa-calendar me-1"></i> Data:</strong> ${tr.dataset.date.split('-').reverse().join('/')}<br>
+                                        <strong><i class="fas fa-receipt me-1"></i> Recibo:</strong> ${tr.dataset.receipt || 'N/A'}<br>
+                                        <strong><i class="fas fa-user me-1"></i> Usuário:</strong> ${tr.dataset.user || 'Sistema'}
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title"><i class="fas fa-sticky-note me-1"></i> Observações</h6>
+                                            <p class="text-muted">${tr.dataset.notes || 'Nenhuma observação registrada.'}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }, 500);
                 });
             });
 
-            // Exclusão com Toast
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tr = this.closest('tr');
-                    const id = tr.dataset.id;
-                    const description = tr.dataset.description;
-
-                    document.getElementById('delete-expense-description').textContent = description;
-                    document.getElementById('delete-form').action = `/expenses/${id}`;
-
-                    const toast = new bootstrap.Toast(document.getElementById('deleteToast'));
-                    toast.show();
-                });
-            });
-
-            // Submit do formulário
+            // Submit do formulário de criação
             document.getElementById('expense-form').addEventListener('submit', function(e) {
                 e.preventDefault();
                 clearValidation();
 
                 const formData = new FormData(this);
-                if (document.getElementById('form-method').value === 'PUT') {
-                    formData.append('_method', 'PUT');
-                }
 
                 fetch(this.action, {
                     method: 'POST',
@@ -561,31 +451,36 @@
                         'Accept': 'application/json'
                     }
                 })
-                .then(r => r.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         const offcanvasEl = document.getElementById('expenseFormOffcanvas');
                         const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
                         if (offcanvasInstance) offcanvasInstance.hide();
 
-                        showToast(data.message || 'Despesa salva com sucesso!', 'success');
-                        setTimeout(() => window.location.reload(), 1000);
+                        showToast(data.message || 'Despesa criada com sucesso!', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
                     } else {
                         if (data.errors) {
                             Object.keys(data.errors).forEach(field => {
-                                showFieldError(`#expense-${field.replace('_', '-')}`, data.errors[field][0]);
+                                const selector = field === 'expense_category_id' ? 
+                                    'select[name="expense_category_id"]' : 
+                                    `input[name="${field}"], textarea[name="${field}"]`;
+                                showFieldError(selector, data.errors[field][0]);
                             });
                         }
                         showToast(data.message || 'Erro ao salvar despesa.', 'error');
                     }
                 })
-                .catch(() => showToast('Erro de conexão.', 'error'));
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showToast('Erro de conexão.', 'error');
+                });
             });
 
-            window.clearSearch = () => {
-                searchInput.value = '';
-                filterExpenses();
-            };
+            // Auto-complete data atual no campo de data
+            const today = new Date().toISOString().split('T')[0];
+            document.querySelector('input[name="expense_date"]').value = today;
         });
     </script>
 @endpush
@@ -619,5 +514,18 @@
             margin: 0 auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .btn-group .btn {
+            transition: all 0.3s ease;
+        }
+        
+        .btn-group .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .toast {
+            backdrop-filter: blur(10px);
+        }
     </style>
 @endpush
