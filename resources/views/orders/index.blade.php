@@ -2,14 +2,16 @@
 
 @section('title', 'Pedidos')
 @section('page-title', 'Gestão de Pedidos')
+
+@php
+    $titleIcon = 'fas fa-clipboard-list';
+@endphp
+
 @section('breadcrumbs')
     <li class="breadcrumb-item active">Pedidos</li>
 @endsection
 
 @section('content')
-    @php
-        $titleIcon = 'fa-clipboard-list';
-    @endphp
     <!-- Offcanvas para Criar/Editar Pedido -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="orderFormOffcanvas" style="width: 800px;">
         <div class="offcanvas-header bg-primary text-white">

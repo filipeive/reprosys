@@ -33,9 +33,12 @@
                     <i class="fas fa-download me-2"></i>Exportar
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="exportSales('excel')"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="exportSales('pdf')"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="exportSales('csv')"><i class="fas fa-file-csv me-2"></i>CSV</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportSales('excel')"><i
+                                class="fas fa-file-excel me-2"></i>Excel</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportSales('pdf')"><i
+                                class="fas fa-file-pdf me-2"></i>PDF</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="exportSales('csv')"><i
+                                class="fas fa-file-csv me-2"></i>CSV</a></li>
                 </ul>
             </div>
         </div>
@@ -87,7 +90,8 @@
                 <i class="fas fa-chart-line"></i>
             </div>
             <div class="stat-content">
-                <div class="stat-value">{{ $sales->count() > 0 ? number_format($sales->avg('total_amount'), 0, ',', '.') : '0' }} MT</div>
+                <div class="stat-value">
+                    {{ $sales->count() > 0 ? number_format($sales->avg('total_amount'), 0, ',', '.') : '0' }} MT</div>
                 <div class="stat-label">Ticket Médio</div>
                 <div class="stat-change positive">
                     <i class="fas fa-trending-up me-1"></i>por venda
@@ -114,8 +118,7 @@
                                 <i class="fas fa-search text-muted"></i>
                             </span>
                             <input type="text" class="form-control" id="search" name="search"
-                                value="{{ request('search') }}" 
-                                placeholder="Nome ou telefone do cliente...">
+                                value="{{ request('search') }}" placeholder="Nome ou telefone do cliente...">
                             @if (request('search'))
                                 <button class="btn btn-outline-secondary" type="button" id="clear-search"
                                     title="Limpar pesquisa" onclick="clearSearch()">
@@ -188,15 +191,17 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#" onclick="printTable()">
-                                <i class="fas fa-print me-2"></i>Imprimir
-                            </a></li>
+                                    <i class="fas fa-print me-2"></i>Imprimir
+                                </a></li>
                             <li><a class="dropdown-item" href="#" onclick="refreshTable()">
-                                <i class="fas fa-sync-alt me-2"></i>Atualizar
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
+                                    <i class="fas fa-sync-alt me-2"></i>Atualizar
+                                </a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item" href="#">
-                                <i class="fas fa-chart-bar me-2"></i>Relatório Detalhado
-                            </a></li>
+                                    <i class="fas fa-chart-bar me-2"></i>Relatório Detalhado
+                                </a></li>
                         </ul>
                     </div>
                 </div>
@@ -253,6 +258,14 @@
 
                             <td class="text-center">
                                 <span class="nav-badge badge-secondary">{{ $sale->items->count() ?? 0 }}</span>
+                                @if ($sale->items->count())
+                                    <div class="mt-1">
+                                        @foreach ($sale->items as $item)
+                                            <small
+                                                class="d-block text-muted">{{ strtolower($item->product_name ?? $item->description) }}</small>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </td>
 
                             <td>
@@ -262,21 +275,25 @@
                                             <i class="fas fa-money-bill me-1"></i>Dinheiro
                                         </span>
                                     @break
+
                                     @case('card')
                                         <span class="badge badge-primary">
                                             <i class="fas fa-credit-card me-1"></i>Cartão
                                         </span>
                                     @break
+
                                     @case('transfer')
                                         <span class="badge badge-primary">
                                             <i class="fas fa-exchange-alt me-1"></i>Transferência
                                         </span>
                                     @break
+
                                     @case('credit')
                                         <span class="badge badge-warning">
                                             <i class="fas fa-clock me-1"></i>Crédito
                                         </span>
                                     @break
+
                                     @default
                                         <span class="badge badge-secondary">{{ $sale->payment_method }}</span>
                                 @endswitch
@@ -294,25 +311,25 @@
 
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-info" 
+                                    <button type="button" class="btn btn-outline-info"
                                         onclick="quickView({{ $sale->id }})" title="Visualização Rápida">
                                         <i class="fas fa-eye"></i>
                                     </button>
 
-                                    <a href="{{ route('sales.show', $sale->id) }}" 
-                                       class="btn btn-outline-primary" title="Ver Detalhes">
+                                    <a href="{{ route('sales.show', $sale->id) }}" class="btn btn-outline-primary"
+                                        title="Ver Detalhes">
                                         <i class="fas fa-external-link-alt"></i>
                                     </a>
 
-                                    @if(userCan('edit_sales'))
-                                        <a href="{{ route('sales.edit', $sale->id) }}" 
-                                           class="btn btn-outline-warning" title="Editar Venda">
+                                    @if (userCan('edit_sales'))
+                                        <a href="{{ route('sales.edit', $sale->id) }}" class="btn btn-outline-warning"
+                                            title="Editar Venda">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                     @endif
 
-                                    @if(userCan('delete_sales') || $sale->user_id == auth()->id())
-                                        <button type="button" class="btn btn-outline-danger" 
+                                    @if (userCan('delete_sales') || $sale->user_id == auth()->id())
+                                        <button type="button" class="btn btn-outline-danger"
                                             onclick="confirmDelete({{ $sale->id }}, '{{ $sale->customer_name ?: 'Cliente Avulso' }}')"
                                             title="Cancelar Venda">
                                             <i class="fas fa-trash"></i>
@@ -321,270 +338,289 @@
                                 </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="9" class="text-center py-5">
-                                <div class="d-flex flex-column align-items-center text-muted">
-                                    <i class="fas fa-search fa-3x mb-3 opacity-50"></i>
-                                    <h5>Nenhuma venda encontrada</h5>
-                                    <p class="mb-3">Não há vendas que correspondam aos filtros aplicados.</p>
-                                    <a href="{{ route('sales.create') }}" class="btn btn-primary">
-                                        <i class="fas fa-plus me-2"></i>Registrar Nova Venda
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="text-center py-5">
+                                    <div class="d-flex flex-column align-items-center text-muted">
+                                        <i class="fas fa-search fa-3x mb-3 opacity-50"></i>
+                                        <h5>Nenhuma venda encontrada</h5>
+                                        <p class="mb-3">Não há vendas que correspondam aos filtros aplicados.</p>
+                                        <a href="{{ route('sales.create') }}" class="btn btn-primary">
+                                            <i class="fas fa-plus me-2"></i>Registrar Nova Venda
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Professional Pagination -->
+            @if ($sales->hasPages())
+                <div class="card-footer bg-light border-top text-light border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-2 mb-md-0">
+                            <small class="text-dark me-3 d-none d-md-inline">
+                                Mostrando {{ $sales->firstItem() ?? 0 }} a {{ $sales->lastItem() ?? 0 }}
+                                de {{ $sales->total() }} resultados
+                            </small>
+                        </div>
+                        <nav>
+                            {{ $sales->appends(request()->query())->links('pagination::bootstrap-5') }}
+                        </nav>
+                    </div>
+                </div>
+            @endif
         </div>
 
-        <!-- Professional Pagination -->
-        @if ($sales->hasPages())
-            <div class="card-footer bg-light border-top text-light border-top">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2 mb-md-0">  
-                        <small class="text-dark me-3 d-none d-md-inline">
-                            Mostrando {{ $sales->firstItem() ?? 0 }} a {{ $sales->lastItem() ?? 0 }}
-                            de {{ $sales->total() }} resultados
-                        </small>
-                    </div>
-                    <nav>
-                        {{ $sales->appends(request()->query())->links('pagination::bootstrap-5') }}
-                    </nav>
+        <!-- Professional Offcanvas for Quick View -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="quickViewOffcanvas">
+            <div class="offcanvas-header bg-primary text-white">
+                <h5 class="offcanvas-title">
+                    <i class="fas fa-eye me-2"></i>Detalhes da Venda #<span id="sale-number"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body" id="quick-view-content">
+                <div class="text-center py-5">
+                    <div class="loading"></div>
+                    <p class="text-muted mt-3">Carregando detalhes...</p>
                 </div>
             </div>
-        @endif
-    </div>
-
-    <!-- Professional Offcanvas for Quick View -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="quickViewOffcanvas">
-        <div class="offcanvas-header bg-primary text-white">
-            <h5 class="offcanvas-title">
-                <i class="fas fa-eye me-2"></i>Detalhes da Venda #<span id="sale-number"></span>
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body" id="quick-view-content">
-            <div class="text-center py-5">
-                <div class="loading"></div>
-                <p class="text-muted mt-3">Carregando detalhes...</p>
+            <div class="offcanvas-footer border-top p-3">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
+                        <i class="fas fa-times me-2"></i>Fechar
+                    </button>
+                    <a href="#" id="view-full-sale" class="btn btn-primary flex-fill" target="_blank">
+                        <i class="fas fa-external-link-alt me-2"></i>Ver Completo
+                    </a>
+                </div>
             </div>
         </div>
-        <div class="offcanvas-footer border-top p-3">
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
-                    <i class="fas fa-times me-2"></i>Fechar
-                </button>
-                <a href="#" id="view-full-sale" class="btn btn-primary flex-fill" target="_blank">
-                    <i class="fas fa-external-link-alt me-2"></i>Ver Completo
-                </a>
-            </div>
-        </div>
-    </div>
-@endsection
+    @endsection
 
-@push('styles')
-<style>
-    .sale-row:hover {
-        background-color: rgba(91, 155, 213, 0.05);
-    }
-
-    .stats-card {
-        cursor: pointer;
-    }
-
-    .stats-card:hover {
-        transform: translateY(-2px);
-    }
-
-    .table-container .table th {
-        background: var(--content-bg);
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .offcanvas-footer {
-        margin-top: auto;
-    }
-
-    .badge {
-        font-size: 0.75em;
-    }
-</style>
-@endpush
-
-@push('scripts')
-<script>
-    // Quick View Function
-    function quickView(saleId) {
-        const offcanvas = new bootstrap.Offcanvas(document.getElementById('quickViewOffcanvas'));
-        const content = document.getElementById('quick-view-content');
-        const saleNumber = document.getElementById('sale-number');
-        const viewFullLink = document.getElementById('view-full-sale');
-
-        // Update data
-        saleNumber.textContent = saleId;
-        viewFullLink.href = `/sales/${saleId}`;
-
-        // Show loading
-        content.innerHTML = `
-            <div class="text-center py-5">
-                <div class="loading"></div>
-                <p class="text-muted mt-3">Carregando detalhes...</p>
-            </div>
-        `;
-
-        offcanvas.show();
-
-        // Fetch sale details
-        fetch(`/api/sales/${saleId}/quick-view`, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
+    @push('styles')
+        <style>
+            .sale-row:hover {
+                background-color: rgba(91, 155, 213, 0.05);
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            content.innerHTML = generateQuickViewContent(data);
-        })
-        .catch(error => {
-            console.error('Erro ao carregar detalhes:', error);
-            content.innerHTML = `
+
+            .stats-card {
+                cursor: pointer;
+            }
+
+            .stats-card:hover {
+                transform: translateY(-2px);
+            }
+
+            .table-container .table th {
+                background: var(--content-bg);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+
+            .offcanvas-footer {
+                margin-top: auto;
+            }
+
+            .badge {
+                font-size: 0.75em;
+            }
+        </style>
+    @endpush
+
+    @push('scripts')
+        <script>
+            // Quick View Function
+            function quickView(saleId) {
+                const offcanvas = new bootstrap.Offcanvas(document.getElementById('quickViewOffcanvas'));
+                const content = document.getElementById('quick-view-content');
+                const saleNumber = document.getElementById('sale-number');
+                const viewFullLink = document.getElementById('view-full-sale');
+
+                // Update data
+                saleNumber.textContent = saleId;
+                viewFullLink.href = `/sales/${saleId}`;
+
+                // Show loading
+                content.innerHTML = `
+        <div class="text-center py-5">
+            <div class="loading"></div>
+            <p class="text-muted mt-3">Carregando detalhes...</p>
+        </div>
+    `;
+
+                offcanvas.show();
+
+                // Fetch sale details
+                fetch(`/sales/api/sales/${saleId}/quick-view`, {
+                        method: 'GET',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            content.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Erro ao carregar detalhes da venda.
+                    <i class="fas fa-exclamation-triangle me-2"></i>${data.error}
                 </div>
             `;
-        });
-    }
-
-    // Generate Quick View Content
-    function generateQuickViewContent(sale) {
-        let itemsHtml = '';
-        if (sale.items && sale.items.length > 0) {
-            itemsHtml = sale.items.map(item => `
-                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
-                    <div>
-                        <div class="fw-semibold">${item.product_name || item.description}</div>
-                        <small class="text-muted">Qtd: ${item.quantity}</small>
-                    </div>
-                    <div class="text-end">
-                        <div class="fw-semibold">${parseFloat(item.total_price || 0).toLocaleString('pt-PT', {minimumFractionDigits: 2})} MT</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        return `
-            <div class="mb-4">
-                <h6 class="text-primary mb-3">
-                    <i class="fas fa-user me-2"></i>Informações do Cliente
-                </h6>
-                <div class="row">
-                    <div class="col-12 mb-2">
-                        <strong>Nome:</strong> ${sale.customer_name || 'Cliente Avulso'}
-                    </div>
-                    <div class="col-12 mb-2">
-                        <strong>Telefone:</strong> ${sale.customer_phone || 'Não informado'}
-                    </div>
-                    ${sale.notes ? `<div class="col-12"><strong>Observações:</strong> ${sale.notes}</div>` : ''}
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <h6 class="text-success mb-3">
-                    <i class="fas fa-info-circle me-2"></i>Detalhes da Venda
-                </h6>
-                <div class="row">
-                    <div class="col-6 mb-2">
-                        <strong>Data:</strong><br>
-                        <small>${sale.sale_date}</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong>Vendedor:</strong><br>
-                        <small>${sale.user_name || 'Sistema'}</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong>Pagamento:</strong><br>
-                        <small>${getPaymentMethodName(sale.payment_method)}</small>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <strong>Total:</strong><br>
-                        <span class="fw-bold text-success">${parseFloat(sale.total_amount || 0).toLocaleString('pt-PT', {minimumFractionDigits: 2})} MT</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <h6 class="text-info mb-3">
-                    <i class="fas fa-shopping-cart me-2"></i>Itens da Venda
-                </h6>
-                <div class="border rounded">
-                    ${itemsHtml || '<p class="text-muted text-center py-3">Nenhum item encontrado</p>'}
-                </div>
+                        } else {
+                            content.innerHTML = generateQuickViewContent(data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao carregar detalhes:', error);
+                        content.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Erro ao carregar detalhes da venda.
             </div>
         `;
-    }
+                    });
+            }
 
-    // Helper function
-    function getPaymentMethodName(method) {
-        const methods = {
-            'cash': 'Dinheiro',
-            'card': 'Cartão',
-            'transfer': 'Transferência',
-            'credit': 'Crédito'
-        };
-        return methods[method] || method;
-    }
+            // Generate Quick View Content
+            function generateQuickViewContent(sale) {
+                let itemsHtml = '';
+                if (sale.items && sale.items.length > 0) {
+                    itemsHtml = sale.items.map(item => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                <div>
+                    <div class="fw-semibold">${item.product_name}</div>
+                    <small class="text-muted">
+                        Categoria: ${item.category} | 
+                        Tipo: ${item.type === 'product' ? 'Produto' : 'Serviço'} | 
+                        Qtd: ${item.quantity}
+                    </small>
+                </div>
+                <div class="text-end">
+                    <div class="fw-semibold">
+                        ${parseFloat(item.total_price || 0).toLocaleString('pt-PT', {minimumFractionDigits: 2})} MT
+                    </div>
+                </div>
+            </div>
+        `).join('');
+                } else {
+                    itemsHtml = '<p class="text-muted text-center py-3">Nenhum item encontrado</p>';
+                }
 
-    // Confirm Delete Function
-    function confirmDelete(saleId, customerName) {
-        if (confirm(`Deseja realmente cancelar a venda do cliente "${customerName}"?\n\nEsta ação irá restaurar o estoque dos produtos vendidos.`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/sales/${saleId}`;
-            form.innerHTML = `
+                return `
+        <div class="mb-4">
+            <h6 class="text-primary mb-3">
+                <i class="fas fa-user me-2"></i>Informações do Cliente
+            </h6>
+            <div class="row">
+                <div class="col-12 mb-2">
+                    <strong>Nome:</strong> ${sale.customer_name || 'Cliente Avulso'}
+                </div>
+                <div class="col-12 mb-2">
+                    <strong>Telefone:</strong> ${sale.customer_phone || 'Não informado'}
+                </div>
+                ${sale.notes ? `<div class="col-12"><strong>Observações:</strong> ${sale.notes}</div>` : ''}
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h6 class="text-success mb-3">
+                <i class="fas fa-info-circle me-2"></i>Detalhes da Venda
+            </h6>
+            <div class="row">
+                <div class="col-6 mb-2">
+                    <strong>Data:</strong><br>
+                    <small>${sale.sale_date}</small>
+                </div>
+                <div class="col-6 mb-2">
+                    <strong>Vendedor:</strong><br>
+                    <small>${sale.user_name || 'Sistema'}</small>
+                </div>
+                <div class="col-6 mb-2">
+                    <strong>Pagamento:</strong><br>
+                    <small>${getPaymentMethodName(sale.payment_method)}</small>
+                </div>
+                <div class="col-6 mb-2">
+                    <strong>Total:</strong><br>
+                    <span class="fw-bold text-success">${parseFloat(sale.total_amount || 0).toLocaleString('pt-PT', {minimumFractionDigits: 2})} MT</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h6 class="text-info mb-3">
+                <i class="fas fa-shopping-cart me-2"></i>Itens da Venda
+            </h6>
+            <div class="border rounded">
+                ${itemsHtml}
+            </div>
+        </div>
+    `;
+            }
+
+
+            // Helper function
+            function getPaymentMethodName(method) {
+                const methods = {
+                    'cash': 'Dinheiro',
+                    'card': 'Cartão',
+                    'transfer': 'Transferência',
+                    'credit': 'Crédito'
+                };
+                return methods[method] || method;
+            }
+
+            // Confirm Delete Function
+            function confirmDelete(saleId, customerName) {
+                if (confirm(
+                        `Deseja realmente cancelar a venda do cliente "${customerName}"?\n\nEsta ação irá restaurar o estoque dos produtos vendidos.`
+                        )) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/sales/${saleId}`;
+                    form.innerHTML = `
                 @csrf
                 @method('DELETE')
             `;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            }
 
-    // Export Functions
-    function exportSales(format) {
-        const queryString = new URLSearchParams(window.location.search).toString();
-        window.location.href = `/sales/export/${format}?${queryString}`;
-    }
+            // Export Functions
+            function exportSales(format) {
+                const queryString = new URLSearchParams(window.location.search).toString();
+                window.location.href = `/sales/export/${format}?${queryString}`;
+            }
 
-    // Clear Search Function
-    function clearSearch() {
-        document.getElementById('search').value = '';
-        document.getElementById('filter-form').submit();
-    }
-
-    // Print Table Function
-    function printTable() {
-        window.print();
-    }
-
-    // Refresh Table Function
-    function refreshTable() {
-        window.location.reload();
-    }
-
-    // Auto-submit form on input change
-    document.addEventListener('DOMContentLoaded', function() {
-        const dateInputs = document.querySelectorAll('#date_from, #date_to, #payment_method');
-        dateInputs.forEach(input => {
-            input.addEventListener('change', function() {
+            // Clear Search Function
+            function clearSearch() {
+                document.getElementById('search').value = '';
                 document.getElementById('filter-form').submit();
+            }
+
+            // Print Table Function
+            function printTable() {
+                window.print();
+            }
+
+            // Refresh Table Function
+            function refreshTable() {
+                window.location.reload();
+            }
+
+            // Auto-submit form on input change
+            document.addEventListener('DOMContentLoaded', function() {
+                const dateInputs = document.querySelectorAll('#date_from, #date_to, #payment_method');
+                dateInputs.forEach(input => {
+                    input.addEventListener('change', function() {
+                        document.getElementById('filter-form').submit();
+                    });
+                });
             });
-        });
-    });
-</script>
-@endpush
+        </script>
+    @endpush

@@ -21,15 +21,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// ===== AUTHENTICATION ROUTES =====
-Auth::routes(['register' => false]); // Disable default register route
-
 // Registro protegido com senha administrativa
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/register/verify-admin', [RegisterController::class, 'verifyAdminPasswordAjax'])->name('register.verify-admin');
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 // ===== PROTECTED ROUTES =====
 Route::middleware(['auth', 'permissions'])->group(function () {
@@ -139,34 +135,40 @@ Route::middleware(['auth', 'permissions'])->group(function () {
             Route::get('/reports/orders', [OrderController::class, 'report'])->name('report');
         });
     });
-    
     // ===== VENDAS =====
     Route::prefix('sales')->name('sales.')->group(function () {
+        
         // Visualizar vendas - view_sales permission
         Route::middleware('permissions:view_sales')->group(function () {
             Route::get('/', [SaleController::class, 'index'])->name('index');
             Route::get('/{sale}', [SaleController::class, 'show'])->name('show');
             Route::get('/{sale}/print', [SaleController::class, 'print'])->name('print');
-            Route::get('/{sale}/quick-view', [SaleController::class, 'quickView'])->name('quick-view');
             Route::get('/{sale}/duplicate', [SaleController::class, 'duplicate'])->name('duplicate');
+            
+            // APIs também protegidas por permissão
+            Route::prefix('api/sales')->name('api.')->group(function () {
+                Route::get('/{sale}/quick-view', [SaleController::class, 'quickView'])->name('quick-view');
+            });
         });
-        
+
         // Criar vendas - create_sales permission
         Route::middleware('permissions:create_sales')->group(function () {
+            Route::get('/create', [SaleController::class, 'create'])->name('create');
             Route::post('/', [SaleController::class, 'store'])->name('store');
             Route::get('/manual-create', [SaleController::class, 'manualCreate'])->name('manual-create');
             Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
-             // Route to create a new debt from a sale
+            
+            // Route to create a new debt from a sale
             Route::post('/{sale}/create-debt', [SaleController::class, 'createDebt'])->name('create-debt');
         });
-        
+
         // Editar vendas - edit_sales permission
         Route::middleware('permissions:edit_sales')->group(function () {
             Route::get('/{sale}/edit', [SaleController::class, 'edit'])->name('edit');
             Route::put('/{sale}', [SaleController::class, 'update'])->name('update');
             Route::patch('/{sale}/payment-status', [SaleController::class, 'updatePaymentStatus'])->name('update-payment-status');
         });
-        
+
         // Deletar vendas - delete_sales permission
         Route::middleware('permissions:delete_sales')->group(function () {
             Route::delete('/{sale}', [SaleController::class, 'destroy'])->name('destroy');
@@ -176,6 +178,11 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::middleware('permissions:view_reports')->group(function () {
             Route::get('/reports/dashboard', [SaleController::class, 'dashboard'])->name('reports');
             Route::get('/reports/export', [SaleController::class, 'export'])->name('export');
+        });
+
+        // Exportação de vendas - permissão específica
+        Route::middleware('permissions:view_sales')->group(function () {
+            Route::get('/export/{format}', [SaleController::class, 'exportSales'])->name('export-data');
         });
     });
     

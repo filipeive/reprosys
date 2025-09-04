@@ -341,16 +341,84 @@ class SaleController extends Controller
         return view('sales.print', compact('sale'));
     }
 
-    /**
+   /*  /**
      * Obter detalhes rápidos da venda (para modal)
+     
+    public function quickView(Sale $sale)
+    {
+        try {
+            // Carregar as relações necessárias
+            $sale->load(['user', 'items.product']);
+
+            // Renderizar a view parcial para o Quick View
+            $html = view('sales.partials.quick-view', compact('sale'))->render();
+
+            // Retornar a resposta como JSON
+            return response()->json(['html' => $html]);
+        } catch (\Exception $e) {
+            // Registrar o erro no log
+            \Log::error('Erro no Quick View: ' . $e->getMessage());
+            return response()->json(['error' => 'Erro ao carregar a visualização rápida.'], 500);
+        }
+    } */
+
+    /**
+     * Obter detalhes rápidos da venda (para modal/offcanvas)
      */
     public function quickView(Sale $sale)
     {
-        $sale->load(['user', 'items.product']);
-        
-        $html = view('sales.partials.quick-view', compact('sale'))->render();
-        
-        return response()->json(['html' => $html]);
+        try {
+            // Verificar permissões
+            if (!userCan('view_sales') && (!userCan('view_own_sales') || $sale->user_id !== auth()->id())) {
+                return response()->json(['error' => 'Acesso negado.'], 403);
+            }
+
+            // Carregar relações
+            $sale->load([
+                'user',
+                'items.product.category',
+                'items' => function ($query) {
+                    $query->orderBy('created_at', 'asc');
+                }
+            ]);
+
+            // Preparar dados
+            $saleData = [
+                'id' => $sale->id,
+                'customer_name' => $sale->customer_name,
+                'customer_phone' => $sale->customer_phone,
+                'sale_date' => $sale->sale_date->format('d/m/Y H:i'),
+                'payment_method' => $sale->payment_method,
+                'total_amount' => $sale->total_amount,
+                'notes' => $sale->notes,
+                'user_name' => $sale->user ? $sale->user->name : 'Sistema',
+                'items' => $sale->items->map(function ($item) {
+                    return [
+                        'product_name' => $item->product->name ?? $item->description ?? 'Produto',
+                        'category' => $item->product->category->name ?? 'Sem categoria',
+                        'type' => $item->product->type ?? 'desconhecido',
+                        'quantity' => $item->quantity ?? 0,
+                        'unit_price' => $item->unit_price ?? 0,
+                        'total_price' => $item->total_price ?? (($item->quantity ?? 0) * ($item->unit_price ?? 0)),
+                        'description' => $item->description ?? ''
+                    ];
+                })->toArray()
+            ];
+
+            return response()->json($saleData);
+
+        } catch (\Exception $e) {
+            \Log::error('Erro no Quick View da venda ' . ($sale->id ?? 'desconhecida'), [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => auth()->id(),
+                'sale_id' => $sale->id ?? null
+            ]);
+
+            return response()->json([
+                'error' => 'Erro ao carregar detalhes da venda. Tente novamente.'
+            ], 500);
+        }
     }
 
     /**

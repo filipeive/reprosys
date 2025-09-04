@@ -37,5 +37,6 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('view-all-resources', function (User $user) {
             return $user->isAdmin() || $user->role === 'manager';
         });
+        
     }
 }
