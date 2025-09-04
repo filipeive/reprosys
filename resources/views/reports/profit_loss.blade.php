@@ -1,57 +1,59 @@
 @extends('layouts.app')
 
-@section('title', 'Relatório de Lucros e Perdas')
-@section('page-title', 'Lucros e Perdas')
+@section('title', 'Relatório de Lucro e Prejuízo')
+@section('page-title', 'Lucro e Prejuízo')
 @section('title-icon', 'fa-chart-line')
+
 @section('breadcrumbs')
     <li class="breadcrumb-item"><a href="{{ route('reports.index') }}">Relatórios</a></li>
-    <li class="breadcrumb-item active">Lucros e Perdas</li>
+    <li class="breadcrumb-item active">Lucro e Prejuízo</li>
 @endsection
 
 @section('content')
-    <!-- Header com botões de ação -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="h3 mb-1 text-primary fw-bold">
                 <i class="fas fa-chart-line me-2"></i>
-                Relatório de Lucros e Perdas
+                Demonstração de Resultado (DRE)
             </h2>
-            <p class="text-muted mb-0">Demonstração de resultados financeiros do período</p>
+            <p class="text-muted mb-0">Análise detalhada de receitas, custos e lucros</p>
         </div>
-        <a href="{{ route('reports.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i> Voltar
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('reports.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Voltar
+            </a>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fas fa-print me-1"></i> Imprimir
+            </button>
+        </div>
     </div>
 
     <!-- Filtros -->
-    <div class="card mb-4 fade-in">
+    <div class="card mb-4">
         <div class="card-header bg-white">
-            <h5 class="card-title mb-0 d-flex align-items-center">
-                <i class="fas fa-filter me-2 text-primary"></i>
-                Filtros de Período
+            <h5 class="card-title mb-0">
+                <i class="fas fa-filter me-2"></i>
+                Período de Análise
             </h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('reports.profit-loss') }}" id="filters-form">
+            <form method="GET" action="{{ route('reports.profit-loss') }}">
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Data Inicial</label>
-                        <input type="date" class="form-control" name="date_from" value="{{ $dateFrom }}">
+                        <label class="form-label">Data Inicial</label>
+                        <input type="date" class="form-control" name="date_from" 
+                               value="{{ $dateFrom }}">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Data Final</label>
-                        <input type="date" class="form-control" name="date_to" value="{{ $dateTo }}">
+                        <label class="form-label">Data Final</label>
+                        <input type="date" class="form-control" name="date_to" 
+                               value="{{ $dateTo }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-4">
                         <label class="form-label">&nbsp;</label>
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-search me-1"></i> Filtrar
-                        </button>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="button" class="btn btn-success w-100" onclick="exportReport()">
-                            <i class="fas fa-file-pdf me-1"></i> Exportar
+                            <i class="fas fa-search me-1"></i> Atualizar Relatório
                         </button>
                     </div>
                 </div>
@@ -59,387 +61,382 @@
         </div>
     </div>
 
-    <!-- Cards de Resumo -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-            <div class="card stats-card success h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Receita Total</h6>
-                            <h3 class="mb-0 text-success fw-bold">{{ number_format($revenue, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">vendas brutas</small>
-                        </div>
-                        <div class="text-success">
-                            <i class="fas fa-dollar-sign fa-2x"></i>
-                        </div>
+    <div class="row">
+        <!-- DRE Principal -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calculator me-2"></i>
+                        Demonstração do Resultado do Exercício
+                    </h5>
+                    <small>Período: {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} até {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <tbody>
+                                <!-- RECEITAS -->
+                                <tr class="table-success">
+                                    <th colspan="2" class="fs-6">
+                                        <i class="fas fa-plus-circle me-2"></i>
+                                        RECEITAS OPERACIONAIS
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4">Vendas Brutas</td>
+                                    <td class="text-end fw-bold text-success">
+                                        {{ number_format($salesRevenue, 2, ',', '.') }} MT
+                                    </td>
+                                </tr>
+                                <tr class="border-bottom border-2">
+                                    <td class="ps-4"><strong>Total de Receitas</strong></td>
+                                    <td class="text-end fw-bold text-success fs-5">
+                                        {{ number_format($salesRevenue, 2, ',', '.') }} MT
+                                    </td>
+                                </tr>
+
+                                <!-- CUSTOS DOS PRODUTOS VENDIDOS -->
+                                <tr class="table-warning">
+                                    <th colspan="2" class="fs-6 pt-3">
+                                        <i class="fas fa-minus-circle me-2"></i>
+                                        CUSTOS DOS PRODUTOS VENDIDOS
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td class="ps-4">Custo das Mercadorias Vendidas</td>
+                                    <td class="text-end fw-bold text-warning">
+                                        ({{ number_format($costOfGoodsSold, 2, ',', '.') }}) MT
+                                    </td>
+                                </tr>
+                                <tr class="border-bottom border-2">
+                                    <td class="ps-4"><strong>Total dos Custos</strong></td>
+                                    <td class="text-end fw-bold text-warning fs-5">
+                                        ({{ number_format($costOfGoodsSold, 2, ',', '.') }}) MT
+                                    </td>
+                                </tr>
+
+                                <!-- LUCRO BRUTO -->
+                                <tr class="table-info">
+                                    <th class="fs-5 pt-3">
+                                        <i class="fas fa-equals me-2"></i>
+                                        LUCRO BRUTO
+                                    </th>
+                                    <th class="text-end {{ $grossProfit >= 0 ? 'text-success' : 'text-danger' }} fs-4 pt-3">
+                                        {{ number_format($grossProfit, 2, ',', '.') }} MT
+                                        <small class="d-block fs-6">
+                                            Margem: {{ number_format($grossMargin, 1) }}%
+                                        </small>
+                                    </th>
+                                </tr>
+
+                                <!-- DESPESAS OPERACIONAIS -->
+                                <tr class="table-danger">
+                                    <th colspan="2" class="fs-6 pt-3">
+                                        <i class="fas fa-minus-circle me-2"></i>
+                                        DESPESAS OPERACIONAIS
+                                    </th>
+                                </tr>
+                                @foreach($expensesByCategory as $category => $amount)
+                                <tr>
+                                    <td class="ps-4">{{ $category ?: 'Sem Categoria' }}</td>
+                                    <td class="text-end text-danger">
+                                        ({{ number_format($amount, 2, ',', '.') }}) MT
+                                    </td>
+                                </tr>
+                                @endforeach
+                                <tr class="border-bottom border-2">
+                                    <td class="ps-4"><strong>Total das Despesas Operacionais</strong></td>
+                                    <td class="text-end fw-bold text-danger fs-5">
+                                        ({{ number_format($totalOperatingExpenses, 2, ',', '.') }}) MT
+                                    </td>
+                                </tr>
+
+                                <!-- RESULTADO FINAL -->
+                                <tr class="table-{{ $operatingProfit >= 0 ? 'success' : 'danger' }}">
+                                    <th class="fs-4 pt-4">
+                                        <i class="fas fa-trophy me-2"></i>
+                                        LUCRO/PREJUÍZO OPERACIONAL
+                                    </th>
+                                    <th class="text-end {{ $operatingProfit >= 0 ? 'text-success' : 'text-danger' }} fs-3 pt-4">
+                                        {{ $operatingProfit >= 0 ? '' : '(' }}{{ number_format(abs($operatingProfit), 2, ',', '.') }}{{ $operatingProfit >= 0 ? '' : ')' }} MT
+                                        <small class="d-block fs-6">
+                                            Margem: {{ number_format($operatingMargin, 1) }}%
+                                        </small>
+                                    </th>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-            <div class="card stats-card warning h-100">
+
+        <!-- Indicadores e Análises -->
+        <div class="col-lg-4">
+            <!-- Indicadores Chave -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Indicadores-Chave
+                    </h6>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Custo dos Produtos</h6>
-                            <h3 class="mb-0 text-warning fw-bold">{{ number_format($costOfGoodsSold, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">custo direto</small>
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="border rounded p-2">
+                                <h6 class="text-muted mb-1">Margem Bruta</h6>
+                                <h4 class="mb-0 {{ $grossMargin >= 30 ? 'text-success' : ($grossMargin >= 15 ? 'text-warning' : 'text-danger') }}">
+                                    {{ number_format($grossMargin, 1) }}%
+                                </h4>
+                            </div>
                         </div>
-                        <div class="text-warning">
-                            <i class="fas fa-boxes fa-2x"></i>
+                        <div class="col-6 mb-3">
+                            <div class="border rounded p-2">
+                                <h6 class="text-muted mb-1">Margem Líquida</h6>
+                                <h4 class="mb-0 {{ $operatingMargin >= 10 ? 'text-success' : ($operatingMargin >= 5 ? 'text-warning' : 'text-danger') }}">
+                                    {{ number_format($operatingMargin, 1) }}%
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <div class="border rounded p-2">
+                                <h6 class="text-muted mb-1">ROI (Return on Investment)</h6>
+                                <h4 class="mb-0 text-info">
+                                    {{ $costOfGoodsSold > 0 ? number_format(($operatingProfit / $costOfGoodsSold) * 100, 1) : 0 }}%
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Análise de Performance -->
+                    <div class="mt-3">
+                        <h6 class="mb-2">Análise de Performance</h6>
+                        <div class="small">
+                            @if($grossMargin >= 30)
+                                <div class="alert alert-success py-2 mb-2">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Margem bruta excelente (≥30%)
+                                </div>
+                            @elseif($grossMargin >= 15)
+                                <div class="alert alert-warning py-2 mb-2">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Margem bruta moderada (15-30%)
+                                </div>
+                            @else
+                                <div class="alert alert-danger py-2 mb-2">
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    Margem bruta baixa (&lt;15%)
+                                </div>
+                            @endif
+
+                            @if($operatingMargin >= 10)
+                                <div class="alert alert-success py-2 mb-2">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Margem operacional saudável (≥10%)
+                                </div>
+                            @elseif($operatingMargin >= 5)
+                                <div class="alert alert-warning py-2 mb-2">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Margem operacional aceitável (5-10%)
+                                </div>
+                            @else
+                                <div class="alert alert-danger py-2 mb-2">
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    Margem operacional preocupante (&lt;5%)
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-            <div class="card stats-card danger h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Despesas Operacionais</h6>
-                            <h3 class="mb-0 text-danger fw-bold">{{ number_format($totalExpenses, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">custos fixos e variáveis</small>
-                        </div>
-                        <div class="text-danger">
-                            <i class="fas fa-receipt fa-2x"></i>
-                        </div>
-                    </div>
+
+            <!-- Gráfico de Composição -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Composição das Receitas
+                    </h6>
                 </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
-            <div class="card stats-card {{ $profit >= 0 ? 'success' : 'danger' }} h-100">
                 <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Resultado Líquido</h6>
-                            <h3 class="mb-0 fw-bold">{{ number_format($profit, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">{{ $profit >= 0 ? 'Lucro' : 'Prejuízo' }}</small>
-                        </div>
-                        <div class="text-white">
-                            <i class="fas fa-chart-line fa-2x"></i>
-                        </div>
-                    </div>
+                    <canvas id="compositionChart" height="200"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Demonstração de Resultados -->
-    <div class="card fade-in mb-4">
+    <!-- Rentabilidade por Produto -->
+    <div class="card mt-4">
         <div class="card-header bg-white">
-            <h5 class="card-title mb-0 d-flex align-items-center">
-                <i class="fas fa-calculator me-2 text-primary"></i>
-                Demonstração de Resultados
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                Rentabilidade por Produto
             </h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <tbody>
-                        <tr class="bg-success text-white">
-                            <td><strong>RECEITAS</strong></td>
-                            <td class="text-end">
-                                <strong>{{ number_format($revenue, 2, ',', '.') }} MT</strong>
-                            </td>
-                        </tr>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
                         <tr>
-                            <td class="ps-4">Vendas de Produtos</td>
-                            <td class="text-end">{{ number_format($revenue, 2, ',', '.') }} MT</td>
+                            <th>Produto</th>
+                            <th class="text-center">Qtd Vendida</th>
+                            <th class="text-end">Receita</th>
+                            <th class="text-end">Custo</th>
+                            <th class="text-end">Lucro Bruto</th>
+                            <th class="text-center">Margem</th>
+                            <th class="text-center">% da Receita</th>
                         </tr>
-                        <tr class="bg-warning text-dark">
-                            <td><strong>CUSTO DOS PRODUTOS VENDIDOS</strong></td>
-                            <td class="text-end">
-                                <strong>{{ number_format($costOfGoodsSold, 2, ',', '.') }} MT</strong>
-                            </td>
-                        </tr>
-                        <tr class="bg-info text-white">
-                            <td><strong>LUCRO BRUTO</strong></td>
-                            <td class="text-end">
-                                <strong>{{ number_format($revenue - $costOfGoodsSold, 2, ',', '.') }} MT</strong>
-                            </td>
-                        </tr>
-                        <tr class="bg-danger text-white">
-                            <td><strong>DESPESAS OPERACIONAIS</strong></td>
-                            <td class="text-end">
-                                <strong>{{ number_format($totalExpenses, 2, ',', '.') }} MT</strong>
-                            </td>
-                        </tr>
-                        <tr class="bg-{{ $profit >= 0 ? 'success' : 'danger' }} text-white">
-                            <td><strong>{{ $profit >= 0 ? 'LUCRO' : 'PREJUÍZO' }} LÍQUIDO</strong></td>
-                            <td class="text-end">
-                                <strong>{{ number_format($profit, 2, ',', '.') }} MT</strong>
-                            </td>
-                        </tr>
+                    </thead>
+                    <tbody>
+                        @php $totalRevenue = $productProfitability->sum('revenue'); @endphp
+                        @forelse($productProfitability as $product)
+                            @php
+                                $margin = $product->revenue > 0 ? (($product->profit / $product->revenue) * 100) : 0;
+                                $revenueShare = $totalRevenue > 0 ? (($product->revenue / $totalRevenue) * 100) : 0;
+                            @endphp
+                            <tr>
+                                <td><strong>{{ $product->name }}</strong></td>
+                                <td class="text-center">{{ $product->quantity_sold }}</td>
+                                <td class="text-end text-success fw-bold">
+                                    {{ number_format($product->revenue, 2, ',', '.') }} MT
+                                </td>
+                                <td class="text-end text-warning">
+                                    {{ number_format($product->cost, 2, ',', '.') }} MT
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-bold {{ $product->profit >= 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ number_format($product->profit, 2, ',', '.') }} MT
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-{{ $margin >= 30 ? 'success' : ($margin >= 15 ? 'warning' : 'danger') }}">
+                                        {{ number_format($margin, 1) }}%
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="text-muted">{{ number_format($revenueShare, 1) }}%</span>
+                                    <div class="progress mt-1" style="height: 4px;">
+                                        <div class="progress-bar bg-primary" 
+                                             style="width: {{ $revenueShare }}%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-box-open fa-2x mb-3 opacity-50"></i>
+                                    <p>Nenhuma venda registrada no período.</p>
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold">
+                            <td>TOTAIS:</td>
+                            <td class="text-center">{{ $productProfitability->sum('quantity_sold') }}</td>
+                            <td class="text-end text-success">{{ number_format($productProfitability->sum('revenue'), 2, ',', '.') }} MT</td>
+                            <td class="text-end text-warning">{{ number_format($productProfitability->sum('cost'), 2, ',', '.') }} MT</td>
+                            <td class="text-end {{ $productProfitability->sum('profit') >= 0 ? 'text-success' : 'text-danger' }}">
+                                {{ number_format($productProfitability->sum('profit'), 2, ',', '.') }} MT
+                            </td>
+                            <td class="text-center">
+                                @php
+                                    $totalMargin = $productProfitability->sum('revenue') > 0 ? 
+                                        (($productProfitability->sum('profit') / $productProfitability->sum('revenue')) * 100) : 0;
+                                @endphp
+                                <span class="badge bg-{{ $totalMargin >= 30 ? 'success' : ($totalMargin >= 15 ? 'warning' : 'danger') }}">
+                                    {{ number_format($totalMargin, 1) }}%
+                                </span>
+                            </td>
+                            <td class="text-center">100%</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
     </div>
-
-    <!-- Gráfico de Resultados -->
-    <div class="card fade-in mb-4">
-        <div class="card-header bg-white">
-            <h5 class="card-title mb-0 d-flex align-items-center">
-                <i class="fas fa-chart-bar me-2 text-success"></i>
-                Análise de Resultados
-            </h5>
-        </div>
-        <div class="card-body">
-            <canvas id="profitLossChart" height="100"></canvas>
-        </div>
-    </div>
-
-    <!-- Métricas Financeiras -->
-    <div class="row mb-4">
-        <div class="col-lg-4">
-            <div class="card fade-in h-100">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0 d-flex align-items-center">
-                        <i class="fas fa-percentage me-2 text-success"></i>
-                        Margem Bruta
-                    </h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="display-4 fw-bold text-success mb-2">
-                        {{ $revenue > 0 ? number_format((($revenue - $costOfGoodsSold) / $revenue) * 100, 1) : 0 }}%
-                    </div>
-                    <p class="text-muted mb-0">Lucro bruto sobre receita</p>
-                    <div class="progress mt-3" style="height: 8px;">
-                        <div class="progress-bar bg-success" role="progressbar"
-                            style="width: {{ $revenue > 0 ? (($revenue - $costOfGoodsSold) / $revenue) * 100 : 0 }}%">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card fade-in h-100">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0 d-flex align-items-center">
-                        <i class="fas fa-chart-pie me-2 text-info"></i>
-                        Margem Líquida
-                    </h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="display-4 fw-bold text-info mb-2">
-                        {{ $revenue > 0 ? number_format(($profit / $revenue) * 100, 1) : 0 }}%
-                    </div>
-                    <p class="text-muted mb-0">Lucro líquido sobre receita</p>
-                    <div class="progress mt-3" style="height: 8px;">
-                        <div class="progress-bar bg-info" role="progressbar"
-                            style="width: {{ $revenue > 0 ? ($profit / $revenue) * 100 : 0 }}%">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card fade-in h-100">
-                <div class="card-header bg-white">
-                    <h5 class="card-title mb-0 d-flex align-items-center">
-                        <i class="fas fa-coins me-2 text-warning"></i>
-                        Retorno sobre Investimento
-                    </h5>
-                </div>
-                <div class="card-body text-center">
-                    <div class="display-4 fw-bold text-warning mb-2">
-                        {{ $costOfGoodsSold > 0 ? number_format(($profit / $costOfGoodsSold) * 100, 1) : 0 }}%
-                    </div>
-                    <p class="text-muted mb-0">ROI sobre custo dos produtos</p>
-                    <div class="progress mt-3" style="height: 8px;">
-                        <div class="progress-bar bg-warning" role="progressbar"
-                            style="width: {{ $costOfGoodsSold > 0 ? ($profit / $costOfGoodsSold) * 100 : 0 }}%">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Detalhamento de Despesas -->
-    @if ($totalExpenses > 0)
-        <div class="card fade-in">
-            <div class="card-header bg-white">
-                <h5 class="card-title mb-0 d-flex align-items-center">
-                    <i class="fas fa-receipt me-2 text-danger"></i>
-                    Detalhamento de Despesas
-                </h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Categoria</th>
-                                <th>Descrição</th>
-                                <th class="text-end">Valor</th>
-                                <th>Data</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (\App\Models\Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->limit(10)->get() as $expense)
-                                <tr>
-                                    <td><span
-                                            class="badge bg-light text-dark">{{ $expense->category?->name ?? 'N/A' }}</span>
-                                    </td>
-                                    <td>{{ Str::limit($expense->description, 50) }}</td>
-                                    <td class="text-end text-danger fw-bold">
-                                        {{ number_format($expense->amount, 2, ',', '.') }} MT</td>
-                                    <td>{{ $expense->expense_date->format('d/m/Y') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                @if (\App\Models\Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->count() > 10)
-                    <div class="card-footer bg-light">
-                        <small class="text-muted">
-                            Mostrando os 10 principais.
-                            <a
-                                href="{{ route('reports.index', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'report_type' => 'expenses']) }}">Ver
-                                todos</a>
-                        </small>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
 @endsection
 
 @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        function exportReport() {
-            const params = new URLSearchParams();
-            params.set('date_from', document.querySelector('input[name="date_from"]').value);
-            params.set('date_to', document.querySelector('input[name="date_to"]').value);
-            params.set('export', 'pdf');
-            params.set('type', 'profit-loss');
-
-            window.open('{{ route('reports.export') }}?' + params.toString(), '_blank');
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Dados para o gráfico
-            const revenue = {{ $revenue }};
-            const costOfGoodsSold = {{ $costOfGoodsSold }};
-            const totalExpenses = {{ $totalExpenses }};
-            const profit = {{ $profit }};
-
-            const ctx = document.getElementById('profitLossChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                {
-                    labels: ['Receita', 'Custo dos Produtos', 'Despesas', 'Resultado'],
-                    datasets: [{
-                        label: 'Valores (MT)',
-                        [revenue, costOfGoodsSold, totalExpenses, profit],
-                        backgroundColor: [
-                            'rgba(40, 167, 69, 0.7)',
-                            'rgba(255, 193, 7, 0.7)',
-                            'rgba(220, 53, 69, 0.7)',
-                            profit >= 0 ? 'rgba(25, 135, 84, 0.7)' : 'rgba(220, 53, 69, 0.7)'
-                        ],
-                        borderColor: [
-                            'rgba(40, 167, 69, 1)',
-                            'rgba(255, 193, 7, 1)',
-                            'rgba(220, 53, 69, 1)',
-                            profit >= 0 ? 'rgba(25, 135, 84, 1)' : 'rgba(220, 53, 69, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: (context) =>
-                                    `Valor: ${context.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'AOA' })}`
-                            }
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de Composição
+        const ctx = document.getElementById('compositionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Lucro Líquido', 'Custos dos Produtos', 'Despesas Operacionais'],
+                datasets: [{
+                    data: [
+                        Math.max(0, {{ $operatingProfit }}),
+                        {{ $costOfGoodsSold }},
+                        {{ $totalOperatingExpenses }}
+                    ],
+                    backgroundColor: [
+                        '{{ $operatingProfit >= 0 ? "#28a745" : "#dc3545" }}',
+                        '#ffc107',
+                        '#dc3545'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: value => 'MT ' + value.toLocaleString('pt-BR')
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed * 100) / total).toFixed(1);
+                                return context.label + ': ' + context.parsed.toLocaleString('pt-MZ') + ' MT (' + percentage + '%)';
                             }
                         }
                     }
                 }
-            });
+            }
         });
-    </script>
+    });
+</script>
 @endpush
 
 @push('styles')
-    <style>
-        .stats-card {
-            transition: all 0.3s ease;
-            border-left: 4px solid transparent;
-        }
-
-        .stats-card.success {
-            border-left-color: #059669;
-        }
-
-        .stats-card.warning {
-            border-left-color: #ea580c;
-        }
-
-        .stats-card.danger {
-            border-left-color: #dc2626;
-        }
-
-        .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        }
-
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .table-hover tbody tr:hover {
-            background-color: rgba(13, 110, 253, 0.05);
-        }
-
-        .loading-spinner {
-            width: 30px;
-            height: 30px;
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #0d6efd;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+<style>
+    @media print {
+        .btn, .card-header .btn, form { display: none !important; }
+        .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+        body { font-size: 12px; }
+    }
+    
+    .table th, .table td {
+        vertical-align: middle;
+    }
+    
+    .progress {
+        background-color: #e9ecef;
+    }
+    
+    .alert {
+        border-left: 4px solid;
+        border-left-color: var(--bs-alert-border-color);
+    }
+    
+    .stats-card {
+        transition: transform 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+</style>
 @endpush

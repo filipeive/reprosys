@@ -283,19 +283,23 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::get('/daily-sales', [ReportController::class, 'dailySales'])->name('daily-sales');
         Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory');
         Route::get('/low-stock', [ReportController::class, 'lowStock'])->name('low-stock');
-        
-        // Relatórios avançados - view_reports permission
-        Route::middleware('permissions:view_reports')->group(function () {
-            Route::get('/monthly-sales', [ReportController::class, 'monthlySales'])->name('monthly-sales');
-            Route::get('/sales-by-product', [ReportController::class, 'salesByProduct'])->name('sales-by-product');
-            Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->name('profit-loss');
-        });
-        
-        // Exportar relatórios - export_reports permission
-        Route::middleware('permissions:export_reports')->group(function () {
-            Route::get('/export', [ReportController::class, 'export'])->name('export');
-            Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
-        });
+        Route::get('/dashboard', [ReportController::class, 'dashboard'])->name('dashboard');
+
+        // Relatórios financeiros avançados
+        Route::get('/profit-loss', [ReportController::class, 'profitLoss'])->name('profit-loss');
+        Route::get('/cash-flow', [ReportController::class, 'cashFlow'])->name('cash-flow');
+        Route::get('/monthly-sales', [ReportController::class, 'monthlySales'])->name('monthly-sales');
+        Route::get('/sales-by-product', [ReportController::class, 'salesByProduct'])->name('sales-by-product');
+
+        // Análises avançadas
+        Route::get('/customer-profitability', [ReportController::class, 'customerProfitability'])->name('customer-profitability');
+        Route::get('/abc-analysis', [ReportController::class, 'abcAnalysis'])->name('abc-analysis');
+        Route::get('/period-comparison', [ReportController::class, 'periodComparison'])->name('period-comparison');
+        Route::get('/business-insights', [ReportController::class, 'businessInsights'])->name('business-insights');
+
+        // Exportar relatórios
+        Route::get('/export', [ReportController::class, 'export'])->name('export');
+        Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
     });
     
     // ===== USUÁRIOS - manage_users permission =====
