@@ -18,9 +18,16 @@
                 <div class="card-body py-4">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h2 class="mb-2">Bem-vindo ao FDSMULTSERVICES+</h2>
-                            <p class="mb-0" style="opacity: 0.9;">
-                                Hoje é {{ now()->format('d/m/Y') }} - Tenha um excelente dia de trabalho!
+                            <h2 class="mb-1" style="font-weight: 600;">
+                                <span id="greeting-icon" class="me-2" style="animation: bounce 2s ease-in-out infinite;">
+                                    <i class="fas fa-spinner fa-spin"></i> <!-- Ícone de carregamento -->
+                                </span>
+                                <span id="greeting-text">Carregando</span>
+                                {{ auth()->user()->name }}!
+                            </h2>
+                            <p class="mb-0" style="opacity: 0.95; font-weight: 500;">
+                                Hoje é <strong>{{ now()->format('d/m/Y') }}</strong> —
+                                <span id="day-message">...</span>
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
@@ -305,14 +312,67 @@
         </div>
     </div>
 @endsection
-
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Usar o sistema de toast do layout
+            const userTime = new Date().getHours();
+            const userName = "{{ auth()->user()->name }}";
+            const iconElement = document.getElementById('greeting-icon');
+            const greetingElement = document.getElementById('greeting-text');
+            const dayMessageElement = document.getElementById('day-message');
+
+            let greeting, iconClass, dayMessage;
+
+            if (userTime < 12) {
+                greeting = 'Bom dia,';
+                iconClass = 'fas fa-sun';
+                dayMessage = 'Pronto para um ótimo início de dia?';
+            } else if (userTime < 18) {
+                greeting = 'Boa tarde,';
+                iconClass = 'fas fa-cloud-sun';
+                dayMessage = 'Ótimo rendimento até agora!';
+            } else {
+                greeting = 'Boa noite,';
+                iconClass = 'fas fa-moon';
+                dayMessage = 'Trabalhando com foco até o fim do dia!';
+            }
+
+            // Atualiza o ícone
+            iconElement.innerHTML = `<i class="${iconClass}"></i>`;
+            greetingElement.textContent = greeting;
+            dayMessageElement.textContent = dayMessage;
+
+            // Toast de boas-vindas
             setTimeout(() => {
-                FDSMULTSERVICES.Toast.show('Bem-vindo ao FDSMULTSERVICES+!', 'success');
-            }, 1000);
+                FDSMULTSERVICES.Toast.show(
+                    `<i class="${iconClass} me-1"></i> ${greeting} ${userName}! Bem-vindo(a) de volta.`,
+                    'success'
+                );
+            }, 1500);
         });
     </script>
+
+    <style>
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        #greeting-icon i {
+            color: var(--print-blue);
+            font-size: 1.2em;
+            transition: transform 0.3s ease;
+        }
+
+        #greeting-icon:hover i {
+            transform: rotate(10deg) scale(1.1);
+        }
+    </style>
 @endpush

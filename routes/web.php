@@ -16,6 +16,7 @@ use App\Http\Controllers\DebtController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Auth\AuthController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,6 +27,7 @@ Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->na
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/register/verify-admin', [RegisterController::class, 'verifyAdminPasswordAjax'])->name('register.verify-admin');
 
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ===== PROTECTED ROUTES =====
 Route::middleware(['auth', 'permissions'])->group(function () {

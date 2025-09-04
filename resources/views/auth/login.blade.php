@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -50,10 +51,23 @@
         }
 
         @keyframes backgroundMove {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            25% { transform: translate(-20px, -20px) rotate(1deg); }
-            50% { transform: translate(20px, -10px) rotate(-1deg); }
-            75% { transform: translate(-10px, 20px) rotate(0.5deg); }
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            25% {
+                transform: translate(-20px, -20px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(20px, -10px) rotate(-1deg);
+            }
+
+            75% {
+                transform: translate(-10px, 20px) rotate(0.5deg);
+            }
         }
 
         @keyframes fadeInUp {
@@ -61,6 +75,7 @@
                 opacity: 0;
                 transform: translateY(30px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -68,9 +83,12 @@
         }
 
         @keyframes pulseGlow {
-            0%, 100% {
+
+            0%,
+            100% {
                 box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
             }
+
             50% {
                 box-shadow: 0 0 40px rgba(255, 255, 255, 0.4);
             }
@@ -134,13 +152,18 @@
             right: -50%;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: rotate 20s linear infinite;
         }
 
         @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .brand-logo {
@@ -153,14 +176,14 @@
             font-size: 4rem;
             margin-bottom: 1rem;
             display: block;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
 
         .brand-logo h1 {
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .brand-logo .highlight {
@@ -254,7 +277,7 @@
             box-shadow: 0 0 0 0.2rem rgba(30, 58, 138, 0.15);
         }
 
-        .form-control:focus + .input-group-text,
+        .form-control:focus+.input-group-text,
         .input-group:focus-within .input-group-text {
             border-color: var(--print-blue);
             background: white;
@@ -392,8 +415,23 @@
                 padding: 1.5rem;
             }
         }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-card">
@@ -410,23 +448,33 @@
                         <i class="fas fa-exclamation-circle me-2"></i>
                         <span id="error-message"></span>
                     </div>
-
+                    @if (session('status'))
+                        <div class="alert alert-success d-flex align-items-center alert-dismissible fade show mb-4 shadow-sm"
+                            role="alert"
+                            style="background: rgba(5, 150, 105, 0.15); 
+                        border: 1px solid rgba(5, 150, 105, 0.3); 
+                        border-radius: 12px; 
+                        backdrop-filter: blur(10px); 
+                        font-weight: 500; 
+                        color: #059669;">
+                            <i class="fas fa-sign-out-alt me-2" style="animation: pulse 2s infinite;"></i>
+                            <span>{{ session('status') }}</span>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Close"></button>
+                        </div>
+                    @endif
                     <form method="POST" action="{{ route('login') }}" id="login-form">
                         @csrf
-                        
+
                         <div class="form-group">
                             <label class="form-label">E-mail</label>
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-envelope"></i>
                                 </span>
-                                <input type="email" 
-                                       class="form-control @error('email') is-invalid @enderror" 
-                                       name="email" 
-                                       value="{{ old('email') }}" 
-                                       required 
-                                       autofocus
-                                       placeholder="seu@email.com">
+                                <input type="email" class="form-control @error('email') is-invalid @enderror"
+                                    name="email" value="{{ old('email') }}" required autofocus
+                                    placeholder="seu@email.com">
                             </div>
                             @error('email')
                                 <div class="text-danger mt-1 small">
@@ -441,15 +489,10 @@
                                 <span class="input-group-text">
                                     <i class="fas fa-lock"></i>
                                 </span>
-                                <input type="password" 
-                                       class="form-control @error('password') is-invalid @enderror" 
-                                       name="password" 
-                                       required
-                                       placeholder="Digite sua senha">
-                                <button type="button" 
-                                        class="btn btn-outline-secondary border-start-0" 
-                                        onclick="togglePassword()"
-                                        style="border-radius: 0 12px 12px 0; border-left: none;">
+                                <input type="password" class="form-control @error('password') is-invalid @enderror"
+                                    name="password" required placeholder="Digite sua senha">
+                                <button type="button" class="btn btn-outline-secondary border-start-0"
+                                    onclick="togglePassword()" style="border-radius: 0 12px 12px 0; border-left: none;">
                                     <i class="fas fa-eye" id="password-toggle-icon"></i>
                                 </button>
                             </div>
@@ -482,7 +525,7 @@
 
                         <div class="register-link">
                             <p class="mb-0 text-muted">
-                                Novo funcionário? 
+                                Novo funcionário?
                                 <a href="{{ route('register') }}">Solicitar acesso</a>
                             </p>
                             <small class="text-muted d-block mt-1">
@@ -534,7 +577,7 @@
         function togglePassword() {
             const passwordInput = document.querySelector('input[name="password"]');
             const toggleIcon = document.getElementById('password-toggle-icon');
-            
+
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
                 toggleIcon.classList.remove('fa-eye');
@@ -550,19 +593,19 @@
         document.getElementById('login-form').addEventListener('submit', function(e) {
             const email = this.querySelector('input[name="email"]').value;
             const password = this.querySelector('input[name="password"]').value;
-            
+
             if (!email || !password) {
                 e.preventDefault();
                 showError('Por favor, preencha todos os campos obrigatórios.');
                 return;
             }
-            
+
             // Show loading state
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Entrando...';
-            
+
             // Reset button after 3 seconds if form is still visible (error case)
             setTimeout(() => {
                 if (submitBtn) {
@@ -575,10 +618,10 @@
         function showError(message) {
             const errorAlert = document.getElementById('error-alert');
             const errorMessage = document.getElementById('error-message');
-            
+
             errorMessage.textContent = message;
             errorAlert.classList.remove('d-none');
-            
+
             // Auto-hide after 5 seconds
             setTimeout(() => {
                 errorAlert.classList.add('d-none');
@@ -591,4 +634,5 @@
         });
     </script>
 </body>
+
 </html>
