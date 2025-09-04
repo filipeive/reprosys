@@ -144,8 +144,8 @@ Route::middleware(['auth', 'permissions'])->group(function () {
             Route::get('/{sale}', [SaleController::class, 'show'])->name('show');
             Route::get('/{sale}/print', [SaleController::class, 'print'])->name('print');
             Route::get('/{sale}/duplicate', [SaleController::class, 'duplicate'])->name('duplicate');
-            
-            // APIs também protegidas por permissão
+
+            // APIs também protegidas por permissão de visualização de vendas
             Route::prefix('api/sales')->name('api.')->group(function () {
                 Route::get('/{sale}/quick-view', [SaleController::class, 'quickView'])->name('quick-view');
             });
