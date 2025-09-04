@@ -139,7 +139,9 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     });
     // ===== VENDAS =====
     Route::prefix('sales')->name('sales.')->group(function () {
-        
+        Route::middleware('permissions:create_sales')->group(function () {
+            Route::get('/manual-create', [SaleController::class, 'manualCreate'])->name('manual-create');
+        });
         // Visualizar vendas - view_sales permission
         Route::middleware('permissions:view_sales')->group(function () {
             Route::get('/', [SaleController::class, 'index'])->name('index');
@@ -157,7 +159,6 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::middleware('permissions:create_sales')->group(function () {
             Route::get('/create', [SaleController::class, 'create'])->name('create');
             Route::post('/', [SaleController::class, 'store'])->name('store');
-            Route::get('/manual-create', [SaleController::class, 'manualCreate'])->name('manual-create');
             Route::get('/api/search-products', [SaleController::class, 'searchProducts'])->name('search-products');
             
             // Route to create a new debt from a sale

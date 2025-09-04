@@ -25,7 +25,7 @@
             <a href="{{ route('sales.create') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Nova Venda
             </a>
-            <a href="{{ route('sales.manual-create') ?? '#' }}" class="btn btn-success">
+            <a href="{{ route('sales.manual-create') }}" class="btn btn-success">
                 <i class="fas fa-edit me-2"></i>Venda Manual
             </a>
             <div class="dropdown">
