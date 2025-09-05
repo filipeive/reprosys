@@ -25,13 +25,13 @@
                     <i class="fas fa-shopping-cart me-1"></i> Vendas
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ route('reports.daily-sales') }}" target="_blank">Diárias</a></li>
-                    <li><a class="dropdown-item" href="{{ route('reports.monthly-sales') }}" target="_blank">Mensais</a>
+                    <li><a class="dropdown-item" href="{{ route('reports.daily-sales') }}" >Diárias</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.monthly-sales') }}" >Mensais</a>
                     </li>
-                    <li><a class="dropdown-item" href="{{ route('reports.sales-by-product') }}" target="_blank">Por
+                    <li><a class="dropdown-item" href="{{ route('reports.sales-by-product') }}" >Por
                             Produto</a></li>
                     <li><a class="dropdown-item" href="{{ route('reports.sales-specialized') }}"
-                            target="_blank">Especializado</a></li>
+                            >Especializado</a></li>
                 </ul>
             </div>
 
@@ -41,11 +41,11 @@
                     <i class="fas fa-coins me-1"></i> Financeiro
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ route('reports.profit-loss') }}" target="_blank">Lucro /
+                    <li><a class="dropdown-item" href="{{ route('reports.profit-loss') }}" >Lucro /
                             Prejuízo</a></li>
-                    <li><a class="dropdown-item" href="{{ route('reports.cash-flow') }}" target="_blank">Fluxo de Caixa</a>
+                    <li><a class="dropdown-item" href="{{ route('reports.cash-flow') }}" >Fluxo de Caixa</a>
                     </li>
-                    <li><a class="dropdown-item" href="{{ route('reports.expenses-specialized') }}" target="_blank">Despesas
+                    <li><a class="dropdown-item" href="{{ route('reports.expenses-specialized') }}" >Despesas
                             Especializado</a></li>
                 </ul>
             </div>
@@ -57,12 +57,12 @@
                 </button>
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="{{ route('reports.customer-profitability') }}"
-                            target="_blank">Rentabilidade Clientes</a></li>
-                    <li><a class="dropdown-item" href="{{ route('reports.abc-analysis') }}" target="_blank">Análise ABC</a>
+                            >Rentabilidade Clientes</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.abc-analysis') }}" >Análise ABC</a>
                     </li>
-                    <li><a class="dropdown-item" href="{{ route('reports.period-comparison') }}" target="_blank">Comparação
+                    <li><a class="dropdown-item" href="{{ route('reports.period-comparison') }}" >Comparação
                             de Períodos</a></li>
-                    <li><a class="dropdown-item" href="{{ route('reports.business-insights') }}" target="_blank">Insights
+                    <li><a class="dropdown-item" href="{{ route('reports.business-insights') }}" >Insights
                             do Negócio</a></li>
                 </ul>
             </div>
@@ -73,9 +73,9 @@
                     <i class="fas fa-boxes me-1"></i> Estoque
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="{{ route('reports.low-stock') }}" target="_blank">Baixo Estoque</a>
+                    <li><a class="dropdown-item" href="{{ route('reports.low-stock') }}" >Baixo Estoque</a>
                     </li>
-                    <li><a class="dropdown-item" href="{{ route('reports.inventory') }}" target="_blank">Inventário</a>
+                    <li><a class="dropdown-item" href="{{ route('reports.inventory') }}" >Inventário</a>
                     </li>
                 </ul>
             </div>
@@ -120,15 +120,15 @@
                         <label class="form-label">&nbsp;</label>
                         <div class="d-flex gap-2">
                             <a href="{{ route('reports.export', array_merge(['date_from' => $dateFrom, 'date_to' => $dateTo, 'report_type' => $reportType], ['format' => 'pdf'])) }}"
-                                class="btn btn-danger btn-sm w-100" target="_blank" title="Exportar PDF">
+                                class="btn btn-danger btn-sm w-100"  title="Exportar PDF">
                                 <i class="fas fa-file-pdf me-1"></i> PDF
                             </a>
                             <a href="{{ route('reports.export', array_merge(['date_from' => $dateFrom, 'date_to' => $dateTo, 'report_type' => $reportType], ['format' => 'excel'])) }}"
-                                class="btn btn-success btn-sm w-100" target="_blank" title="Exportar Excel">
+                                class="btn btn-success btn-sm w-100"  title="Exportar Excel">
                                 <i class="fas fa-file-excel me-1"></i> XLS
                             </a>
                             <a href="{{ route('reports.export.csv', array_merge(['date_from' => $dateFrom, 'date_to' => $dateTo, 'report_type' => $reportType])) }}"
-                                class="btn btn-outline-secondary btn-sm w-100" target="_blank" title="Exportar CSV">
+                                class="btn btn-outline-secondary btn-sm w-100"  title="Exportar CSV">
                                 <i class="fas fa-file-csv me-1"></i> CSV
                             </a>
                         </div>
@@ -467,7 +467,7 @@
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <a href="{{ route('sales.print', $sale) }}" class="btn btn-outline-secondary"
-                                                target="_blank" title="Imprimir">
+                                                 title="Imprimir">
                                                 <i class="fas fa-print"></i>
                                             </a>
                                         </div>
