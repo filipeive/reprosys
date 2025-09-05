@@ -17,6 +17,8 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\AuthController;
+ use App\Http\Controllers\SearchController;
+
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -33,7 +35,20 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth', 'permissions'])->group(function () {
     // Dashboard - Acesso para todos os usuários logados
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+    // ===== BUSCA =====
+   
+    Route::middleware(['auth', 'verified'])->group(function () {
+        
+        // Busca completa com página de resultados
+        Route::get('/search', [SearchController::class, 'index'])->name('search.index');
+        
+        // API de busca rápida para autocomplete
+        Route::get('/api/search', [SearchController::class, 'api'])->name('search.api');
+        
+        // Busca específica por tipo
+        Route::get('/search/{type}', [SearchController::class, 'index'])->name('search.type');
+        
+    });
     // ===== PERFIL DO USUÁRIO =====
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');

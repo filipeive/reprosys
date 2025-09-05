@@ -5,6 +5,10 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
 use App\Helpers\PermissionHelper;
+//event
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +30,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerBladeDirectives();
         $this->registerViewComposers();
+         Event::listen('search.no_results', function ($query) {
+        Log::info('No search results', ['query' => $query]);
+    });
     }
 
     /**
@@ -127,3 +134,5 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
+ 
+   

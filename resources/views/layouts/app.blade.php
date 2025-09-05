@@ -962,21 +962,43 @@
                 width: var(--sidebar-collapsed-width);
             }
 
+            .content-area {
+                padding: 20px;
+            }
+
+            .mobile-menu-btn {
+                display: flex !important;
+            }
+
+            .app-header {
+                padding: 0 20px;
+            }
+
+            .app-sidebar:not(.mobile-visible) {
+                width: var(--sidebar-collapsed-width);
+                display: none !important;
+            }
+
+            .app-content.expanded {
+                margin-left: 0 !important;
+            }
+
             .search-input {
                 position: absolute;
-                width: 100px;
+                width: 200px;
                 right: 50%;
                 top: 50%;
                 transform: translateY(-50%);
             }
+
             .search-icon {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 14px;
-        }
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: var(--text-muted);
+                font-size: 14px;
+            }
 
         }
 
@@ -1009,7 +1031,6 @@
             }
         }
 
-
         @media (max-width: 767.98px) {
             .content-area {
                 padding: 20px;
@@ -1019,8 +1040,18 @@
                 padding: 0 20px;
             }
 
+            .search-input {
+                width: 180px !important;
+                right: 40% !important;
+            }
+
             .page-title {
-                font-size: 18px;
+                font-size: 12px;
+                display: block !important;
+            }
+
+            .themet {
+                display: none !important;
             }
 
             .stat-card {
@@ -1035,6 +1066,43 @@
 
             .stat-value {
                 font-size: 24px;
+            }
+        }
+
+        @media (max-width: 479.98px) {
+            .content-area {
+                padding: 20px;
+            }
+
+            .app-header {
+                padding: 0 20px;
+            }
+
+            .header-search {
+                display: none !important;
+            }
+
+            .page-title {
+                display: block !important;
+                font-size: 16px;
+            }
+
+            .themet {
+                display: none !important;
+            }
+
+            .stat-card {
+                padding: 20px;
+            }
+
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .stat-value {
+                font-size: 20px;
             }
         }
 
@@ -1445,7 +1513,7 @@
 
             <div class="header-right">
                 <div class="header-search">
-                    <input type="text" class="search-input" placeholder="Pesquisar produtos, clientes, vendas..." disabled>
+                    <input type="text" class="search-input" placeholder="Pesquisar produtos, clientes, vendas...">
                     <i class="fas fa-search search-icon"></i>
                 </div>
 
@@ -1508,7 +1576,7 @@
                     </li>
                 </ul>
 
-                <button class="header-btn" onclick="toggleTheme()" title="Alternar Tema">
+                <button class="header-btn themet" onclick="toggleTheme()" title="Alternar Tema">
                     <i class="fas fa-moon" id="theme-icon"></i>
                 </button>
 
@@ -1650,7 +1718,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Professional JavaScript -->
+    
     <script>
         // ===== VARIÁVEIS GLOBAIS =====
         let sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
@@ -2128,7 +2196,7 @@
                 defaultCurrency: document.getElementById('defaultCurrency')?.value
             };
 
-            // Aqui você enviaria os dados para o servidor Laravel
+            // Para Laravel, adapte a rota conforme necessário
             fetch('/admin/settings', {
                     method: 'POST',
                     headers: {
@@ -2148,392 +2216,6 @@
                     console.error('Erro ao salvar configurações:', error);
                     ProfessionalToast.show('Erro ao salvar configurações', 'error');
                 });
-        }
-
-        function showBackupModal() {
-            const modalHtml = `
-        <div class="modal fade" id="backupModal" tabindex="-1" aria-labelledby="backupModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="backupModalLabel">
-                            <i class="fas fa-database me-2"></i>Backup do Sistema
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Informação:</strong> O backup incluirá todos os dados do sistema (produtos, vendas, usuários, etc.).
-                            Esta operação pode demorar alguns minutos.
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Tipo de Backup</label>
-                            <select class="form-select" id="backupType">
-                                <option value="complete">Backup Completo</option>
-                                <option value="data">Apenas Dados</option>
-                                <option value="config">Apenas Configurações</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="includeImages">
-                                <label class="form-check-label" for="includeImages">
-                                    Incluir imagens dos produtos
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div id="backupProgress" class="d-none">
-                            <div class="progress mb-3">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" style="width: 0%" id="backupProgressBar"></div>
-                            </div>
-                            <div class="text-center">
-                                <small class="text-muted">Gerando backup...</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" onclick="startBackup()" id="startBackupBtn">
-                            <i class="fas fa-download me-2"></i>Gerar Backup
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existingModal = document.getElementById('backupModal');
-            if (existingModal) existingModal.remove();
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            if (window.bootstrap) {
-                const modal = new bootstrap.Modal(document.getElementById('backupModal'));
-                modal.show();
-            }
-        }
-
-        function startBackup() {
-            const progressDiv = document.getElementById('backupProgress');
-            const progressBar = document.getElementById('backupProgressBar');
-            const startBtn = document.getElementById('startBackupBtn');
-
-            if (!progressDiv || !progressBar || !startBtn) return;
-
-            progressDiv.classList.remove('d-none');
-            startBtn.disabled = true;
-            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando...';
-
-            const backupData = {
-                type: document.getElementById('backupType')?.value || 'complete',
-                includeImages: document.getElementById('includeImages')?.checked || false
-            };
-
-            // Simular progresso ou fazer requisição real
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 100) progress = 100;
-
-                progressBar.style.width = progress + '%';
-
-                if (progress >= 100) {
-                    clearInterval(interval);
-
-                    // Aqui faria a requisição real para o Laravel
-                    fetch('/admin/backup', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify(backupData)
-                        })
-                        .then(response => {
-                            if (response.ok) {
-                                return response.blob();
-                            }
-                            throw new Error('Erro no backup');
-                        })
-                        .then(blob => {
-                            const url = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.style.display = 'none';
-                            a.href = url;
-                            a.download = `backup_${new Date().toISOString().split('T')[0]}.zip`;
-                            document.body.appendChild(a);
-                            a.click();
-                            window.URL.revokeObjectURL(url);
-                            a.remove();
-
-                            ProfessionalToast.show('Backup gerado com sucesso!', 'success');
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('backupModal'));
-                            if (modal) modal.hide();
-                        })
-                        .catch(error => {
-                            console.error('Erro no backup:', error);
-                            ProfessionalToast.show('Erro ao gerar backup', 'error');
-                        })
-                        .finally(() => {
-                            startBtn.disabled = false;
-                            startBtn.innerHTML = '<i class="fas fa-download me-2"></i>Gerar Backup';
-                            progressDiv.classList.add('d-none');
-                            progressBar.style.width = '0%';
-                        });
-                }
-            }, 200);
-        }
-
-        function showLogsModal() {
-            const modalHtml = `
-        <div class="modal fade" id="logsModal" tabindex="-1" aria-labelledby="logsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="logsModalLabel">
-                            <i class="fas fa-file-alt me-2"></i>Logs do Sistema
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <select class="form-select" id="logType" onchange="loadLogs()">
-                                    <option value="all">Todos os Logs</option>
-                                    <option value="error">Erros</option>
-                                    <option value="access">Acessos</option>
-                                    <option value="sales">Vendas</option>
-                                    <option value="system">Sistema</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <input type="date" class="form-control" id="logDate" onchange="loadLogs()">
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <button class="btn btn-outline-primary btn-sm" onclick="refreshLogs()">
-                                    <i class="fas fa-sync-alt me-1"></i>Atualizar
-                                </button>
-                                <button class="btn btn-outline-success btn-sm" onclick="exportLogs()">
-                                    <i class="fas fa-download me-1"></i>Exportar
-                                </button>
-                            </div>
-                        </div>
-                        <div id="logsContent" style="max-height: 500px; overflow-y: auto;">
-                            <div class="text-center py-5">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Carregando...</span>
-                                </div>
-                                <div class="mt-2 text-muted">Carregando logs...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-outline-danger" onclick="clearLogs()">
-                            <i class="fas fa-trash me-2"></i>Limpar Logs Antigos
-                        </button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-            const existingModal = document.getElementById('logsModal');
-            if (existingModal) existingModal.remove();
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            if (window.bootstrap) {
-                const modal = new bootstrap.Modal(document.getElementById('logsModal'));
-                modal.show();
-
-                // Definir data atual
-                const dateInput = document.getElementById('logDate');
-                if (dateInput) {
-                    dateInput.value = new Date().toISOString().split('T')[0];
-                }
-
-                loadLogs();
-            }
-        }
-
-        function loadLogs() {
-            const logType = document.getElementById('logType')?.value || 'all';
-            const logDate = document.getElementById('logDate')?.value || '';
-            const content = document.getElementById('logsContent');
-
-            if (!content) return;
-
-            content.innerHTML = `
-        <div class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando...</span>
-            </div>
-            <div class="mt-2 text-muted">Carregando logs...</div>
-        </div>
-    `;
-
-            // Fazer requisição para o Laravel
-            fetch(`/admin/logs?type=${logType}&date=${logDate}`, {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    displayLogs(data.logs || []);
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar logs:', error);
-                    content.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                Erro ao carregar logs. Tente novamente.
-            </div>
-        `;
-                });
-        }
-
-        function displayLogs(logs) {
-            const content = document.getElementById('logsContent');
-            if (!content) return;
-
-            if (logs.length === 0) {
-                content.innerHTML = `
-            <div class="text-center py-5 text-muted">
-                <i class="fas fa-file-alt fs-1 mb-3 d-block"></i>
-                <p>Nenhum log encontrado para os filtros selecionados.</p>
-            </div>
-        `;
-                return;
-            }
-
-            const levelColors = {
-                INFO: 'text-primary',
-                SUCCESS: 'text-success',
-                WARNING: 'text-warning',
-                ERROR: 'text-danger'
-            };
-
-            const levelIcons = {
-                INFO: 'info-circle',
-                SUCCESS: 'check-circle',
-                WARNING: 'exclamation-triangle',
-                ERROR: 'exclamation-circle'
-            };
-
-            let logsHtml = '<div class="table-responsive"><table class="table table-sm table-hover">';
-            logsHtml += `
-        <thead class="table-light">
-            <tr>
-                <th style="width: 100px;">Horário</th>
-                <th style="width: 80px;">Nível</th>
-                <th style="width: 120px;">Usuário</th>
-                <th>Mensagem</th>
-                <th style="width: 120px;">IP</th>
-            </tr>
-        </thead>
-        <tbody>
-    `;
-
-            logs.forEach(log => {
-                logsHtml += `
-            <tr>
-                <td><small class="text-muted">${log.time || new Date().toLocaleTimeString()}</small></td>
-                <td>
-                    <span class="badge bg-light text-dark border">
-                        <i class="fas fa-${levelIcons[log.level] || 'info-circle'} ${levelColors[log.level] || 'text-primary'} me-1"></i>
-                        ${log.level || 'INFO'}
-                    </span>
-                </td>
-                <td><small><strong>${log.user || 'Sistema'}</strong></small></td>
-                <td>${log.message || 'Mensagem não disponível'}</td>
-                <td><small class="text-muted font-monospace">${log.ip || '127.0.0.1'}</small></td>
-            </tr>
-        `;
-            });
-
-            logsHtml += '</tbody></table></div>';
-            content.innerHTML = logsHtml;
-        }
-
-        function refreshLogs() {
-            loadLogs();
-            ProfessionalToast.show('Logs atualizados com sucesso', 'success');
-        }
-
-        function exportLogs() {
-            const logType = document.getElementById('logType')?.value || 'all';
-            const logDate = document.getElementById('logDate')?.value || '';
-
-            ProfessionalToast.show('Exportando logs...', 'info');
-
-            fetch(`/admin/logs/export?type=${logType}&date=${logDate}`, {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        return response.blob();
-                    }
-                    throw new Error('Erro na exportação');
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `logs_${logDate || new Date().toISOString().split('T')[0]}.csv`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-
-                    ProfessionalToast.show('Logs exportados com sucesso!', 'success');
-                })
-                .catch(error => {
-                    console.error('Erro ao exportar logs:', error);
-                    ProfessionalToast.show('Erro ao exportar logs', 'error');
-                });
-        }
-
-        function clearLogs() {
-            if (!confirm(
-                    'Tem certeza que deseja limpar logs antigos? Esta ação não pode ser desfeita.\n\nSerão mantidos apenas os logs dos últimos 30 dias.'
-                )) {
-                return;
-            }
-
-            fetch('/admin/logs/clear', {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    ProfessionalToast.show('Logs antigos removidos com sucesso', 'success');
-                    loadLogs();
-                })
-                .catch(error => {
-                    console.error('Erro ao limpar logs:', error);
-                    ProfessionalToast.show('Erro ao limpar logs', 'error');
-                });
-        }
-
-        function showHelp() {
-            ProfessionalToast.show('Manual do usuário em desenvolvimento', 'info');
         }
 
         // ===== UTILITY FUNCTIONS =====
@@ -2614,7 +2296,6 @@
             }
         }
 
-
         // ===== FUNÇÃO DE TOGGLE MOBILE =====
         function toggleMobileMenu() {
             const sidebar = document.getElementById('sidebar');
@@ -2639,8 +2320,6 @@
                 document.body.style.overflow = '';
             }
         }
-
-
 
         // ===== FUNÇÃO DE TOGGLE DE TEMA =====
         function toggleTheme() {
@@ -2677,19 +2356,61 @@
             ProfessionalNotifications.clearAll(event);
         }
 
+        // ===== GLOBAL UTILITIES =====
+        window.ProfessionalUtils = {
+            formatCurrency: function(value) {
+                return new Intl.NumberFormat('pt-MZ', {
+                    style: 'currency',
+                    currency: 'MZN',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(value || 0);
+            },
+
+            formatDate: function(date) {
+                return new Intl.DateTimeFormat('pt-PT', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }).format(new Date(date));
+            },
+
+            formatNumber: function(number) {
+                return new Intl.NumberFormat('pt-PT').format(number || 0);
+            },
+
+            debounce: function(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+        };
+
         // ===== PROFESSIONAL INITIALIZATION =====
-        // ===== INICIALIZAÇÃO =====
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Inicializando FDSMULTSERVICES+...');
 
+            // Inicializar classes principais
+            const sidebar = new ProfessionalSidebar();
+            const theme = new ProfessionalTheme();
+            const search = new ProfessionalSearch();
+
             // Aplicar estado inicial do sidebar
-            const sidebar = document.getElementById('sidebar');
+            const sidebarElement = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const toggleIcon = document.getElementById('toggle-icon');
 
-            if (sidebar && mainContent) {
+            if (sidebarElement && mainContent) {
                 if (window.innerWidth >= 992 && sidebarCollapsed) {
-                    sidebar.classList.add('collapsed');
+                    sidebarElement.classList.add('collapsed');
                     mainContent.classList.add('collapsed');
                     if (toggleIcon) {
                         toggleIcon.className = 'fas fa-chevron-right toggle-bg';
@@ -2698,25 +2419,9 @@
 
                 // Para mobile, sempre ocultar inicialmente
                 if (window.innerWidth < 992) {
-                    sidebar.classList.add('mobile-hidden');
+                    sidebarElement.classList.add('mobile-hidden');
                     mainContent.classList.add('expanded');
                 }
-            }
-
-            // Aplicar tema salvo
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-            toggleTheme();
-            if (savedTheme === 'light') toggleTheme(); // Resetar se for light
-
-            // Event listener para clique no overlay
-            const overlay = document.getElementById('sidebar-overlay');
-            if (overlay) {
-                overlay.addEventListener('click', function() {
-                    if (mobileMenuOpen) {
-                        toggleMobileMenu();
-                    }
-                });
             }
 
             // Event listener para redimensionamento
@@ -2728,21 +2433,22 @@
                     }
 
                     // Remover classes mobile
-                    if (sidebar) {
-                        sidebar.classList.remove('mobile-visible', 'mobile-hidden');
+                    if (sidebarElement) {
+                        sidebarElement.classList.remove('mobile-visible', 'mobile-hidden');
                     }
                     if (mainContent) {
                         mainContent.classList.remove('expanded');
                     }
                 } else {
                     // Mobile: garantir que não está expandido
-                    if (sidebar) {
-                        sidebar.classList.add('mobile-hidden');
-                        sidebar.classList.remove('mobile-visible');
+                    if (sidebarElement) {
+                        sidebarElement.classList.add('mobile-hidden');
+                        sidebarElement.classList.remove('mobile-visible');
                     }
                     if (mainContent) {
                         mainContent.classList.add('expanded');
                     }
+                    const overlay = document.getElementById('sidebar-overlay');
                     if (overlay) {
                         overlay.classList.remove('show');
                     }
@@ -2787,101 +2493,6 @@
             }
         });
 
-        // ===== GLOBAL UTILITIES =====
-        window.ProfessionalUtils = {
-            formatCurrency: function(value) {
-                return new Intl.NumberFormat('pt-MZ', {
-                    style: 'currency',
-                    currency: 'MZN',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }).format(value || 0);
-            },
-
-            formatDate: function(date) {
-                return new Intl.DateTimeFormat('pt-PT', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                }).format(new Date(date));
-            },
-
-            formatNumber: function(number) {
-                return new Intl.NumberFormat('pt-PT').format(number || 0);
-            },
-
-            debounce: function(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func(...args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            },
-
-            copyToClipboard: async function(text) {
-                try {
-                    if (navigator.clipboard && window.isSecureContext) {
-                        await navigator.clipboard.writeText(text);
-                        ProfessionalToast.show('Copiado para a área de transferência', 'success');
-                    } else {
-                        // Fallback para navegadores mais antigos
-                        const textArea = document.createElement('textarea');
-                        textArea.value = text;
-                        textArea.style.position = 'fixed';
-                        textArea.style.left = '-999999px';
-                        textArea.style.top = '-999999px';
-                        document.body.appendChild(textArea);
-                        textArea.focus();
-                        textArea.select();
-
-                        try {
-                            document.execCommand('copy');
-                            ProfessionalToast.show('Copiado para a área de transferência', 'success');
-                        } catch (err) {
-                            ProfessionalToast.show('Erro ao copiar texto', 'error');
-                        }
-
-                        textArea.remove();
-                    }
-                } catch (err) {
-                    console.error('Erro ao copiar:', err);
-                    ProfessionalToast.show('Erro ao copiar texto', 'error');
-                }
-            },
-
-            downloadFile: function(url, filename) {
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename || 'download';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            },
-
-            validateForm: function(form) {
-                const inputs = form.querySelectorAll('[required]');
-                let isValid = true;
-
-                inputs.forEach(input => {
-                    if (!input.value.trim()) {
-                        input.classList.add('is-invalid');
-                        isValid = false;
-                    } else {
-                        input.classList.remove('is-invalid');
-                    }
-                });
-
-                return isValid;
-            }
-        };
-
         // API Global para uso em outros scripts
         window.FDSMULTSERVICES = {
             Toast: ProfessionalToast,
@@ -2890,17 +2501,7 @@
             toggleSidebar,
             toggleTheme,
             showSettings,
-            showBackupModal,
-            showLogsModal,
             version: '2.0.0'
-        };
-    </script>
-    <script>
-        // Definir rotas globais para o JavaScript
-        window.ROUTES = {
-            dashboard: "{{ route('dashboard') }}",
-            salesCreate: "{{ route('sales.create') }}",
-            profileEdit: "{{ route('profile.edit') }}"
         };
     </script>
     @stack('scripts')

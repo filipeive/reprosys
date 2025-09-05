@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // ADICIONE ESTA LINHA:
         $middleware->alias([
             'permissions' => \App\Http\Middleware\CheckPermissions::class,
+            'search.log' => \App\Http\Middleware\SearchLogger::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

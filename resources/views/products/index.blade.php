@@ -19,7 +19,7 @@
             <p class="text-muted mb-0">Gerencie seus produtos e serviços da reprografia</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-primary" onclick="openCreateProductOffcanvas()">
+            <button class="btn btn-primary" data-action="create">
                 <i class="fas fa-plus me-2"></i> Novo Produto
             </button>
             <a href="{{ route('categories.index') }}" class="btn btn-success">
@@ -149,7 +149,7 @@
                 <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
                     <i class="fas fa-times me-2"></i>Cancelar
                 </button>
-                <button type="submit" form="product-form" class="btn btn-primary flex-fill">
+                <button type="submit" form="product-form" class="btn btn-primary flex-fill" id="save-product-btn">
                     <i class="fas fa-save me-2"></i>Salvar
                 </button>
             </div>
@@ -178,41 +178,6 @@
                 <a href="#" id="view-full-product-offcanvas" class="btn btn-primary flex-fill" target="_blank">
                     <i class="fas fa-external-link-alt me-2"></i>Ver Completo
                 </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Dropdown/Popover para Confirmação de Exclusão -->
-    <div class="position-fixed" id="delete-confirmation-container" style="display: none; z-index: 9999;">
-        <div class="card shadow-lg border-0" style="width: 350px;">
-            <div class="card-header bg-danger text-white">
-                <h6 class="mb-0">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão
-                </h6>
-            </div>
-            <div class="card-body">
-                <p class="mb-2">Deseja excluir o produto:</p>
-                <div class="alert alert-light border">
-                    <strong id="delete-product-name-popup"></strong>
-                </div>
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Esta ação não pode ser desfeita.
-                </small>
-            </div>
-            <div class="card-footer">
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-secondary flex-fill" onclick="hideDeleteConfirmation()">
-                        Cancelar
-                    </button>
-                    <form id="delete-form-popup" method="POST" style="flex: 1;">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-danger w-100">
-                            Confirmar
-                        </button>
-                    </form>
-                </div>
             </div>
         </div>
     </div>
@@ -247,28 +212,6 @@
         </div>
     </div>
 
-    <!-- Toast para Confirmação de Exclusão -->
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
-        <div id="deleteToast" class="toast hide" role="alert">
-            <div class="toast-header bg-warning text-dark">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong class="me-auto">Confirmação Necessária</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                <p class="mb-2">Excluir produto: <strong id="delete-product-toast"></strong>?</p>
-                <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="toast">Não</button>
-                    <form id="delete-form-toast" method="POST" style="display: inline;">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-danger">Sim, Excluir</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Offcanvas para Ajuste de Estoque -->
     <div class="offcanvas offcanvas-end" tabindex="-1" id="stockAdjustOffcanvas" style="width: 500px;">
         <div class="offcanvas-header bg-warning text-dark">
@@ -292,17 +235,17 @@
                         <option value="increase">Entrada (+)</option>
                         <option value="decrease">Saída (-)</option>
                     </select>
-                    <div class="invalid-feedback">Selecione o tipo de ajuste.</div>
+                    <div class="invalid-feedback"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Quantidade</label>
                     <input type="number" class="form-control" id="adjustment-quantity" min="1" required>
-                    <div class="invalid-feedback">Informe uma quantidade válida.</div>
+                    <div class="invalid-feedback"></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Motivo</label>
                     <input type="text" class="form-control" id="adjustment-reason" maxlength="200" required>
-                    <div class="invalid-feedback">Informe o motivo do ajuste.</div>
+                    <div class="invalid-feedback"></div>
                 </div>
             </form>
         </div>
@@ -317,6 +260,7 @@
             </div>
         </div>
     </div>
+
     <!-- Cards de Estatísticas -->
     <div class="row mb-4">
         <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
@@ -491,7 +435,7 @@
                             <th style="width: 120px;">Preço</th>
                             <th style="width: 120px;">Estoque</th>
                             <th style="width: 100px;">Status</th>
-                            <th style="width: 250px;" class="text-center">Ações</th>
+                            <th style="width: 280px;" class="text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -560,49 +504,49 @@
 
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <!-- Botão para Offcanvas -->
+                                        <!-- Quick View Offcanvas -->
                                         <button type="button" class="btn btn-outline-info"
-                                            onclick="quickViewOffcanvas({{ $product->id }})"
+                                            data-action="quick-view-offcanvas" data-product-id="{{ $product->id }}"
                                             title="Visualização Lateral">
                                             <i class="fas fa-eye"></i>
                                         </button>
 
-                                        <!-- Botão para Collapse Inline -->
+                                        <!-- Quick View Inline -->
                                         <button type="button" class="btn btn-outline-secondary"
-                                            onclick="quickViewInline({{ $product->id }})" title="Visualização Inline">
+                                            data-action="quick-view-inline" data-product-id="{{ $product->id }}"
+                                            title="Visualização Inline">
                                             <i class="fas fa-expand"></i>
                                         </button>
 
+                                        <!-- Ver Detalhes Completos -->
                                         <a href="{{ route('products.show', $product->id) }}"
                                             class="btn btn-outline-primary" title="Ver Detalhes">
                                             <i class="fas fa-external-link-alt"></i>
                                         </a>
 
-                                        <button type="button" class="btn btn-outline-warning"
-                                            onclick="editProduct({{ $product->id }})" title="Editar">
+                                        <!-- Editar -->
+                                        <button type="button" class="btn btn-outline-warning" data-action="edit"
+                                            data-product-id="{{ $product->id }}" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </button>
 
+                                        <!-- Ajustar Estoque -->
                                         @if ($product->type === 'product')
                                             <button type="button" class="btn btn-outline-success"
-                                                onclick="openStockOffcanvas({{ $product->id }}, '{{ $product->name }}', {{ $product->stock_quantity }})"
+                                                data-action="adjust-stock" data-product-id="{{ $product->id }}"
                                                 title="Ajustar Estoque">
                                                 <i class="fas fa-cubes"></i>
                                             </button>
                                         @endif
-                                        <!-- Botão para confirmação via Toast -->
-                                        <button type="button" class="btn btn-outline-warning"
-                                            onclick="confirmDeleteToast({{ $product->id }}, '{{ $product->name }}')"
-                                            title="Excluir via Toast">
-                                            <i class="fas fa-bell"></i>
-                                        </button>
 
-                                        <!-- Botão para confirmação via Popup -->
-                                        <button type="button" class="btn btn-outline-danger"
-                                            onclick="confirmDeletePopup({{ $product->id }}, '{{ $product->name }}', event)"
-                                            title="Excluir Produto">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        <!-- Excluir -->
+                                        @can('delete_products')
+                                            <button type="button" class="btn btn-outline-danger" data-action="delete"
+                                                data-product-id="{{ $product->id }}"
+                                                data-product-name="{{ $product->name }}" title="Excluir Produto">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -613,9 +557,11 @@
                                         <i class="fas fa-box-open fa-3x mb-3 opacity-50"></i>
                                         <h5>Nenhum produto encontrado</h5>
                                         <p class="mb-3">Não há produtos que correspondam aos filtros aplicados.</p>
-                                        <button class="btn btn-primary" onclick="openCreateProductOffcanvas()">
-                                            <i class="fas fa-plus me-2"></i>Adicionar Primeiro Produto
-                                        </button>
+                                        @can('create_products')
+                                            <button class="btn btn-primary" data-action="create">
+                                                <i class="fas fa-plus me-2"></i>Adicionar Primeiro Produto
+                                            </button>
+                                        @endcan
                                     </div>
                                 </td>
                             </tr>
@@ -642,460 +588,891 @@
 
 @push('scripts')
     <script>
-        // ===== CRIAR/EDITAR PRODUTO OFFCANVAS =====
-        function openCreateProductOffcanvas() {
-            resetProductForm();
-            document.getElementById('form-title').textContent = 'Novo Produto';
-            document.getElementById('form-method').value = 'POST';
-            document.getElementById('product-form').action = '{{ route('products.store') }}';
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('productFormOffcanvas'));
-            offcanvas.show();
+        // Meta tag do CSRF token (certifique-se que existe no layout)
+        if (!document.querySelector('meta[name="csrf-token"]')) {
+            const meta = document.createElement('meta');
+            meta.name = 'csrf-token';
+            meta.content = '{{ csrf_token() }}';
+            document.head.appendChild(meta);
         }
+    </script>
 
-        function editProduct(productId) {
-            resetProductForm();
-            document.getElementById('form-title').textContent = 'Editar Produto';
-            document.getElementById('form-method').value = 'PUT';
-            document.getElementById('product-form').action = `/products/${productId}`;
-            document.getElementById('product-id').value = productId;
+    <!-- Incluir o script da classe ProductManager -->
+    <script src="{{ asset('js/product-manager.js') }}"></script>
 
-            // Buscar dados do produto
-            const productRow = document.querySelector(`[data-product-id="${productId}"]`);
-            if (productRow) {
-                // Simular preenchimento dos dados (em produção, fazer requisição AJAX)
-                populateProductForm(productId);
+    {{-- Ou se preferir inline: --}}
+    <script>
+        // ===== SISTEMA DE PRODUTOS - AJAX REFATORADO =====
+
+        class ProductManager {
+            constructor() {
+                this.csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                this.apiEndpoints = {
+                    store: '/products',
+                    update: (id) => `/products/${id}`,
+                    destroy: (id) => `/products/${id}`,
+                    editData: (id) => `/products/${id}/edit-data`,
+                    adjustStock: (id) => `/products/${id}/adjust-stock`,
+                    categories: '/products/api/categories'
+                };
+                this.currentProductId = null;
+                this.init();
             }
 
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('productFormOffcanvas'));
-            offcanvas.show();
-        }
+            init() {
+                this.setupEventListeners();
+                this.setupFormHandlers();
+                this.setupTypeToggle();
+                this.initializeToastContainer();
+            }
 
-        function resetProductForm() {
-            document.getElementById('product-form').reset();
-            document.getElementById('product-id').value = '';
-            document.getElementById('product-active').checked = true;
-            document.getElementById('product-specific-fields').style.display = 'none';
-            clearValidation();
-        }
+            // ===== CONFIGURAÇÃO DE EVENTOS =====
+            setupEventListeners() {
+                // Auto-submit de filtros
+                const filterForm = document.getElementById('filters-form');
+                if (filterForm) {
+                    const selects = filterForm.querySelectorAll('select');
+                    selects.forEach(select => {
+                        select.addEventListener('change', () => filterForm.submit());
+                    });
+                }
 
-        function populateProductForm(productId) {
-            fetch(`/products/${productId}/edit-data`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const productData = data.data;
-                        document.getElementById('product-name').value = productData.name;
-                        document.getElementById('product-category').value = productData.category_id;
-                        document.getElementById('product-type').value = productData.type;
-                        document.getElementById('product-description').value = productData.description || '';
-                        document.getElementById('selling-price').value = productData.selling_price;
-                        document.getElementById('purchase-price').value = productData.purchase_price || '';
-                        document.getElementById('product-unit').value = productData.unit || '';
-                        document.getElementById('stock-quantity').value = productData.stock_quantity || '';
-                        document.getElementById('min-stock-level').value = productData.min_stock_level || '';
-                        document.getElementById('product-active').checked = productData.is_active;
+                // Eventos globais
+                document.addEventListener('click', (e) => {
+                    this.handleGlobalClicks(e);
+                });
+            }
 
-                        if (productData.type === 'product') {
-                            document.getElementById('product-specific-fields').style.display = 'block';
-                        } else {
-                            document.getElementById('product-specific-fields').style.display = 'none';
-                        }
+            setupFormHandlers() {
+                const productForm = document.getElementById('product-form');
+                if (productForm) {
+                    productForm.addEventListener('submit', (e) => this.handleFormSubmit(e));
+                }
+
+                const stockForm = document.getElementById('stock-adjust-form');
+                if (stockForm) {
+                    stockForm.addEventListener('submit', (e) => this.handleStockAdjust(e));
+                }
+            }
+
+            setupTypeToggle() {
+                const typeSelect = document.getElementById('product-type');
+                if (typeSelect) {
+                    typeSelect.addEventListener('change', () => {
+                        this.toggleProductFields(typeSelect.value === 'product');
+                    });
+                }
+            }
+
+            handleGlobalClicks(e) {
+                const target = e.target.closest('[data-action]');
+                if (!target) return;
+
+                const action = target.dataset.action;
+                const productId = target.dataset.productId;
+
+                switch (action) {
+                    case 'create':
+                        this.openCreateModal();
+                        break;
+                    case 'edit':
+                        this.openEditModal(productId);
+                        break;
+                    case 'quick-view-offcanvas':
+                        this.quickViewOffcanvas(productId);
+                        break;
+                    case 'quick-view-inline':
+                        this.quickViewInline(productId);
+                        break;
+                    case 'adjust-stock':
+                        this.openStockModal(productId);
+                        break;
+                    case 'delete':
+                        this.confirmDelete(productId, target.dataset.productName);
+                        break;
+                }
+            }
+
+            // ===== MODAIS E OFFCANVAS =====
+            async openCreateModal() {
+                try {
+                    this.resetForm();
+                    this.setFormMode('create');
+                    this.showOffcanvas('productFormOffcanvas');
+                } catch (error) {
+                    this.handleError('Erro ao abrir formulário de criação', error);
+                }
+            }
+
+            async openEditModal(productId) {
+                if (!productId) {
+                    this.showToast('ID do produto não encontrado', 'error');
+                    return;
+                }
+
+                try {
+                    this.showLoadingState(true);
+                    const productData = await this.fetchProductData(productId);
+
+                    this.resetForm();
+                    this.setFormMode('edit', productId);
+                    this.populateForm(productData);
+                    this.showOffcanvas('productFormOffcanvas');
+
+                } catch (error) {
+                    this.handleError('Erro ao carregar dados do produto', error);
+                } finally {
+                    this.showLoadingState(false);
+                }
+            }
+
+            async openStockModal(productId) {
+                try {
+                    const productData = await this.fetchProductData(productId);
+
+                    document.getElementById('stock-product-id').value = productId;
+                    document.getElementById('stock-product-name').textContent = productData.name;
+                    document.getElementById('current-stock').textContent = productData.stock_quantity;
+
+                    this.resetStockForm();
+                    this.showOffcanvas('stockAdjustOffcanvas');
+
+                } catch (error) {
+                    this.handleError('Erro ao abrir formulário de ajuste', error);
+                }
+            }
+
+            // ===== QUICK VIEW =====
+            async quickViewOffcanvas(productId) {
+                const offcanvas = this.showOffcanvas('quickViewOffcanvas');
+                const content = document.getElementById('quick-view-offcanvas-content');
+
+                this.setQuickViewLoading(content);
+                document.getElementById('product-id-offcanvas').textContent = productId;
+                document.getElementById('view-full-product-offcanvas').href = `/products/${productId}`;
+
+                try {
+                    const productData = await this.fetchProductData(productId);
+                    content.innerHTML = this.generateQuickViewContent(productData);
+                } catch (error) {
+                    content.innerHTML = this.getErrorContent('Erro ao carregar detalhes do produto');
+                    this.handleError('Erro no Quick View', error);
+                }
+            }
+
+            async quickViewInline(productId) {
+                const collapse = new bootstrap.Collapse(document.getElementById('inlineQuickView'), {
+                    show: true
+                });
+                const content = document.getElementById('quick-view-inline-content');
+
+                this.setQuickViewLoading(content);
+                document.getElementById('product-id-inline').textContent = productId;
+                document.getElementById('view-full-product-inline').href = `/products/${productId}`;
+
+                // Scroll suave
+                setTimeout(() => {
+                    document.getElementById('inlineQuickView').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                }, 100);
+
+                try {
+                    const productData = await this.fetchProductData(productId);
+                    content.innerHTML = this.generateQuickViewContent(productData);
+                } catch (error) {
+                    content.innerHTML = this.getErrorContent('Erro ao carregar informações');
+                    this.handleError('Erro no Quick View Inline', error);
+                }
+            }
+
+            // ===== OPERAÇÕES DE DADOS =====
+            async fetchProductData(productId) {
+                const response = await this.makeRequest(this.apiEndpoints.editData(productId), 'GET');
+
+                if (!response.success) {
+                    throw new Error(response.message || 'Erro ao buscar dados do produto');
+                }
+
+                return response.data;
+            }
+
+            async handleFormSubmit(e) {
+                e.preventDefault();
+
+                if (!this.validateForm()) {
+                    return;
+                }
+
+                const form = e.target;
+                const formData = new FormData(form);
+                const method = document.getElementById('form-method').value;
+                const isUpdate = method === 'PUT';
+
+                // Adicionar dados específicos
+                this.addFormSpecificData(formData, method);
+
+                const submitBtn = document.getElementById('save-product-btn') || form.querySelector(
+                    'button[type="submit"]');
+                this.setButtonLoading(submitBtn, true);
+
+                try {
+                    const endpoint = isUpdate ?
+                        this.apiEndpoints.update(this.currentProductId) :
+                        this.apiEndpoints.store;
+
+                    const response = await this.makeRequest(endpoint, 'POST', formData);
+
+                    if (response.success) {
+                        this.hideOffcanvas('productFormOffcanvas');
+                        this.showToast(response.message || 'Produto salvo com sucesso!', 'success');
+
+                        // Recarregar página após sucesso
+                        setTimeout(() => window.location.reload(), 1500);
                     } else {
-                        showToast('Erro ao carregar dados do produto', 'error');
+                        this.handleFormErrors(response.errors || {});
+                        this.showToast(response.message || 'Erro ao salvar produto', 'error');
                     }
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar dados do produto:', error);
-                    showToast('Erro ao carregar dados do produto', 'error');
-                });
-        }
 
-        // ===== OFFCANVAS QUICK VIEW =====
-        function quickViewOffcanvas(productId) {
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('quickViewOffcanvas'));
-            const content = document.getElementById('quick-view-offcanvas-content');
-            const productIdSpan = document.getElementById('product-id-offcanvas');
-
-            // Atualizar dados
-            productIdSpan.textContent = productId;
-            document.getElementById('view-full-product-offcanvas').href = `/products/${productId}`;
-
-            // Mostrar loading
-            content.innerHTML = `
-        <div class="text-center py-5">
-            <div class="loading-spinner mb-3"></div>
-            <p class="text-muted">Carregando detalhes...</p>
-        </div>
-    `;
-
-            offcanvas.show();
-
-            // Simular carregamento
-            setTimeout(() => {
-                content.innerHTML = generateQuickViewContent(productId);
-            }, 800);
-        }
-
-        // ===== INLINE QUICK VIEW =====
-        function quickViewInline(productId) {
-            const collapse = new bootstrap.Collapse(document.getElementById('inlineQuickView'), {
-                show: true
-            });
-            const content = document.getElementById('quick-view-inline-content');
-            const productIdSpan = document.getElementById('product-id-inline');
-
-            // Atualizar dados
-            productIdSpan.textContent = productId;
-            document.getElementById('view-full-product-inline').href = `/products/${productId}`;
-
-            // Mostrar loading
-            content.innerHTML = `
-        <div class="text-center py-4">
-            <div class="loading-spinner mb-3"></div>
-            <p class="text-muted">Carregando informações...</p>
-        </div>
-    `;
-
-            // Scroll suave para o elemento
-            setTimeout(() => {
-                document.getElementById('inlineQuickView').scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest'
-                });
-            }, 100);
-
-            // Simular carregamento
-            setTimeout(() => {
-                content.innerHTML = generateQuickViewContent(productId);
-            }, 800);
-        }
-
-        // ===== POPUP CONFIRMATION =====
-        function confirmDeletePopup(productId, productName, event) {
-            const container = document.getElementById('delete-confirmation-container');
-            const productElement = document.getElementById('delete-product-name-popup');
-            const form = document.getElementById('delete-form-popup');
-
-            // Posicionar próximo ao botão clicado
-            const rect = event.target.getBoundingClientRect();
-            container.style.position = 'fixed';
-            container.style.left = Math.min(rect.left - 200, window.innerWidth - 370) + 'px';
-            container.style.top = (rect.top - 10) + 'px';
-            container.style.display = 'block';
-
-            // Configurar dados
-            productElement.textContent = productName;
-            form.action = `/products/${productId}`;
-
-            // Fechar ao clicar fora
-            setTimeout(() => {
-                document.addEventListener('click', hideDeleteConfirmationOnOutsideClick);
-            }, 100);
-        }
-
-        function hideDeleteConfirmation() {
-            document.getElementById('delete-confirmation-container').style.display = 'none';
-            document.removeEventListener('click', hideDeleteConfirmationOnOutsideClick);
-        }
-
-        function hideDeleteConfirmationOnOutsideClick(event) {
-            const container = document.getElementById('delete-confirmation-container');
-            if (!container.contains(event.target)) {
-                hideDeleteConfirmation();
+                } catch (error) {
+                    this.handleError('Erro ao salvar produto', error);
+                } finally {
+                    this.setButtonLoading(submitBtn, false);
+                }
             }
-        }
 
-        // ===== TOAST CONFIRMATION =====
-        function confirmDeleteToast(productId, productName) {
-            const toast = new bootstrap.Toast(document.getElementById('deleteToast'));
+            async handleStockAdjust(e) {
+                e.preventDefault();
 
-            document.getElementById('delete-product-toast').textContent = productName;
-            document.getElementById('delete-form-toast').action = `/products/${productId}`;
+                if (!this.validateStockForm()) {
+                    return;
+                }
 
-            toast.show();
-        }
+                const formData = new FormData();
+                formData.append('_token', this.csrfToken);
+                formData.append('adjustment_type', document.getElementById('adjustment-type').value);
+                formData.append('quantity', document.getElementById('adjustment-quantity').value);
+                formData.append('reason', document.getElementById('adjustment-reason').value);
 
-        // ===== STOCK OFFCANVAS =====
-        function openStockOffcanvas(productId, productName, currentStock) {
-            document.getElementById('stock-product-id').value = productId;
-            document.getElementById('stock-product-name').textContent = productName;
-            document.getElementById('current-stock').textContent = currentStock;
+                const productId = document.getElementById('stock-product-id').value;
+                const submitBtn = e.target.querySelector('button[type="submit"]');
 
-            // Limpar o formulário
-            document.getElementById('stock-adjust-form').reset();
-            clearValidation(); // função já existente no código
+                this.setButtonLoading(submitBtn, true);
 
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('stockAdjustOffcanvas'));
-            offcanvas.show();
-        }
+                try {
+                    const response = await this.makeRequest(
+                        this.apiEndpoints.adjustStock(productId),
+                        'POST',
+                        formData
+                    );
 
-        // ===== HELPER FUNCTION =====
-        function generateQuickViewContent(productId) {
-            const productRow = document.querySelector(`[data-product-id="${productId}"]`);
-            if (!productRow) {
+                    if (response.success) {
+                        this.showToast(response.message || 'Estoque ajustado com sucesso!', 'success');
+                        this.hideOffcanvas('stockAdjustOffcanvas');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        this.showToast(response.message || 'Erro ao ajustar estoque', 'error');
+                    }
+
+                } catch (error) {
+                    this.handleError('Erro ao ajustar estoque', error);
+                } finally {
+                    this.setButtonLoading(submitBtn, false);
+                }
+            }
+
+            async confirmDelete(productId, productName) {
+                const confirmed = await this.showConfirmDialog(
+                    'Confirmar Exclusão',
+                    `Deseja excluir o produto "${productName}"? Esta ação não pode ser desfeita.`,
+                    'danger'
+                );
+
+                if (!confirmed) return;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('_token', this.csrfToken);
+                    formData.append('_method', 'DELETE');
+
+                    const response = await this.makeRequest(
+                        this.apiEndpoints.destroy(productId),
+                        'POST',
+                        formData
+                    );
+
+                    if (response.success) {
+                        this.showToast(response.message || 'Produto excluído com sucesso!', 'success');
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        this.showToast(response.message || 'Erro ao excluir produto', 'error');
+                    }
+
+                } catch (error) {
+                    this.handleError('Erro ao excluir produto', error);
+                }
+            }
+
+            // ===== UTILITÁRIOS DE REQUISIÇÃO =====
+            async makeRequest(url, method = 'GET', body = null, additionalHeaders = {}) {
+                const headers = {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    ...additionalHeaders
+                };
+
+                // Adicionar CSRF token se não estiver no FormData
+                if (this.csrfToken && !(body instanceof FormData)) {
+                    headers['X-CSRF-TOKEN'] = this.csrfToken;
+                }
+
+                const config = {
+                    method,
+                    headers
+                };
+
+                if (body) {
+                    config.body = body;
+                    // Se não for FormData, definir Content-Type
+                    if (!(body instanceof FormData)) {
+                        headers['Content-Type'] = 'application/json';
+                    }
+                }
+
+                try {
+                    const response = await fetch(url, config);
+
+                    // Verificar se a resposta é válida
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType?.includes('application/json')) {
+                        throw new Error('Resposta não é JSON válido');
+                    }
+
+                    return await response.json();
+
+                } catch (error) {
+                    console.error('Erro na requisição:', error);
+                    throw error;
+                }
+            }
+
+            // ===== VALIDAÇÃO =====
+            validateForm() {
+                this.clearValidation();
+                let isValid = true;
+
+                const requiredFields = [{
+                        id: 'product-name',
+                        message: 'Nome é obrigatório'
+                    },
+                    {
+                        id: 'product-category',
+                        message: 'Categoria é obrigatória'
+                    },
+                    {
+                        id: 'product-type',
+                        message: 'Tipo é obrigatório'
+                    },
+                    {
+                        id: 'selling-price',
+                        message: 'Preço de venda é obrigatório'
+                    }
+                ];
+
+                requiredFields.forEach(field => {
+                    const element = document.getElementById(field.id);
+                    if (!element?.value?.trim()) {
+                        this.showFieldError(field.id, field.message);
+                        isValid = false;
+                    }
+                });
+
+                // Validação específica para preço
+                const sellingPrice = parseFloat(document.getElementById('selling-price')?.value);
+                if (sellingPrice <= 0) {
+                    this.showFieldError('selling-price', 'Preço deve ser maior que zero');
+                    isValid = false;
+                }
+
+                // Validações específicas para produtos
+                const productType = document.getElementById('product-type')?.value;
+                if (productType === 'product') {
+                    const stockFields = [{
+                            id: 'stock-quantity',
+                            message: 'Estoque inicial é obrigatório'
+                        },
+                        {
+                            id: 'min-stock-level',
+                            message: 'Estoque mínimo é obrigatório'
+                        }
+                    ];
+
+                    stockFields.forEach(field => {
+                        const element = document.getElementById(field.id);
+                        const value = parseInt(element?.value);
+                        if (isNaN(value) || value < 0) {
+                            this.showFieldError(field.id, field.message);
+                            isValid = false;
+                        }
+                    });
+                }
+
+                return isValid;
+            }
+
+            validateStockForm() {
+                this.clearValidation();
+                let isValid = true;
+
+                const adjustmentType = document.getElementById('adjustment-type')?.value;
+                const quantity = parseInt(document.getElementById('adjustment-quantity')?.value);
+                const reason = document.getElementById('adjustment-reason')?.value?.trim();
+
+                if (!adjustmentType) {
+                    this.showFieldError('adjustment-type', 'Selecione o tipo de ajuste');
+                    isValid = false;
+                }
+
+                if (isNaN(quantity) || quantity <= 0) {
+                    this.showFieldError('adjustment-quantity', 'Quantidade deve ser maior que zero');
+                    isValid = false;
+                }
+
+                if (!reason) {
+                    this.showFieldError('adjustment-reason', 'Motivo é obrigatório');
+                    isValid = false;
+                }
+
+                return isValid;
+            }
+
+            // ===== MANIPULAÇÃO DO FORMULÁRIO =====
+            setFormMode(mode, productId = null) {
+                const isEdit = mode === 'edit';
+                this.currentProductId = productId;
+
+                document.getElementById('form-title').textContent = isEdit ? 'Editar Produto' : 'Novo Produto';
+                document.getElementById('form-method').value = isEdit ? 'PUT' : 'POST';
+                document.getElementById('product-form').action = isEdit ?
+                    `/products/${productId}` :
+                    '/products';
+            }
+
+            populateForm(data) {
+                const fieldMap = {
+                    'product-name': data.name,
+                    'product-category': data.category_id,
+                    'product-type': data.type,
+                    'product-description': data.description || '',
+                    'selling-price': data.selling_price,
+                    'purchase-price': data.purchase_price || '',
+                    'product-unit': data.unit || '',
+                    'stock-quantity': data.stock_quantity || 0,
+                    'min-stock-level': data.min_stock_level || 0
+                };
+
+                Object.entries(fieldMap).forEach(([fieldId, value]) => {
+                    const element = document.getElementById(fieldId);
+                    if (element) {
+                        element.value = value;
+                    }
+                });
+
+                // Checkbox para produto ativo
+                const activeCheckbox = document.getElementById('product-active');
+                if (activeCheckbox) {
+                    activeCheckbox.checked = data.is_active;
+                }
+
+                // Mostrar/ocultar campos específicos
+                this.toggleProductFields(data.type === 'product');
+            }
+
+            resetForm() {
+                const form = document.getElementById('product-form');
+                if (form) {
+                    form.reset();
+                    document.getElementById('product-active').checked = true;
+                    this.toggleProductFields(false);
+                    this.clearValidation();
+                }
+            }
+
+            resetStockForm() {
+                const form = document.getElementById('stock-adjust-form');
+                if (form) {
+                    form.reset();
+                    this.clearValidation();
+                }
+            }
+
+            toggleProductFields(show) {
+                const productFields = document.getElementById('product-specific-fields');
+                if (productFields) {
+                    productFields.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            addFormSpecificData(formData, method) {
+                if (method === 'PUT') {
+                    formData.append('_method', 'PUT');
+                }
+                formData.append('_token', this.csrfToken);
+            }
+
+            // ===== UI E FEEDBACK =====
+            showOffcanvas(offcanvasId) {
+                const offcanvasElement = document.getElementById(offcanvasId);
+                if (offcanvasElement) {
+                    const offcanvas = new bootstrap.Offcanvas(offcanvasElement);
+                    offcanvas.show();
+                    return offcanvas;
+                }
+            }
+
+            hideOffcanvas(offcanvasId) {
+                const offcanvasElement = document.getElementById(offcanvasId);
+                if (offcanvasElement) {
+                    const offcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+                    if (offcanvas) {
+                        offcanvas.hide();
+                    }
+                }
+            }
+
+            showToast(message, type = 'info', duration = 4000) {
+                const container = this.getToastContainer();
+
+                const typeConfig = {
+                    success: {
+                        bg: 'bg-success',
+                        icon: 'fas fa-check-circle'
+                    },
+                    error: {
+                        bg: 'bg-danger',
+                        icon: 'fas fa-exclamation-circle',
+                        duration: 7000
+                    },
+                    warning: {
+                        bg: 'bg-warning text-dark',
+                        icon: 'fas fa-exclamation-triangle'
+                    },
+                    info: {
+                        bg: 'bg-info',
+                        icon: 'fas fa-info-circle'
+                    }
+                };
+
+                const config = typeConfig[type] || typeConfig.info;
+                const toastDuration = config.duration || duration;
+
+                const toast = document.createElement('div');
+                toast.className = `toast align-items-center text-white ${config.bg} border-0 mb-2`;
+                toast.setAttribute('role', 'alert');
+                toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="${config.icon} me-2"></i>${message}
+                </div>
+                <button type="button" class="btn-close ${type === 'warning' ? 'btn-close-dark' : 'btn-close-white'} me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+                container.appendChild(toast);
+
+                const bsToast = new bootstrap.Toast(toast, {
+                    delay: toastDuration
+                });
+                bsToast.show();
+
+                toast.addEventListener('hidden.bs.toast', () => toast.remove());
+            }
+
+            async showConfirmDialog(title, message, type = 'primary') {
+                return new Promise((resolve) => {
+                    // Criar modal dinamicamente se não existir
+                    let modal = document.getElementById('confirmModal');
+                    if (!modal) {
+                        modal = this.createConfirmModal();
+                        document.body.appendChild(modal);
+                    }
+
+                    const modalTitle = modal.querySelector('.modal-title');
+                    const modalBody = modal.querySelector('.modal-body');
+                    const confirmBtn = modal.querySelector('.btn-confirm');
+
+                    modalTitle.textContent = title;
+                    modalBody.innerHTML = `<p>${message}</p>`;
+
+                    // Definir cor do botão baseado no tipo
+                    confirmBtn.className = `btn btn-${type} btn-confirm`;
+
+                    const bsModal = new bootstrap.Modal(modal);
+
+                    // Event listeners
+                    const handleConfirm = () => {
+                        bsModal.hide();
+                        resolve(true);
+                    };
+
+                    const handleCancel = () => {
+                        bsModal.hide();
+                        resolve(false);
+                    };
+
+                    // Remover listeners anteriores
+                    confirmBtn.removeEventListener('click', handleConfirm);
+                    modal.querySelector('.btn-secondary').removeEventListener('click', handleCancel);
+
+                    // Adicionar novos listeners
+                    confirmBtn.addEventListener('click', handleConfirm);
+                    modal.querySelector('.btn-secondary').addEventListener('click', handleCancel);
+
+                    // Resolver como false quando o modal for fechado sem confirmação
+                    modal.addEventListener('hidden.bs.modal', () => resolve(false), {
+                        once: true
+                    });
+
+                    bsModal.show();
+                });
+            }
+
+            createConfirmModal() {
+                const modal = document.createElement('div');
+                modal.id = 'confirmModal';
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-confirm">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+                return modal;
+            }
+
+            setButtonLoading(button, isLoading) {
+                if (!button) return;
+
+                if (isLoading) {
+                    button.disabled = true;
+                    button.dataset.originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+                } else {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalText || button.innerHTML;
+                }
+            }
+
+            showLoadingState(show) {
+                // Implementar overlay de loading global se necessário
+                const loader = document.getElementById('global-loader');
+                if (loader) {
+                    loader.style.display = show ? 'block' : 'none';
+                }
+            }
+
+            // ===== VALIDAÇÃO E ERROS =====
+            showFieldError(fieldId, message) {
+                const field = document.getElementById(fieldId);
+                if (!field) return;
+
+                field.classList.add('is-invalid');
+
+                let feedback = field.parentNode.querySelector('.invalid-feedback');
+                if (!feedback) {
+                    feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    field.parentNode.appendChild(feedback);
+                }
+
+                feedback.textContent = message;
+
+                // Focus no primeiro campo com erro
+                if (!document.querySelector('.is-invalid:focus')) {
+                    field.focus();
+                }
+            }
+
+            clearValidation() {
+                document.querySelectorAll('.is-invalid').forEach(el => {
+                    el.classList.remove('is-invalid');
+                });
+                document.querySelectorAll('.invalid-feedback').forEach(el => {
+                    el.textContent = '';
+                });
+            }
+
+            handleFormErrors(errors) {
+                Object.entries(errors).forEach(([field, messages]) => {
+                    const fieldName = field.replace('_', '-');
+                    this.showFieldError(`product-${fieldName}`, messages[0]);
+                });
+            }
+
+            handleError(message, error = null) {
+                console.error(message, error);
+                this.showToast(message, 'error');
+            }
+
+            // ===== CONTENT GENERATORS =====
+            generateQuickViewContent(product) {
                 return `
-            <div class="text-center py-4 text-danger">
-                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
-                <p>Erro ao carregar detalhes do produto.</p>
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-box me-2"></i>${product.name}
+                        </h6>
+                        <p class="mb-1"><strong>Categoria:</strong> ${product.category?.name || 'N/A'}</p>
+                        <p class="mb-0"><strong>Tipo:</strong> ${product.type === 'product' ? 'Produto' : 'Serviço'}</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">
+                                <i class="fas fa-info-circle me-2"></i>Informações
+                            </h6>
+                            <p class="card-text small mb-1"><strong>Status:</strong> ${product.is_active ? 'Ativo' : 'Inativo'}</p>
+                            ${product.type === 'product' ? `
+                                        <p class="card-text small mb-1"><strong>Estoque:</strong> ${product.stock_quantity} ${product.unit || ''}</p>
+                                        <p class="card-text small mb-0"><strong>Estoque Mín:</strong> ${product.min_stock_level}</p>
+                                    ` : '<p class="card-text small mb-0">Não aplicável para serviços</p>'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-success">
+                                <i class="fas fa-money-bill-wave me-2"></i>Preços
+                            </h6>
+                            <p class="card-text"><strong class="text-success fs-5">MT ${this.formatCurrency(product.selling_price)}</strong></p>
+                            ${product.purchase_price ? `<small class="text-muted">Compra: MT ${this.formatCurrency(product.purchase_price)}</small>` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                ${product.description ? `
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-secondary">
+                                            <i class="fas fa-file-text me-2"></i>Descrição
+                                        </h6>
+                                        <p class="card-text">${product.description}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
             </div>
         `;
             }
 
-            const cells = productRow.querySelectorAll('td');
-            const productName = cells[1].textContent.trim();
-            const category = cells[2].textContent.trim();
-            const type = cells[3].textContent.trim();
-            const price = cells[4].textContent.trim();
-            const stock = cells[5].textContent.trim();
-            const status = cells[6].textContent.trim();
+            setQuickViewLoading(container) {
+                container.innerHTML = `
+            <div class="text-center py-5">
+                <div class="loading-spinner mb-3"></div>
+                <p class="text-muted">Carregando detalhes...</p>
+            </div>
+        `;
+            }
 
-            return `
-        <div class="row g-3">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <h6 class="alert-heading">
-                        <i class="fas fa-box me-2"></i>Produto/Serviço
-                    </h6>
-                    <p class="mb-1"><strong>Nome:</strong> ${productName}</p>
-                    <p class="mb-0"><strong>Categoria:</strong> ${category}</p>
-                </div>
+            getErrorContent(message) {
+                return `
+            <div class="text-center py-4 text-danger">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <p>${message}</p>
             </div>
-            
-            <div class="col-md-6">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title text-primary">
-                            <i class="fas fa-info-circle me-2"></i>Informações
-                        </h6>
-                        <p class="card-text small mb-1"><strong>Tipo:</strong> ${type}</p>
-                        <p class="card-text small mb-1"><strong>Status:</strong> ${status}</p>
-                        <p class="card-text small mb-0"><strong>Estoque:</strong> ${stock !== 'N/A' ? stock : 'Não aplicável'}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6 class="card-title text-success">
-                            <i class="fas fa-money-bill-wave me-2"></i>Preço
-                        </h6>
-                        <p class="card-text"><strong class="text-success fs-5">${price}</strong></p>
-                        <small class="text-muted">Preço de venda atual</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+        `;
+            }
+
+            // ===== UTILITÁRIOS =====
+            formatCurrency(value) {
+                return parseFloat(value).toFixed(2).replace('.', ',');
+            }
+
+            initializeToastContainer() {
+                if (!document.getElementById('toast-container')) {
+                    const container = document.createElement('div');
+                    container.id = 'toast-container';
+                    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                    container.style.zIndex = '9999';
+                    document.body.appendChild(container);
+                }
+            }
+
+            getToastContainer() {
+                return document.getElementById('toast-container');
+            }
         }
 
-        // ===== UTILITY FUNCTIONS =====
+        // ===== INICIALIZAÇÃO =====
+        document.addEventListener('DOMContentLoaded', function() {
+            window.productManager = new ProductManager();
+        });
+
+        // ===== FUNÇÕES GLOBAIS PARA COMPATIBILIDADE =====
+        function openCreateProductOffcanvas() {
+            window.productManager?.openCreateModal();
+        }
+
+        function editProduct(productId) {
+            window.productManager?.openEditModal(productId);
+        }
+
+        function quickViewOffcanvas(productId) {
+            window.productManager?.quickViewOffcanvas(productId);
+        }
+
+        function quickViewInline(productId) {
+            window.productManager?.quickViewInline(productId);
+        }
+
+        function openStockOffcanvas(productId) {
+            window.productManager?.openStockModal(productId);
+        }
+
+        function confirmDeletePopup(productId, productName) {
+            window.productManager?.confirmDelete(productId, productName);
+        }
+
+        function confirmDeleteToast(productId, productName) {
+            window.productManager?.confirmDelete(productId, productName);
+        }
+
         function clearSearch() {
             const form = document.getElementById('filters-form');
-            const searchInput = form.querySelector('input[name="search"]');
-            searchInput.value = '';
-            form.submit();
+            const searchInput = form?.querySelector('input[name="search"]');
+            if (searchInput) {
+                searchInput.value = '';
+                form.submit();
+            }
         }
 
         function exportProducts() {
-            if (window.showToast) {
-                showToast('Funcionalidade de exportação em desenvolvimento', 'info');
-            } else {
-                alert('Funcionalidade de exportação em desenvolvimento');
-            }
+            window.productManager?.showToast('Funcionalidade de exportação em desenvolvimento', 'info');
         }
 
         function printList() {
             window.print();
         }
-
-        function clearValidation() {
-            document.querySelectorAll('.form-control, .form-select').forEach(field => {
-                field.classList.remove('is-invalid');
-            });
-            document.querySelectorAll('.invalid-feedback').forEach(feedback => {
-                feedback.textContent = '';
-            });
-        }
-
-        function showFieldError(fieldId, message) {
-            const field = document.querySelector(fieldId);
-            if (field) {
-                field.classList.add('is-invalid');
-                const feedback = field.nextElementSibling;
-                if (feedback && feedback.classList.contains('invalid-feedback')) {
-                    feedback.textContent = message;
-                }
-            }
-        }
-
-        // ===== FORM SUBMISSIONS =====
-        document.addEventListener('DOMContentLoaded', function() {
-            // Auto-submit de filtros
-            const form = document.getElementById('filters-form');
-            const selects = form.querySelectorAll('select');
-
-            selects.forEach(select => {
-                select.addEventListener('change', () => form.submit());
-            });
-
-            // Mostrar/ocultar campos específicos para produtos
-            const productTypeSelect = document.getElementById('product-type');
-            if (productTypeSelect) {
-                productTypeSelect.addEventListener('change', function() {
-                    const productFields = document.getElementById('product-specific-fields');
-                    if (this.value === 'product') {
-                        productFields.style.display = 'block';
-                    } else {
-                        productFields.style.display = 'none';
-                    }
-                });
-            }
-
-            // Submit do formulário de produto
-            document.getElementById('product-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                if (!validateProductForm()) {
-                    return false;
-                }
-
-                const formData = new FormData(this);
-                const method = document.getElementById('form-method').value;
-                const url = this.action;
-
-                // Para métodos PUT, adicionar o parâmetro _method
-                if (method === 'PUT') {
-                    formData.append('_method', 'PUT');
-                }
-
-                fetch(url, {
-                        method: 'POST', // Sempre POST, o Laravel trata o _method
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            bootstrap.Offcanvas.getInstance(document.getElementById(
-                                'productFormOffcanvas')).hide();
-                            showToast(data.message || 'Produto salvo com sucesso', 'success');
-                            // Recarregar página após 1 segundo
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1000);
-                        } else {
-                            // Mostrar erros de validação
-                            if (data.errors) {
-                                Object.keys(data.errors).forEach(field => {
-                                    const fieldName = field.replace('_', '-');
-                                    showFieldError(`#product-${fieldName}`, data.errors[field][
-                                        0
-                                    ]);
-                                });
-                            }
-                            showToast(data.message || 'Erro ao salvar produto', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        showToast('Erro ao salvar produto', 'error');
-                    });
-            });
-
-            // Submit do formulário de ajuste de estoque (Offcanvas)
-            document.getElementById('stock-adjust-form').addEventListener('submit', function(e) {
-                e.preventDefault();
-                if (!validateStockForm()) {
-                    return false;
-                }
-                const productId = document.getElementById('stock-product-id').value;
-                const formData = new FormData();
-                formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                formData.append('adjustment_type', document.getElementById('adjustment-type').value);
-                formData.append('quantity', document.getElementById('adjustment-quantity').value);
-                formData.append('reason', document.getElementById('adjustment-reason').value);
-
-                fetch(`/products/${productId}/adjust-stock`, {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast(data.message, 'success');
-                            bootstrap.Offcanvas.getInstance(document.getElementById(
-                                'stockAdjustOffcanvas')).hide();
-                            setTimeout(() => window.location.reload(), 1000);
-                        } else {
-                            showToast(data.message || 'Erro ao ajustar estoque', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        showToast('Erro ao ajustar estoque', 'error');
-                    });
-            });
-
-            function validateStockForm() {
-                clearValidation();
-                let isValid = true;
-
-                const type = document.getElementById('adjustment-type').value;
-                const quantity = document.getElementById('adjustment-quantity').value;
-                const reason = document.getElementById('adjustment-reason').value;
-
-                if (!type) {
-                    showFieldError('#adjustment-type', 'Selecione o tipo de ajuste');
-                    isValid = false;
-                }
-                if (!quantity || quantity < 1) {
-                    showFieldError('#adjustment-quantity', 'Quantidade deve ser maior que 0');
-                    isValid = false;
-                }
-                if (!reason.trim()) {
-                    showFieldError('#adjustment-reason', 'Informe o motivo');
-                    isValid = false;
-                }
-
-                return isValid;
-            }
-
-            function validateProductForm() {
-                clearValidation();
-                let isValid = true;
-
-                const name = document.getElementById('product-name').value.trim();
-                const category = document.getElementById('product-category').value;
-                const type = document.getElementById('product-type').value;
-                const sellingPrice = document.getElementById('selling-price').value;
-
-                if (!name) {
-                    showFieldError('#product-name', 'Nome é obrigatório');
-                    isValid = false;
-                }
-
-                if (!category) {
-                    showFieldError('#product-category', 'Categoria é obrigatória');
-                    isValid = false;
-                }
-
-                if (!type) {
-                    showFieldError('#product-type', 'Tipo é obrigatório');
-                    isValid = false;
-                }
-
-                if (!sellingPrice || sellingPrice <= 0) {
-                    showFieldError('#selling-price', 'Preço de venda deve ser maior que zero');
-                    isValid = false;
-                }
-
-                return isValid;
-            }
-        });
     </script>
 @endpush
 

@@ -35,7 +35,8 @@
     "files": [
         "app/Helpers/PermissionHelper.php",
         "app/Helpers/permissions.php",
-        "app/Helpers/NotificationHelper.php"
+        "app/Helpers/NotificationHelper.php",
+         "app/Helpers/SearchHelper.php"
     ]
     },
     "autoload-dev": {
