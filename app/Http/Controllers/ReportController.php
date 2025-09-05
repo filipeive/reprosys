@@ -856,4 +856,520 @@ class ReportController extends Controller
             'recommendations', 'metrics'
         ));
     }
+    /**
+     * Relatório Especializado de Vendas
+     */
+    public function salesReport(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
+        $dateTo = $request->input('date_to', now()->format('Y-m-d'));
+        $paymentMethod = $request->input('payment_method', 'all');
+        $customerId = $request->input('customer_id');
+
+        $query = Sale::with(['user', 'items.product'])
+            ->whereBetween('sale_date', [$dateFrom, $dateTo]);
+
+        // Filtros específicos
+        if ($paymentMethod !== 'all') {
+            $query->where('payment_method', $paymentMethod);
+        }
+
+        if ($customerId) {
+            $query->where('customer_name', 'like', "%{$customerId}%");
+        }
+
+        $sales = $query->latest()->get()->map(function ($sale) {
+            // Calcular métricas por venda
+            $cost = $sale->items->sum(function ($item) {
+                return $item->quantity * ($item->product->purchase_price ?? 0);
+            });
+            $sale->cost = $cost;
+            $sale->profit = $sale->total_amount - $cost;
+            $sale->margin = $sale->total_amount > 0 ? (($sale->profit / $sale->total_amount) * 100) : 0;
+            return $sale;
+        });
+
+        // Estatísticas gerais
+        $totalSales = $sales->count();
+        $totalRevenue = $sales->sum('total_amount');
+        $totalCost = $sales->sum('cost');
+        $totalProfit = $sales->sum('profit');
+        $averageTicket = $totalSales > 0 ? $totalRevenue / $totalSales : 0;
+        $averageMargin = $totalRevenue > 0 ? (($totalProfit / $totalRevenue) * 100) : 0;
+
+        // Vendas por método de pagamento
+        $salesByMethod = $sales->groupBy('payment_method')->map(function ($group) {
+            return [
+                'count' => $group->count(),
+                'total' => $group->sum('total_amount'),
+                'avg_ticket' => $group->avg('total_amount')
+            ];
+        });
+
+        // Vendas por dia
+        $salesByDay = $sales->groupBy(function ($sale) {
+            return $sale->sale_date->format('Y-m-d');
+        })->map(function ($group, $date) {
+            return [
+                'date' => $date,
+                'count' => $group->count(),
+                'total' => $group->sum('total_amount'),
+                'profit' => $group->sum('profit')
+            ];
+        })->sortBy('date');
+
+        // Top vendedores
+        $topSellers = $sales->groupBy('user.name')->map(function ($group, $seller) {
+            return [
+                'seller' => $seller,
+                'sales_count' => $group->count(),
+                'total_revenue' => $group->sum('total_amount'),
+                'total_profit' => $group->sum('profit'),
+                'avg_ticket' => $group->avg('total_amount')
+            ];
+        })->sortByDesc('total_revenue');
+
+        // Produtos mais vendidos neste período
+        $topProducts = $sales->flatMap->items->groupBy('product.name')->map(function ($group, $productName) {
+            $product = $group->first()->product;
+            return [
+                'name' => $productName,
+                'quantity' => $group->sum('quantity'),
+                'revenue' => $group->sum('total_price'),
+                'cost' => $group->sum(function ($item) use ($product) {
+                    return $item->quantity * ($product->purchase_price ?? 0);
+                }),
+                'profit' => $group->sum('total_price') - $group->sum(function ($item) use ($product) {
+                    return $item->quantity * ($product->purchase_price ?? 0);
+                })
+            ];
+        })->sortByDesc('revenue')->take(10);
+
+        return view('reports.sales_specialized', compact(
+            'sales', 'dateFrom', 'dateTo', 'paymentMethod', 'customerId',
+            'totalSales', 'totalRevenue', 'totalCost', 'totalProfit', 
+            'averageTicket', 'averageMargin', 'salesByMethod', 
+            'salesByDay', 'topSellers', 'topProducts'
+        ));
+    }
+
+    /**
+     * Relatório Especializado de Despesas
+     */
+    public function expensesReport(Request $request)
+    {
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
+        $dateTo = $request->input('date_to', now()->format('Y-m-d'));
+        $categoryId = $request->input('category_id');
+        $userId = $request->input('user_id');
+
+        $query = Expense::with(['user', 'category'])
+            ->whereBetween('expense_date', [$dateFrom, $dateTo]);
+
+        // Filtros específicos
+        if ($categoryId && $categoryId !== 'all') {
+            $query->where('expense_category_id', $categoryId);
+        }
+
+        if ($userId && $userId !== 'all') {
+            $query->where('user_id', $userId);
+        }
+
+        $expenses = $query->latest()->get();
+
+        // Estatísticas gerais
+        $totalExpenses = $expenses->sum('amount');
+        $expenseCount = $expenses->count();
+        $averageExpense = $expenseCount > 0 ? $totalExpenses / $expenseCount : 0;
+
+        // Despesas por categoria
+        $expensesByCategory = $expenses->groupBy('category.name')->map(function ($group, $categoryName) {
+            return [
+                'category' => $categoryName ?: 'Sem Categoria',
+                'count' => $group->count(),
+                'total' => $group->sum('amount'),
+                'percentage' => 0, // Será calculado depois
+                'avg' => $group->avg('amount')
+            ];
+        })->sortByDesc('total');
+
+        // Calcular percentuais
+        $expensesByCategory = $expensesByCategory->map(function ($item) use ($totalExpenses) {
+            $item['percentage'] = $totalExpenses > 0 ? (($item['total'] / $totalExpenses) * 100) : 0;
+            return $item;
+        });
+
+        // Despesas por usuário
+        $expensesByUser = $expenses->groupBy('user.name')->map(function ($group, $userName) {
+            return [
+                'user' => $userName,
+                'count' => $group->count(),
+                'total' => $group->sum('amount'),
+                'avg' => $group->avg('amount')
+            ];
+        })->sortByDesc('total');
+
+        // Despesas por dia
+        $expensesByDay = $expenses->groupBy(function ($expense) {
+            return $expense->expense_date->format('Y-m-d');
+        })->map(function ($group, $date) {
+            return [
+                'date' => $date,
+                'count' => $group->count(),
+                'total' => $group->sum('amount')
+            ];
+        })->sortBy('date');
+
+        // Evolução mensal (se período > 31 dias)
+        $period = \Carbon\Carbon::parse($dateFrom)->diffInDays(\Carbon\Carbon::parse($dateTo));
+        $expensesByMonth = collect();
+        
+        if ($period > 31) {
+            $expensesByMonth = $expenses->groupBy(function ($expense) {
+                return $expense->expense_date->format('Y-m');
+            })->map(function ($group, $month) {
+                return [
+                    'month' => $month,
+                    'month_name' => \Carbon\Carbon::createFromFormat('Y-m', $month)->format('M/Y'),
+                    'count' => $group->count(),
+                    'total' => $group->sum('amount')
+                ];
+            })->sortBy('month');
+        }
+
+        // Maiores despesas individuais
+        $topExpenses = $expenses->sortByDesc('amount')->take(10);
+
+        // Análise de crescimento
+        $previousPeriodDays = \Carbon\Carbon::parse($dateFrom)->diffInDays(\Carbon\Carbon::parse($dateTo));
+        $previousDateFrom = \Carbon\Carbon::parse($dateFrom)->subDays($previousPeriodDays + 1)->format('Y-m-d');
+        $previousDateTo = \Carbon\Carbon::parse($dateFrom)->subDay()->format('Y-m-d');
+        
+        $previousExpenses = Expense::whereBetween('expense_date', [$previousDateFrom, $previousDateTo])->sum('amount');
+        $expenseGrowth = $previousExpenses > 0 ? ((($totalExpenses - $previousExpenses) / $previousExpenses) * 100) : 0;
+
+        // Obter listas para filtros
+        $categories = \App\Models\ExpenseCategory::orderBy('name')->get();
+        $users = \App\Models\User::where('is_active', true)->orderBy('name')->get();
+
+        return view('reports.expenses_specialized', compact(
+            'expenses', 'dateFrom', 'dateTo', 'categoryId', 'userId',
+            'totalExpenses', 'expenseCount', 'averageExpense', 'expenseGrowth',
+            'expensesByCategory', 'expensesByUser', 'expensesByDay', 
+            'expensesByMonth', 'topExpenses', 'categories', 'users'
+        ));
+    }
+
+    /**
+     * Relatório de Comparação Especializado
+     */
+    public function comparisonReport(Request $request)
+    {
+        $type = $request->input('type', 'monthly'); // monthly, quarterly, yearly, custom
+        $year = $request->input('year', now()->year);
+        $customDateFrom = $request->input('custom_date_from');
+        $customDateTo = $request->input('custom_date_to');
+
+        $comparisons = [];
+
+        switch ($type) {
+            case 'monthly':
+                $comparisons = $this->getMonthlyComparisons($year);
+                break;
+            case 'quarterly':
+                $comparisons = $this->getQuarterlyComparisons($year);
+                break;
+            case 'yearly':
+                $comparisons = $this->getYearlyComparisons();
+                break;
+            case 'custom':
+                if ($customDateFrom && $customDateTo) {
+                    $comparisons = $this->getCustomComparisons($customDateFrom, $customDateTo);
+                }
+                break;
+        }
+
+        // Análise de tendências
+        $trends = $this->analyzeTrends($comparisons);
+
+        // Previsões simples baseadas em tendência
+        $forecasts = $this->generateForecasts($comparisons, $type);
+
+        return view('reports.comparison_specialized', compact(
+            'comparisons', 'trends', 'forecasts', 'type', 'year', 
+            'customDateFrom', 'customDateTo'
+        ));
+    }
+
+    private function getMonthlyComparisons($year)
+    {
+        $months = [];
+        for ($month = 1; $month <= 12; $month++) {
+            $startDate = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = \Carbon\Carbon::create($year, $month, 1)->endOfMonth();
+
+            if ($endDate->isFuture()) {
+                $endDate = now();
+            }
+
+            $metrics = $this->calcularMetricasPrincipais($startDate->format('Y-m-d'), $endDate->format('Y-m-d'));
+            
+            $months[] = [
+                'period' => $startDate->format('M/Y'),
+                'period_full' => $startDate->format('F Y'),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'sales_count' => $metrics['totalSales'],
+                'revenue' => $metrics['totalRevenue'],
+                'expenses' => $metrics['totalExpenses'],
+                'profit' => $metrics['netProfit'],
+                'margin' => $metrics['netMargin']
+            ];
+        }
+
+        return collect($months);
+    }
+
+    private function getQuarterlyComparisons($year)
+    {
+        $quarters = [];
+        $quarterNames = ['T1', 'T2', 'T3', 'T4'];
+
+        for ($quarter = 1; $quarter <= 4; $quarter++) {
+            $startMonth = ($quarter - 1) * 3 + 1;
+            $startDate = \Carbon\Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $endDate = \Carbon\Carbon::create($year, $startMonth + 2, 1)->endOfMonth();
+
+            if ($endDate->isFuture()) {
+                $endDate = now();
+            }
+
+            $metrics = $this->calcularMetricasPrincipais($startDate->format('Y-m-d'), $endDate->format('Y-m-d'));
+            
+            $quarters[] = [
+                'period' => $quarterNames[$quarter - 1] . '/' . $year,
+                'period_full' => "Trimestre {$quarter} de {$year}",
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'sales_count' => $metrics['totalSales'],
+                'revenue' => $metrics['totalRevenue'],
+                'expenses' => $metrics['totalExpenses'],
+                'profit' => $metrics['netProfit'],
+                'margin' => $metrics['netMargin']
+            ];
+        }
+
+        return collect($quarters);
+    }
+
+    private function getYearlyComparisons()
+    {
+        $years = [];
+        $currentYear = now()->year;
+        
+        for ($year = $currentYear - 4; $year <= $currentYear; $year++) {
+            $startDate = \Carbon\Carbon::create($year, 1, 1)->startOfYear();
+            $endDate = \Carbon\Carbon::create($year, 12, 31)->endOfYear();
+
+            if ($endDate->isFuture()) {
+                $endDate = now();
+            }
+
+            $metrics = $this->calcularMetricasPrincipais($startDate->format('Y-m-d'), $endDate->format('Y-m-d'));
+            
+            $years[] = [
+                'period' => (string)$year,
+                'period_full' => "Ano de {$year}",
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'sales_count' => $metrics['totalSales'],
+                'revenue' => $metrics['totalRevenue'],
+                'expenses' => $metrics['totalExpenses'],
+                'profit' => $metrics['netProfit'],
+                'margin' => $metrics['netMargin']
+            ];
+        }
+
+        return collect($years);
+    }
+
+    private function getCustomComparisons($dateFrom, $dateTo)
+    {
+        // Dividir o período em intervalos menores para comparação
+        $start = \Carbon\Carbon::parse($dateFrom);
+        $end = \Carbon\Carbon::parse($dateTo);
+        $totalDays = $start->diffInDays($end);
+
+        $intervals = [];
+        
+        if ($totalDays <= 31) {
+            // Comparação semanal
+            $current = $start->copy();
+            $week = 1;
+            
+            while ($current <= $end) {
+                $weekEnd = $current->copy()->addDays(6);
+                if ($weekEnd > $end) $weekEnd = $end;
+                
+                $metrics = $this->calcularMetricasPrincipais($current->format('Y-m-d'), $weekEnd->format('Y-m-d'));
+                
+                $intervals[] = [
+                    'period' => "Semana {$week}",
+                    'period_full' => $current->format('d/m') . ' - ' . $weekEnd->format('d/m/Y'),
+                    'start_date' => $current->copy(),
+                    'end_date' => $weekEnd->copy(),
+                    'sales_count' => $metrics['totalSales'],
+                    'revenue' => $metrics['totalRevenue'],
+                    'expenses' => $metrics['totalExpenses'],
+                    'profit' => $metrics['netProfit'],
+                    'margin' => $metrics['netMargin']
+                ];
+                
+                $current->addWeek();
+                $week++;
+            }
+        } else {
+            // Comparação mensal
+            $current = $start->copy()->startOfMonth();
+            
+            while ($current <= $end) {
+                $monthEnd = $current->copy()->endOfMonth();
+                if ($monthEnd > $end) $monthEnd = $end;
+                if ($current < $start) $current = $start;
+                
+                $metrics = $this->calcularMetricasPrincipais($current->format('Y-m-d'), $monthEnd->format('Y-m-d'));
+                
+                $intervals[] = [
+                    'period' => $current->format('M/Y'),
+                    'period_full' => $current->format('F Y'),
+                    'start_date' => $current->copy(),
+                    'end_date' => $monthEnd->copy(),
+                    'sales_count' => $metrics['totalSales'],
+                    'revenue' => $metrics['totalRevenue'],
+                    'expenses' => $metrics['totalExpenses'],
+                    'profit' => $metrics['netProfit'],
+                    'margin' => $metrics['netMargin']
+                ];
+                
+                $current->addMonth()->startOfMonth();
+            }
+        }
+
+        return collect($intervals);
+    }
+
+    private function analyzeTrends($comparisons)
+    {
+        if ($comparisons->count() < 2) {
+            return ['insufficient_data' => true];
+        }
+
+        $revenues = $comparisons->pluck('revenue')->toArray();
+        $profits = $comparisons->pluck('profit')->toArray();
+        
+        return [
+            'revenue_trend' => $this->calculateTrend($revenues),
+            'profit_trend' => $this->calculateTrend($profits),
+            'best_period' => $comparisons->sortByDesc('profit')->first(),
+            'worst_period' => $comparisons->sortBy('profit')->first(),
+            'most_consistent' => $this->findMostConsistent($comparisons),
+            'growth_rate' => $this->calculateGrowthRate($comparisons)
+        ];
+    }
+
+    private function calculateTrend($values)
+    {
+        $n = count($values);
+        if ($n < 3) return 'stable';
+        
+        $increases = 0;
+        $decreases = 0;
+        
+        for ($i = 1; $i < $n; $i++) {
+            if ($values[$i] > $values[$i-1]) $increases++;
+            elseif ($values[$i] < $values[$i-1]) $decreases++;
+        }
+        
+        if ($increases > $decreases) return 'ascending';
+        elseif ($decreases > $increases) return 'descending';
+        return 'stable';
+    }
+
+    private function findMostConsistent($comparisons)
+    {
+        $margins = $comparisons->pluck('margin')->toArray();
+        $stdDev = $this->standardDeviation($margins);
+        
+        return [
+            'period' => $comparisons->sortBy(function ($item) use ($margins) {
+                return abs($item['margin'] - array_sum($margins) / count($margins));
+            })->first(),
+            'deviation' => $stdDev
+        ];
+    }
+
+    private function standardDeviation($values)
+    {
+        $mean = array_sum($values) / count($values);
+        $variance = array_sum(array_map(function($x) use ($mean) {
+            return pow($x - $mean, 2);
+        }, $values)) / count($values);
+        return sqrt($variance);
+    }
+
+    private function calculateGrowthRate($comparisons)
+    {
+        $first = $comparisons->first();
+        $last = $comparisons->last();
+        
+        if ($first['revenue'] > 0) {
+            return (($last['revenue'] - $first['revenue']) / $first['revenue']) * 100;
+        }
+        
+        return 0;
+    }
+
+    private function generateForecasts($comparisons, $type)
+    {
+        if ($comparisons->count() < 3) {
+            return ['insufficient_data' => true];
+        }
+
+        $revenues = $comparisons->pluck('revenue')->toArray();
+        $trend = $this->calculateLinearTrend($revenues);
+        
+        $nextPeriods = 3; // Prever próximos 3 períodos
+        $forecasts = [];
+        
+        for ($i = 1; $i <= $nextPeriods; $i++) {
+            $nextValue = $trend['slope'] * (count($revenues) + $i) + $trend['intercept'];
+            $forecasts[] = [
+                'period' => "Previsão " . $i,
+                'revenue' => max(0, $nextValue), // Não pode ser negativo
+                'confidence' => max(0, 100 - ($i * 20)) // Confiança diminui com o tempo
+            ];
+        }
+        
+        return $forecasts;
+    }
+
+    private function calculateLinearTrend($values)
+    {
+        $n = count($values);
+        $sumX = ($n * ($n + 1)) / 2;
+        $sumY = array_sum($values);
+        $sumXY = 0;
+        $sumX2 = 0;
+        
+        for ($i = 0; $i < $n; $i++) {
+            $x = $i + 1;
+            $sumXY += $x * $values[$i];
+            $sumX2 += $x * $x;
+        }
+        
+        $slope = ($n * $sumXY - $sumX * $sumY) / ($n * $sumX2 - $sumX * $sumX);
+        $intercept = ($sumY - $slope * $sumX) / $n;
+        
+        return ['slope' => $slope, 'intercept' => $intercept];
+    }
 }

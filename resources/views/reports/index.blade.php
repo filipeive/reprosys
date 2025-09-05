@@ -17,52 +17,69 @@
             </h2>
             <p class="text-muted mb-0">Visualize dados financeiros, vendas, estoque e desempenho</p>
         </div>
+
         <div class="d-flex gap-2 flex-wrap">
-            {{-- Relatórios básicos --}}
-            <a href="{{ route('reports.daily-sales') }}" class="btn btn-primary btn-sm" target="_blank" title="Vendas Diárias">
-                <i class="fas fa-calendar-day me-1"></i> Diárias
-            </a>
-            <a href="{{ route('reports.monthly-sales') }}" class="btn btn-info btn-sm" target="_blank"
-                title="Vendas Mensais">
-                <i class="fas fa-calendar-alt me-1"></i> Mensais
-            </a>
-            <a href="{{ route('reports.sales-by-product') }}" class="btn btn-success btn-sm" target="_blank"
-                title="Vendas por Produto">
-                <i class="fas fa-box me-1"></i> Por Produto
-            </a>
-            <a href="{{ route('reports.profit-loss') }}" class="btn btn-warning btn-sm" target="_blank"
-                title="Lucros e Perdas">
-                <i class="fas fa-chart-line me-1"></i> Lucro/Prejuízo
-            </a>
-            <a href="{{ route('reports.cash-flow') }}" class="btn btn-dark btn-sm" target="_blank" title="Fluxo de Caixa">
-                <i class="fas fa-money-bill-wave me-1"></i> Fluxo Caixa
-            </a>
-            <a href="{{ route('reports.low-stock') }}" class="btn btn-danger btn-sm" target="_blank" title="Baixo Estoque">
-                <i class="fas fa-exclamation-triangle me-1"></i> Estoque Baixo
-            </a>
-            <a href="{{ route('reports.inventory') }}" class="btn btn-secondary btn-sm" target="_blank" title="Inventário">
-                <i class="fas fa-boxes me-1"></i> Inventário
-            </a>
+            <!-- Grupo Vendas -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-shopping-cart me-1"></i> Vendas
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ route('reports.daily-sales') }}" target="_blank">Diárias</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.monthly-sales') }}" target="_blank">Mensais</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ route('reports.sales-by-product') }}" target="_blank">Por
+                            Produto</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.sales-specialized') }}"
+                            target="_blank">Especializado</a></li>
+                </ul>
+            </div>
 
-            {{-- Análises avançadas --}}
-            {{-- <a href="{{ route('reports.customer-profitability') }}" class="btn btn-outline-primary btn-sm" target="_blank"
-                title="Rentabilidade de Clientes">
-                <i class="fas fa-users me-1"></i> Rentabilidade Clientes
-            </a> --}}
-            <a href="{{ route('reports.abc-analysis') }}" class="btn btn-outline-info btn-sm" target="_blank"
-                title="Análise ABC">
-                <i class="fas fa-sort-amount-down me-1"></i> ABC
-            </a>
-            <a href="{{ route('reports.period-comparison') }}" class="btn btn-outline-success btn-sm" target="_blank"
-                title="Comparação de Períodos">
-                <i class="fas fa-exchange-alt me-1"></i> Comparação
-            </a>
-            <a href="{{ route('reports.business-insights') }}" class="btn btn-outline-warning btn-sm" target="_blank"
-                title="Insights do Negócio">
-                <i class="fas fa-lightbulb me-1"></i> Insights
-            </a>
+            <!-- Grupo Financeiro -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-warning btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-coins me-1"></i> Financeiro
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ route('reports.profit-loss') }}" target="_blank">Lucro /
+                            Prejuízo</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.cash-flow') }}" target="_blank">Fluxo de Caixa</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ route('reports.expenses-specialized') }}" target="_blank">Despesas
+                            Especializado</a></li>
+                </ul>
+            </div>
+
+            <!-- Grupo Análises -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-info btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-chart-pie me-1"></i> Análises
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ route('reports.customer-profitability') }}"
+                            target="_blank">Rentabilidade Clientes</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.abc-analysis') }}" target="_blank">Análise ABC</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ route('reports.period-comparison') }}" target="_blank">Comparação
+                            de Períodos</a></li>
+                    <li><a class="dropdown-item" href="{{ route('reports.business-insights') }}" target="_blank">Insights
+                            do Negócio</a></li>
+                </ul>
+            </div>
+
+            <!-- Grupo Estoque -->
+            <div class="btn-group">
+                <button type="button" class="btn btn-danger btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="fas fa-boxes me-1"></i> Estoque
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ route('reports.low-stock') }}" target="_blank">Baixo Estoque</a>
+                    </li>
+                    <li><a class="dropdown-item" href="{{ route('reports.inventory') }}" target="_blank">Inventário</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-
     </div>
 
     <!-- Filtros -->
@@ -110,13 +127,16 @@
                                 class="btn btn-success btn-sm w-100" target="_blank" title="Exportar Excel">
                                 <i class="fas fa-file-excel me-1"></i> XLS
                             </a>
+                            <a href="{{ route('reports.export.csv', array_merge(['date_from' => $dateFrom, 'date_to' => $dateTo, 'report_type' => $reportType])) }}"
+                                class="btn btn-outline-secondary btn-sm w-100" target="_blank" title="Exportar CSV">
+                                <i class="fas fa-file-csv me-1"></i> CSV
+                            </a>
                         </div>
                     </div>
                 </div>
             </form>
         </div>
     </div>
-
     <!-- Cards de Resumo Principal -->
     <div class="row mb-4">
         <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
