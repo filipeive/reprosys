@@ -2,7 +2,11 @@
 
 @section('title', 'Gestão de Categorias')
 @section('page-title', 'Categorias')
-@section('title-icon', 'fa-tags')
+
+@php
+    $titleIcon = 'fas fa-tags me-2';
+@endphp
+
 @section('breadcrumbs')
     <li class="breadcrumb-item active">Categorias</li>
 @endsection

@@ -263,4 +263,18 @@ class PermissionHelper
             'initials' => method_exists($user, 'getInitialsAttribute') ? $user->initials : strtoupper(substr($user->name, 0, 2)),
         ];
     }
+     public static function getProductPermissions()
+        {
+            return [
+                'view_products' => 'Visualizar produtos e serviços',
+                'create_products' => 'Criar novos produtos e serviços',
+                'edit_products' => 'Editar produtos e serviços',
+                'delete_products' => 'Excluir produtos e serviços',
+                'adjust_stock' => 'Ajustar estoque de produtos',
+                'view_categories' => 'Visualizar categorias',
+                'create_categories' => 'Criar novas categorias',
+                'edit_categories' => 'Editar categorias',
+                'delete_categories' => 'Excluir categorias',
+            ];
+        }
 }

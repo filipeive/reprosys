@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Gate;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\StockMovement;
@@ -10,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ProductController extends Controller
 {
@@ -39,21 +39,22 @@ class ProductController extends Controller
         }
 
         // Ordenar e paginar
-        $products = $query->orderBy('name')->paginate(10)->withQueryString();
+        $products = $query->orderBy('name')->paginate(12)->withQueryString();
         
         // Buscar categorias para filtros
         $categories = Category::where('status', 'active')->orderBy('name')->get();
         
-        // Calcular estatísticas
+        // Calcular estatísticas básicas para a barra superior
         $allProducts = Product::all();
         $lowStockCount = Product::where('type', 'product')
                                 ->whereRaw('stock_quantity <= min_stock_level')
+                                ->where('is_active', true)
                                 ->count();
 
         return view('products.index', compact('products', 'categories', 'allProducts', 'lowStockCount'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $categories = Category::where('status', 'active')->orderBy('name')->get();
         return view('products.create', compact('categories'));
@@ -61,86 +62,73 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        if ($request->ajax() || $request->wantsJson()) {
-            try {
-                $validationRules = [
-                    'name' => 'required|string|max:150',
-                    'category_id' => 'required|exists:categories,id',
-                    'type' => 'required|in:product,service',
-                    'selling_price' => 'required|numeric|min:0',
-                    'purchase_price' => 'nullable|numeric|min:0',
-                    'unit' => 'nullable|string|max:20',
-                    'description' => 'nullable|string|max:500',
-                    'is_active' => 'boolean'
-                ];
+        try {
+            $validationRules = [
+                'name' => 'required|string|max:150',
+                'category_id' => 'required|exists:categories,id',
+                'type' => 'required|in:product,service',
+                'selling_price' => 'required|numeric|min:0',
+                'purchase_price' => 'nullable|numeric|min:0',
+                'unit' => 'nullable|string|max:20',
+                'description' => 'nullable|string|max:500',
+                'is_active' => 'boolean'
+            ];
 
-                // Validações adicionais se for produto
-                if ($request->type === 'product') {
-                    $validationRules['stock_quantity'] = 'required|integer|min:0';
-                    $validationRules['min_stock_level'] = 'required|integer|min:0';
-                }
-
-                $validated = $request->validate($validationRules);
-
-                DB::beginTransaction();
-
-                $data = collect($validated)->only([
-                    'name', 'category_id', 'type', 'selling_price',
-                    'purchase_price', 'unit', 'description'
-                ])->toArray();
-
-                $data['is_active'] = $request->boolean('is_active', true);
-
-                if ($request->type === 'product') {
-                    $data['stock_quantity'] = (int) $request->input('stock_quantity', 0);
-                    $data['min_stock_level'] = (int) $request->input('min_stock_level', 0);
-                } else {
-                    $data['stock_quantity'] = 0;
-                    $data['min_stock_level'] = 0;
-                }
-
-                $product = Product::create($data);
-
-                // Criar movimento inicial de estoque
-                if ($product->type === 'product' && $product->stock_quantity > 0) {
-                    StockMovement::create([
-                        'product_id'     => $product->id,
-                        'user_id'        => auth()->id(),
-                        'movement_type'  => 'in',
-                        'quantity'       => $product->stock_quantity,
-                        'reason'         => 'Estoque inicial',
-                        'movement_date'  => now(),
-                    ]);
-                }
-
-                DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Produto criado com sucesso.'
-                ]);
-
-            } catch (\Illuminate\Validation\ValidationException $e) {
-                DB::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erro de validação',
-                    'errors'  => $e->errors()
-                ], 422);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erro ao salvar produto',
-                    'error'   => $e->getMessage()
-                ], 500);
+            // Validações adicionais se for produto
+            if ($request->type === 'product') {
+                $validationRules['stock_quantity'] = 'required|integer|min:0';
+                $validationRules['min_stock_level'] = 'required|integer|min:0';
             }
+
+            $validated = $request->validate($validationRules);
+
+            DB::beginTransaction();
+
+            $data = collect($validated)->only([
+                'name', 'category_id', 'type', 'selling_price',
+                'purchase_price', 'unit', 'description'
+            ])->toArray();
+
+            $data['is_active'] = $request->boolean('is_active', true);
+
+            if ($request->type === 'product') {
+                $data['stock_quantity'] = (int) $request->input('stock_quantity', 0);
+                $data['min_stock_level'] = (int) $request->input('min_stock_level', 0);
+            } else {
+                $data['stock_quantity'] = 0;
+                $data['min_stock_level'] = 0;
+                $data['unit'] = null;
+            }
+
+            $product = Product::create($data);
+
+            // Criar movimento inicial de estoque se necessário
+            if ($product->type === 'product' && $product->stock_quantity > 0) {
+                StockMovement::create([
+                    'product_id'     => $product->id,
+                    'user_id'        => auth()->id(),
+                    'movement_type'  => 'in',
+                    'quantity'       => $product->stock_quantity,
+                    'reason'         => 'Estoque inicial do produto',
+                    'movement_date'  => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return redirect()->route('products.index')
+                ->with('success', 'Produto criado com sucesso!');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return back()->withErrors($e->errors())->withInput();
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Erro ao criar produto: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao criar produto. Tente novamente.')->withInput();
         }
     }
-
 
     public function show(Product $product)
     {
@@ -157,6 +145,18 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         try {
+            // Verificar se é só toggle de status
+            if ($request->has('toggle_status')) {
+                $product->update([
+                    'is_active' => $request->boolean('is_active')
+                ]);
+                
+                $status = $request->boolean('is_active') ? 'ativado' : 'desativado';
+                return redirect()->route('products.index')
+                    ->with('success', "Produto {$status} com sucesso!");
+            }
+
+            // Validação normal para edição completa
             $validationRules = [
                 'name' => 'required|string|max:150',
                 'category_id' => 'required|exists:categories,id',
@@ -186,51 +186,33 @@ class ProductController extends Controller
 
             $product->update($data);
 
-            // Se for AJAX, responde JSON
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Produto atualizado com sucesso.'
-                ]);
-            }
-
-            // Caso contrário, redireciona normalmente
-            return redirect()->route('products.index')
-                ->with('success', 'Produto atualizado com sucesso.');
+            return redirect()->route('products.show', $product->id)
+                ->with('success', 'Produto atualizado com sucesso!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erro de validação',
-                    'errors' => $e->errors()
-                ], 422);
-            }
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error('Erro ao atualizar produto: ' . $e->getMessage());
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erro ao atualizar produto',
-                    'error'   => $e->getMessage()
-                ], 500);
-            }
-
-            return back()->with('error', 'Erro ao atualizar produto.');
+            return back()->with('error', 'Erro ao atualizar produto.')->withInput();
         }
     }
-
 
     public function destroy(Product $product)
     {
         try {
-            // Soft delete: apenas marcar como excluído
+            // Verificar se tem movimentos de estoque
+            $hasMovements = $product->stockMovements()->exists();
+            
+            if ($hasMovements) {
+                return back()->with('error', 
+                    'Não é possível excluir este produto porque possui histórico de movimentações de estoque.');
+            }
+
+            $productName = $product->name;
             $product->delete();
 
             return redirect()->route('products.index')
-                ->with('success', 'Produto excluído com sucesso.');
+                ->with('success', "Produto '{$productName}' excluído com sucesso!");
 
         } catch (\Exception $e) {
             Log::error('Erro ao excluir produto: ' . $e->getMessage());
@@ -243,10 +225,7 @@ class ProductController extends Controller
         try {
             // Verificar se é produto
             if ($product->type !== 'product') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Apenas produtos podem ter estoque ajustado.'
-                ], 400);
+                return back()->with('error', 'Apenas produtos podem ter estoque ajustado.');
             }
 
             $request->validate([
@@ -263,15 +242,19 @@ class ProductController extends Controller
             // Verificar estoque suficiente para saída
             if ($request->adjustment_type === 'decrease') {
                 if ($product->stock_quantity < $quantity) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Estoque insuficiente. Disponível: ' . $product->stock_quantity
-                    ], 400);
+                    return back()->with('error', 
+                        'Estoque insuficiente. Disponível: ' . $product->stock_quantity . ' ' . $product->unit);
                 }
             }
 
             // Atualizar estoque
-            $product->updateStock($quantity, $movementType);
+            if ($request->adjustment_type === 'increase') {
+                $product->stock_quantity += $quantity;
+            } else {
+                $product->stock_quantity -= $quantity;
+            }
+            
+            $product->save();
 
             // Registrar movimento
             StockMovement::create([
@@ -285,63 +268,372 @@ class ProductController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Estoque ajustado com sucesso.',
-                'new_stock' => $product->fresh()->stock_quantity
-            ]);
+            $action = $request->adjustment_type === 'increase' ? 'Entrada' : 'Saída';
+            return back()->with('success', 
+                "{$action} de {$quantity} {$product->unit} registrada com sucesso! Novo estoque: {$product->stock_quantity}");
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'errors' => $e->errors()
-            ], 422);
+            return back()->withErrors($e->errors());
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erro ao ajustar estoque: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro interno do servidor.'
-            ], 500);
+            return back()->with('error', 'Erro ao ajustar estoque.');
         }
     }
 
-    // Métodos API para AJAX (mantidos para compatibilidade)
-    public function getCategories()
+    public function report(Request $request)
+    {
+        // Construir query base
+        $query = Product::with('category');
+
+        // Aplicar filtros
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status);
+        }
+
+        if ($request->filled('stock_status') && $request->stock_status !== '') {
+            switch ($request->stock_status) {
+                case 'low':
+                    $query->where('type', 'product')->whereRaw('stock_quantity <= min_stock_level');
+                    break;
+                case 'normal':
+                    $query->where('type', 'product')->whereRaw('stock_quantity > min_stock_level AND stock_quantity <= min_stock_level * 3');
+                    break;
+                case 'high':
+                    $query->where('type', 'product')->whereRaw('stock_quantity > min_stock_level * 3');
+                    break;
+            }
+        }
+
+        // Filtros de período
+        if ($request->filled('period')) {
+            $now = Carbon::now();
+            switch ($request->period) {
+                case 'today':
+                    $query->whereDate('created_at', $now->toDateString());
+                    break;
+                case 'week':
+                    $query->whereBetween('created_at', [$now->startOfWeek(), $now->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('created_at', $now->month)->whereYear('created_at', $now->year);
+                    break;
+                case 'quarter':
+                    $quarter = ceil($now->month / 3);
+                    $startMonth = (($quarter - 1) * 3) + 1;
+                    $endMonth = $quarter * 3;
+                    $query->whereBetween('created_at', [
+                        Carbon::create($now->year, $startMonth, 1)->startOfMonth(),
+                        Carbon::create($now->year, $endMonth, 1)->endOfMonth()
+                    ]);
+                    break;
+                case 'year':
+                    $query->whereYear('created_at', $now->year);
+                    break;
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Ordenação
+        $sortBy = $request->get('sort_by', 'name');
+        $sortOrder = $request->get('sort_order', 'asc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Obter produtos
+        $products = $query->get();
+
+        // Calcular estatísticas do relatório
+        $reportStats = $this->calculateReportStats($products);
+
+        // Obter categorias para filtros
+        $categories = Category::where('status', 'active')->orderBy('name')->get();
+
+        return view('products.report', compact('products', 'categories', 'reportStats'));
+    }
+
+    private function calculateReportStats($products)
+    {
+        $totalProducts = $products->where('type', 'product')->count();
+        $totalServices = $products->where('type', 'service')->count();
+        
+        // Calcular valor total do estoque (apenas produtos)
+        $totalValue = $products->where('type', 'product')->sum(function($product) {
+            return $product->selling_price * $product->stock_quantity;
+        });
+
+        // Contar estoque baixo
+        $lowStockCount = $products->where('type', 'product')->filter(function($product) {
+            return $product->stock_quantity <= $product->min_stock_level;
+        })->count();
+
+        // Produtos por categoria
+        $byCategory = $products->groupBy(function($product) {
+            return $product->category ? $product->category->name : 'Sem categoria';
+        })->map(function($group) {
+            return $group->count();
+        });
+
+        // Análise de estoque
+        $stockAnalysis = [
+            'low' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity <= $product->min_stock_level;
+            })->count(),
+            'normal' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity > $product->min_stock_level && 
+                       $product->stock_quantity <= $product->min_stock_level * 3;
+            })->count(),
+            'high' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity > $product->min_stock_level * 3;
+            })->count(),
+        ];
+
+        return [
+            'total_products' => $totalProducts,
+            'total_services' => $totalServices,
+            'total_value' => $totalValue,
+            'low_stock_count' => $lowStockCount,
+            'active_categories' => Category::where('status', 'active')->count(),
+            'inactive_products' => $products->where('is_active', false)->count(),
+            'by_category' => $byCategory,
+            'stock_analysis' => $stockAnalysis,
+            'top_by_price' => $products->sortByDesc('selling_price'),
+            'top_by_stock' => $products->where('type', 'product')->sortByDesc('stock_quantity'),
+        ];
+    }
+
+    // Método adicional para busca rápida (se necessário)
+    public function search(Request $request)
+    {
+        $term = $request->get('q');
+        
+        if (empty($term)) {
+            return redirect()->route('products.index');
+        }
+
+        $products = Product::with('category')
+            ->where('name', 'like', '%' . $term . '%')
+            ->orWhere('description', 'like', '%' . $term . '%')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->paginate(12)
+            ->withQueryString();
+
+        $categories = Category::where('status', 'active')->orderBy('name')->get();
+        $allProducts = Product::all();
+        $lowStockCount = Product::where('type', 'product')
+                                ->whereRaw('stock_quantity <= min_stock_level')
+                                ->where('is_active', true)
+                                ->count();
+
+        return view('products.index', compact('products', 'categories', 'allProducts', 'lowStockCount'))
+            ->with('searchTerm', $term);
+    }
+
+    // Método para clonar produto (útil para produtos similares)
+    public function duplicate(Product $product)
     {
         try {
-            $categories = Category::where('status', 'active')->orderBy('name')->get();
-            return response()->json($categories);
+            DB::beginTransaction();
+
+            $newProduct = $product->replicate();
+            $newProduct->name = $product->name . ' (Cópia)';
+            $newProduct->stock_quantity = 0; // Zerar estoque da cópia
+            $newProduct->is_active = false; // Deixar inativo por padrão
+            $newProduct->save();
+
+            DB::commit();
+
+            return redirect()->route('products.edit', $newProduct->id)
+                ->with('success', 'Produto duplicado com sucesso! Ajuste os dados conforme necessário.');
+
         } catch (\Exception $e) {
-            Log::error('Erro ao buscar categorias: ' . $e->getMessage());
-            return response()->json(['error' => 'Erro ao carregar produtos'], 500);
+            DB::rollBack();
+            Log::error('Erro ao duplicar produto: ' . $e->getMessage());
+            return back()->with('error', 'Erro ao duplicar produto.');
         }
     }
-    public function editData(Product $product)
+
+    // Método para ativar/desativar em lote
+    public function bulkToggle(Request $request)
     {
+        $request->validate([
+            'products' => 'required|array',
+            'products.*' => 'exists:products,id',
+            'action' => 'required|in:activate,deactivate'
+        ]);
+
         try {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'name' => $product->name,
-                    'category_id' => $product->category_id,
-                    'type' => $product->type,
-                    'description' => $product->description,
-                    'selling_price' => $product->selling_price,
-                    'purchase_price' => $product->purchase_price,
-                    'unit' => $product->unit,
-                    'stock_quantity' => $product->stock_quantity,
-                    'min_stock_level' => $product->min_stock_level,
-                    'is_active' => $product->is_active
-                ]
+            $productIds = $request->products;
+            $isActive = $request->action === 'activate';
+            
+            Product::whereIn('id', $productIds)->update([
+                'is_active' => $isActive
             ]);
+
+            $count = count($productIds);
+            $action = $isActive ? 'ativados' : 'desativados';
+
+            return back()->with('success', "{$count} produtos foram {$action} com sucesso!");
+
         } catch (\Exception $e) {
-            Log::error('Erro ao buscar dados do produto: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao carregar dados do produto'
-            ], 500);
+            Log::error('Erro em operação em lote: ' . $e->getMessage());
+            return back()->with('error', 'Erro na operação em lote.');
         }
     }
+
+    /* public function report(Request $request)
+    {
+        // Se for exportação, processar e retornar arquivo
+        if ($request->has('export') && $request->export === 'excel') {
+            return Excel::download(new ProductsExport($request->all()), 'produtos_relatorio.xlsx');
+        }
+
+        // Construir query base
+        $query = Product::with('category');
+
+        // Aplicar filtros
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('is_active', $request->status);
+        }
+
+        if ($request->filled('stock_status') && $request->stock_status !== '') {
+            switch ($request->stock_status) {
+                case 'low':
+                    $query->where('type', 'product')->whereRaw('stock_quantity <= min_stock_level');
+                    break;
+                case 'normal':
+                    $query->where('type', 'product')->whereRaw('stock_quantity > min_stock_level AND stock_quantity <= min_stock_level * 3');
+                    break;
+                case 'high':
+                    $query->where('type', 'product')->whereRaw('stock_quantity > min_stock_level * 3');
+                    break;
+            }
+        }
+
+        // Filtros de período
+        if ($request->filled('period')) {
+            $now = Carbon::now();
+            switch ($request->period) {
+                case 'today':
+                    $query->whereDate('created_at', $now->toDateString());
+                    break;
+                case 'week':
+                    $query->whereBetween('created_at', [$now->startOfWeek(), $now->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereMonth('created_at', $now->month)->whereYear('created_at', $now->year);
+                    break;
+                case 'quarter':
+                    $quarter = ceil($now->month / 3);
+                    $startMonth = (($quarter - 1) * 3) + 1;
+                    $endMonth = $quarter * 3;
+                    $query->whereBetween('created_at', [
+                        Carbon::create($now->year, $startMonth, 1)->startOfMonth(),
+                        Carbon::create($now->year, $endMonth, 1)->endOfMonth()
+                    ]);
+                    break;
+                case 'year':
+                    $query->whereYear('created_at', $now->year);
+                    break;
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Ordenação
+        $sortBy = $request->get('sort_by', 'name');
+        $sortOrder = $request->get('sort_order', 'asc');
+        $query->orderBy($sortBy, $sortOrder);
+
+        // Obter produtos
+        $products = $query->get();
+
+        // Calcular estatísticas do relatório
+        $reportStats = $this->calculateReportStats($products);
+
+        // Obter categorias para filtros
+        $categories = Category::where('status', 'active')->orderBy('name')->get();
+
+        return view('products.report', compact('products', 'categories', 'reportStats'));
+    }
+
+    private function calculateReportStats($products)
+    {
+        $totalProducts = $products->where('type', 'product')->count();
+        $totalServices = $products->where('type', 'service')->count();
+        
+        // Calcular valor total do estoque (apenas produtos)
+        $totalValue = $products->where('type', 'product')->sum(function($product) {
+            return $product->selling_price * $product->stock_quantity;
+        });
+
+        // Contar estoque baixo
+        $lowStockCount = $products->where('type', 'product')->filter(function($product) {
+            return $product->stock_quantity <= $product->min_stock_level;
+        })->count();
+
+        // Produtos por categoria
+        $byCategory = $products->groupBy(function($product) {
+            return $product->category ? $product->category->name : 'Sem categoria';
+        })->map(function($group) {
+            return $group->count();
+        });
+
+        // Análise de estoque
+        $stockAnalysis = [
+            'low' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity <= $product->min_stock_level;
+            })->count(),
+            'normal' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity > $product->min_stock_level && 
+                       $product->stock_quantity <= $product->min_stock_level * 3;
+            })->count(),
+            'high' => $products->where('type', 'product')->filter(function($product) {
+                return $product->stock_quantity > $product->min_stock_level * 3;
+            })->count(),
+        ];
+
+        return [
+            'total_products' => $totalProducts,
+            'total_services' => $totalServices,
+            'total_value' => $totalValue,
+            'low_stock_count' => $lowStockCount,
+            'active_categories' => Category::where('status', 'active')->count(),
+            'inactive_products' => $products->where('is_active', false)->count(),
+            'by_category' => $byCategory,
+            'stock_analysis' => $stockAnalysis,
+            'top_by_price' => $products->sortByDesc('selling_price'),
+            'top_by_stock' => $products->where('type', 'product')->sortByDesc('stock_quantity'),
+        ];
+    } */
 }

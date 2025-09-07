@@ -67,42 +67,36 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     
     // ===== PRODUTOS - Permissões ajustadas =====
     Route::prefix('products')->name('products.')->group(function () {
-        // Visualizar produtos - view_products permission
+        // Relatório e exportação - view_products permission
         Route::middleware('permissions:view_products')->group(function () {
+            Route::get('/report', [ProductController::class, 'report'])->name('report');
+            Route::get('/export/{format}', [ProductController::class, 'exportProducts'])->name('export');
             Route::get('/', [ProductController::class, 'index'])->name('index');
             Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+            Route::get('/search', [ProductController::class, 'search'])->name('search');
         });
-        
+
         // Criar produtos - create_products permission
         Route::middleware('permissions:create_products')->group(function () {
             Route::get('/create', [ProductController::class, 'create'])->name('create');
             Route::post('/', [ProductController::class, 'store'])->name('store');
         });
-        
+
         // Editar produtos - edit_products permission
         Route::middleware('permissions:edit_products')->group(function () {
             Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
             Route::put('/{product}', [ProductController::class, 'update'])->name('update');
-            Route::get('/{product}/edit-data', [ProductController::class, 'editData'])->name('edit-data');
+            Route::post('/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('adjust-stock');
+            Route::post('/{product}/duplicate', [ProductController::class, 'duplicate'])->name('duplicate');
+            Route::post('/bulk-toggle', [ProductController::class, 'bulkToggle'])->name('bulk-toggle');
         });
-        
+
         // Deletar produtos - delete_products permission
         Route::middleware('permissions:delete_products')->group(function () {
             Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
         });
-        
-        // Ajustar estoque - adjust_stock permission
-        Route::middleware('permissions:adjust_stock')->group(function () {
-            Route::post('/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('adjust-stock');
-        });
-        
-        // APIs - require view_products
-        Route::middleware('permissions:view_products')->group(function () {
-            Route::get('/api/categories', [ProductController::class, 'getCategories'])->name('getCategories');
-            Route::get('/api/products', [ProductController::class, 'getProducts'])->name('getProducts');
-        });
     });
-    
+
     // ===== CATEGORIAS - manage_categories permission =====
     Route::prefix('categories')->name('categories.')->middleware('permissions:manage_categories')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');

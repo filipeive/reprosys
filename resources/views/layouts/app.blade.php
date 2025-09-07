@@ -1229,24 +1229,22 @@
                 <div class="nav-section">
                     <div class="nav-section-title">Gestão de Produtos</div>
                     <ul class="nav-list">
-                        @if (userCan('view_products'))
-                            <li class="nav-item">
-                                <a href="{{ route('products.index') }}"
-                                    class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
-                                    <span class="nav-icon">
-                                        <i class="fas fa-cube"></i>
-                                    </span>
-                                    <span class="nav-text">Produtos</span>
-                                    @if (userCan('create_products'))
-                                        <span class="nav-badge badge-primary">Criar</span>
-                                    @elseif(userCan('edit_products'))
-                                        <span class="nav-badge badge-secondary">Editar</span>
-                                    @else
-                                        <span class="nav-badge badge-secondary">Ver</span>
-                                    @endif
-                                </a>
-                            </li>
-                        @endif
+                        <li class="nav-item">
+                            <a href="{{ route('products.index') }}"
+                                class="nav-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
+                                <span class="nav-icon">
+                                    <i class="fas fa-cube"></i>
+                                </span>
+                                <span class="nav-text">Produtos</span>
+                                @if (userCan('create_products'))
+                                    <span class="nav-badge badge-primary">Criar</span>
+                                @elseif(userCan('edit_products'))
+                                    <span class="nav-badge badge-secondary">Editar</span>
+                                @else
+                                    <span class="nav-badge badge-secondary">Ver</span>
+                                @endif
+                            </a>
+                        </li>
 
                         @if (userCan('manage_categories'))
                             <li class="nav-item">
@@ -1718,7 +1716,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    
+
     <script>
         // ===== VARIÁVEIS GLOBAIS =====
         let sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
