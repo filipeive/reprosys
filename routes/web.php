@@ -17,7 +17,9 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\AuthController;
- use App\Http\Controllers\SearchController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\PasswordChangeController;
+
 
 
 Route::get('/', function () {
@@ -32,14 +34,17 @@ Route::post('/register/verify-admin', [RegisterController::class, 'verifyAdminPa
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ===== PROTECTED ROUTES =====
-Route::middleware(['auth', 'permissions'])->group(function () {
+Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(function () {
     // Dashboard - Acesso para todos os usuários logados
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    // ===== BUSCA =====
-   
+   // Rotas para troca de senha temporária (apenas para usuários autenticados)
+    Route::get('/password/change', [PasswordChangeController::class, 'show'])->name('password.change');
+    Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.update');
+    Route::post('/password/skip', [PasswordChangeController::class, 'skip'])->name('password.skip');
+
     Route::middleware(['auth', 'verified'])->group(function () {
-        
-        // Busca completa com página de resultados
+    // ===== BUSCA =====    
+    // Busca completa com página de resultados
         Route::get('/search', [SearchController::class, 'index'])->name('search.index');
         
         // API de busca rápida para autocomplete
@@ -58,6 +63,9 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::get('/stats', [ProfileController::class, 'stats'])->name('stats');
         Route::get('/performance', [ProfileController::class, 'performance'])->name('performance');
         Route::get('/show', [ProfileController::class, 'show'])->name('show');
+        //update-photo
+        Route::patch('/photo', [ProfileController::class, 'updatePhoto'])->name('update-photo');
+
     });
     
     // ===== PONTO DE VENDA - create_sales permission =====
@@ -68,27 +76,23 @@ Route::middleware(['auth', 'permissions'])->group(function () {
     // ===== PRODUTOS - Permissões ajustadas =====
     Route::prefix('products')->name('products.')->group(function () {
         // Relatório e exportação - view_products permission
-        Route::middleware('permissions:view_products')->group(function () {
-            Route::get('/report', [ProductController::class, 'report'])->name('report');
-            Route::get('/export/{format}', [ProductController::class, 'exportProducts'])->name('export');
-            Route::get('/', [ProductController::class, 'index'])->name('index');
-            Route::get('/{product}', [ProductController::class, 'show'])->name('show');
-            Route::get('/search', [ProductController::class, 'search'])->name('search');
-        });
-
+      
         // Criar produtos - create_products permission
-        Route::middleware('permissions:create_products')->group(function () {
             Route::get('/create', [ProductController::class, 'create'])->name('create');
             Route::post('/', [ProductController::class, 'store'])->name('store');
-        });
 
         // Editar produtos - edit_products permission
-        Route::middleware('permissions:edit_products')->group(function () {
             Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
             Route::put('/{product}', [ProductController::class, 'update'])->name('update');
             Route::post('/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('adjust-stock');
             Route::post('/{product}/duplicate', [ProductController::class, 'duplicate'])->name('duplicate');
             Route::post('/bulk-toggle', [ProductController::class, 'bulkToggle'])->name('bulk-toggle');
+            Route::middleware('permissions:view_products')->group(function () {
+            Route::get('/report', [ProductController::class, 'report'])->name('report');
+            Route::get('/export/{format}', [ProductController::class, 'exportProducts'])->name('export');
+            Route::get('/', [ProductController::class, 'index'])->name('index');
+            Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+            Route::get('/search', [ProductController::class, 'search'])->name('search');
         });
 
         // Deletar produtos - delete_products permission
@@ -322,7 +326,7 @@ Route::middleware(['auth', 'permissions'])->group(function () {
 
     
     // ===== USUÁRIOS - manage_users permission =====
-    Route::prefix('users')->name('users.')->middleware('permissions:manage_users')->group(function () {
+    Route::prefix('users')->name('users.')->middleware('permissions:manage_settings')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/create', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
@@ -330,8 +334,17 @@ Route::middleware(['auth', 'permissions'])->group(function () {
         Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
         Route::put('/{user}', [UserController::class, 'update'])->name('update');
         Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-        Route::get('/{user}/details', [UserController::class, 'showDetails'])->name('details');
-        Route::get('/{user}/edit-data', [UserController::class, 'editData'])->name('edit-data');
+        
+        // Rotas de atividade
+        Route::get('/{user}/activity', [UserController::class, 'activity'])->name('activity');
+        
+        // Rotas de ação
+        Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
+        
+        // Rotas de senhas temporárias
+        Route::get('/{user}/temporary-passwords', [UserController::class, 'temporaryPasswords'])->name('temporary-passwords');
+        Route::post('/{user}/invalidate-temporary-passwords', [UserController::class, 'invalidateTemporaryPasswords'])->name('invalidate-temporary-passwords');
     });
     
     // ===== API ROUTES =====

@@ -16,6 +16,14 @@ class PermissionService
     }
 
     /**
+     * Retorna o nome da role do usuário.
+     */
+    protected function getRoleName(): ?string
+    {
+        return $this->user?->role?->name;
+    }
+
+    /**
      * Obtém todas as permissões do usuário, utilizando cache.
      * Admins recebem todas as permissões do sistema.
      */
@@ -30,9 +38,11 @@ class PermissionService
             return array_keys(config('auth_permissions.all_permissions', []));
         }
 
-        return Cache::remember("user_permissions_{$this->user->id}", $this->cacheTime, function () {
+        $roleName = $this->getRoleName();
+
+        return Cache::remember("user_permissions_{$this->user->id}", $this->cacheTime, function () use ($roleName) {
             $rolePermissions = config('auth_permissions.role_permissions', []);
-            return $rolePermissions[$this->user->role] ?? [];
+            return $rolePermissions[$roleName] ?? [];
         });
     }
 
@@ -45,13 +55,12 @@ class PermissionService
             return false;
         }
 
-        // Admins têm todas as permissões por padrão
+        // Admins têm todas as permissões
         if ($this->user->isAdmin()) {
             return true;
         }
 
-        $permissions = $this->getUserPermissions();
-        return in_array($permission, $permissions);
+        return in_array($permission, $this->getUserPermissions());
     }
 
     /**
@@ -78,6 +87,33 @@ class PermissionService
             }
         }
         return false;
+    }
+
+    /**
+     * Retorna todas as permissões disponíveis para o menu.
+     */
+    public function getMenuItems(): array
+    {
+        $menu = config('auth_permissions.menu_items', []);
+
+        $filtered = [];
+
+        foreach ($menu as $key => $item) {
+            $permission = $item['permission'] ?? null;
+            $adminOnly = $item['admin_only'] ?? false;
+
+            if ($adminOnly && !$this->user->isAdmin()) {
+                continue;
+            }
+
+            if ($permission && !$this->hasPermission($permission)) {
+                continue;
+            }
+
+            $filtered[$key] = $item;
+        }
+
+        return $filtered;
     }
 
     /**

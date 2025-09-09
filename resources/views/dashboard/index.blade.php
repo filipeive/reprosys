@@ -2,15 +2,13 @@
 
 @section('title', 'Dashboard')
 @section('page-title', 'Dashboard')
+@section('title-icon', 'fa-tachometer-alt')
 
 @section('breadcrumbs')
     <li class="breadcrumb-item active">Dashboard</li>
 @endsection
 
 @section('content')
-    @php
-        $titleIcon = 'fas fa-tachometer-alt';
-    @endphp
     <!-- Cabeçalho de Boas Vindas -->
     <div class="row mb-4">
         <div class="col-12">
@@ -20,7 +18,7 @@
                         <div class="col-md-8">
                             <h2 class="mb-1" style="font-weight: 600;">
                                 <span id="greeting-icon" class="me-2" style="animation: bounce 2s ease-in-out infinite;">
-                                    <i class="fas fa-spinner fa-spin"></i> <!-- Ícone de carregamento -->
+                                    <i class="fas fa-spinner fa-spin"></i>
                                 </span>
                                 <span id="greeting-text">Carregando</span>
                                 {{ auth()->user()->name }}!
@@ -39,7 +37,7 @@
         </div>
     </div>
 
-    <!-- Cards de Estatísticas (Alinhados ao layout) -->
+    <!-- Cards de Estatísticas -->
     <div class="dashboard-stats mb-4">
         <!-- Vendas Hoje -->
         <div class="stat-card">
@@ -49,6 +47,9 @@
             <div class="stat-content">
                 <div class="stat-value">MZN {{ number_format($todaySales, 2, ',', '.') }}</div>
                 <div class="stat-label">Vendas Hoje</div>
+                @if($todaySales > 0)
+                    <div class="stat-change positive">+{{ number_format($todaySales, 2, ',', '.') }} MT</div>
+                @endif
             </div>
             <a href="{{ route('sales.index') }}" class="btn btn-sm btn-outline-primary mt-2">
                 <i class="fas fa-arrow-right me-1"></i>Ver Vendas
@@ -63,6 +64,9 @@
             <div class="stat-content">
                 <div class="stat-value">MZN {{ number_format($todayExpenses, 2, ',', '.') }}</div>
                 <div class="stat-label">Despesas Hoje</div>
+                @if($todayExpenses > 0)
+                    <div class="stat-change negative">-{{ number_format($todayExpenses, 2, ',', '.') }} MT</div>
+                @endif
             </div>
             <a href="{{ route('expenses.index') }}" class="btn btn-sm btn-outline-warning mt-2">
                 <i class="fas fa-arrow-right me-1"></i>Ver Despesas
@@ -78,6 +82,9 @@
                 <div class="stat-content">
                     <div class="stat-value">MZN {{ number_format($monthSales, 2, ',', '.') }}</div>
                     <div class="stat-label">Vendas do Mês</div>
+                    @if($monthSales > 0)
+                        <div class="stat-change positive">+{{ number_format($monthSales, 2, ',', '.') }} MT</div>
+                    @endif
                 </div>
                 <a href="{{ route('reports.index') }}" class="btn btn-sm btn-outline-success mt-2">
                     <i class="fas fa-arrow-right me-1"></i>Relatórios
@@ -90,8 +97,13 @@
                     <i class="fas fa-coins"></i>
                 </div>
                 <div class="stat-content">
-                    <div class="stat-value">MZN {{ number_format($monthSales - $monthExpenses, 2, ',', '.') }}</div>
+                    @php
+                        $profit = $monthSales - $monthExpenses;
+                        $profitClass = $profit >= 0 ? 'positive' : 'negative';
+                    @endphp
+                    <div class="stat-value">MZN {{ number_format($profit, 2, ',', '.') }}</div>
                     <div class="stat-label">Lucro do Mês</div>
+                    <div class="stat-change {{ $profitClass }}">{{ $profit >= 0 ? '+' : '' }}{{ number_format($profit, 2, ',', '.') }} MT</div>
                 </div>
                 <a href="{{ route('reports.profit-loss') }}" class="btn btn-sm btn-outline-info mt-2">
                     <i class="fas fa-arrow-right me-1"></i>Ver P&L
@@ -176,17 +188,12 @@
                                     @foreach ($recentSales as $sale)
                                         @can('admin')
                                             <tr>
-                                                <td><span
-                                                        class="badge bg-light text-dark">{{ $sale->sale_date->format('d/m') }}</span>
-                                                </td>
+                                                <td><span class="badge bg-light text-dark">{{ $sale->sale_date->format('d/m H:i') }}</span></td>
                                                 <td>{{ Str::limit($sale->customer_name ?: 'Balcão', 15) }}</td>
-                                                <td><span class="text-success fw-bold">MZN
-                                                        {{ number_format($sale->total_amount, 2, ',', '.') }}</span></td>
+                                                <td><span class="text-success fw-bold">MZN {{ number_format($sale->total_amount, 2, ',', '.') }}</span></td>
                                                 <td>{{ explode(' ', $sale->user->name)[0] }}</td>
                                                 <td>
-                                                    <a href="{{ route('sales.show', $sale) }}"
-                                                        class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip"
-                                                        title="Ver detalhes">
+                                                    <a href="{{ route('sales.show', $sale) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Ver detalhes">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
                                                 </td>
@@ -194,16 +201,11 @@
                                         @else
                                             @if ($sale->user_id == auth()->id())
                                                 <tr>
-                                                    <td><span
-                                                            class="badge bg-light text-dark">{{ $sale->sale_date->format('d/m') }}</span>
-                                                    </td>
+                                                    <td><span class="badge bg-light text-dark">{{ $sale->sale_date->format('d/m H:i') }}</span></td>
                                                     <td>{{ Str::limit($sale->customer_name ?: 'Balcão', 15) }}</td>
-                                                    <td><span class="text-success fw-bold">MZN
-                                                            {{ number_format($sale->total_amount, 2, ',', '.') }}</span></td>
+                                                    <td><span class="text-success fw-bold">MZN {{ number_format($sale->total_amount, 2, ',', '.') }}</span></td>
                                                     <td>
-                                                        <a href="{{ route('sales.show', $sale) }}"
-                                                            class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip"
-                                                            title="Ver detalhes">
+                                                        <a href="{{ route('sales.show', $sale) }}" class="btn btn-sm btn-outline-primary" data-bs-toggle="tooltip" title="Ver detalhes">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
                                                     </td>
@@ -237,24 +239,21 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-lg-2 col-md-4 col-6">
-                            <a href="{{ route('sales.create') }}"
-                                class="btn btn-success w-100 py-3 d-block text-decoration-none">
+                            <a href="{{ route('sales.create') }}" class="btn btn-success w-100 py-3 d-block text-decoration-none">
                                 <i class="fas fa-cash-register fa-2x d-block mb-2"></i>
                                 <strong>Nova Venda</strong>
                                 <small>PDV</small>
                             </a>
                         </div>
                         <div class="col-lg-2 col-md-4 col-6">
-                            <a href="{{ route('products.create') }}"
-                                class="btn btn-info w-100 py-3 d-block text-decoration-none">
+                            <a href="{{ route('products.create') }}" class="btn btn-info w-100 py-3 d-block text-decoration-none">
                                 <i class="fas fa-plus-circle fa-2x d-block mb-2"></i>
                                 <strong>Novo Produto</strong>
                                 <small>Cadastro</small>
                             </a>
                         </div>
                         <div class="col-lg-2 col-md-4 col-6">
-                            <a href="{{ route('expenses.create') }}"
-                                class="btn btn-warning w-100 py-3 d-block text-decoration-none">
+                            <a href="{{ route('expenses.create') }}" class="btn btn-warning w-100 py-3 d-block text-decoration-none">
                                 <i class="fas fa-receipt fa-2x d-block mb-2"></i>
                                 <strong>Nova Despesa</strong>
                                 <small>Financeiro</small>
@@ -262,24 +261,21 @@
                         </div>
                         @can('admin')
                             <div class="col-lg-2 col-md-4 col-6">
-                                <a href="{{ route('reports.index') }}"
-                                    class="btn btn-primary w-100 py-3 d-block text-decoration-none">
+                                <a href="{{ route('reports.index') }}" class="btn btn-primary w-100 py-3 d-block text-decoration-none">
                                     <i class="fas fa-chart-bar fa-2x d-block mb-2"></i>
                                     <strong>Relatórios</strong>
                                     <small>Análise</small>
                                 </a>
                             </div>
                             <div class="col-lg-2 col-md-4 col-6">
-                                <a href="{{ route('stock-movements.index') }}"
-                                    class="btn btn-secondary w-100 py-3 d-block text-decoration-none">
+                                <a href="{{ route('stock-movements.index') }}" class="btn btn-secondary w-100 py-3 d-block text-decoration-none">
                                     <i class="fas fa-warehouse fa-2x d-block mb-2"></i>
                                     <strong>Estoque</strong>
                                     <small>Controle</small>
                                 </a>
                             </div>
                             <div class="col-lg-2 col-md-4 col-6">
-                                <a href="{{ route('users.index') }}"
-                                    class="btn btn-dark w-100 py-3 d-block text-decoration-none">
+                                <a href="{{ route('users.index') }}" class="btn btn-dark w-100 py-3 d-block text-decoration-none">
                                     <i class="fas fa-users fa-2x d-block mb-2"></i>
                                     <strong>Usuários</strong>
                                     <small>Sistema</small>
@@ -298,81 +294,141 @@
             <div class="card border-0" style="background: var(--content-bg);">
                 <div class="card-body py-2">
                     <div class="row text-center text-md-start align-items-center">
-                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-server me-1"></i> Sistema
-                                Online</small></div>
-                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-database me-1"></i> Backup
-                                Automático</small></div>
-                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-shield-alt me-1"></i> Conexão
-                                Segura</small></div>
-                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-clock me-1"></i> Atualização:
-                                {{ now()->format('H:i') }}</small></div>
+                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-server me-1"></i> Sistema Online</small></div>
+                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-database me-1"></i> Backup Automático</small></div>
+                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-shield-alt me-1"></i> Conexão Segura</small></div>
+                        <div class="col-md-3"><small class="text-muted"><i class="fas fa-clock me-1"></i> Atualização: {{ now()->format('H:i') }}</small></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 @endsection
+
 @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const userTime = new Date().getHours();
-            const userName = "{{ auth()->user()->name }}";
-            const iconElement = document.getElementById('greeting-icon');
-            const greetingElement = document.getElementById('greeting-text');
-            const dayMessageElement = document.getElementById('day-message');
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const userTime = new Date().getHours();
+    const userName = "{{ auth()->user()->name }}";
+    const iconElement = document.getElementById('greeting-icon');
+    const greetingElement = document.getElementById('greeting-text');
+    const dayMessageElement = document.getElementById('day-message');
 
-            let greeting, iconClass, dayMessage;
+    let greeting, iconClass, dayMessage;
 
-            if (userTime < 12) {
-                greeting = 'Bom dia,';
-                iconClass = 'fas fa-sun';
-                dayMessage = 'Pronto para um ótimo início de dia?';
-            } else if (userTime < 18) {
-                greeting = 'Boa tarde,';
-                iconClass = 'fas fa-cloud-sun';
-                dayMessage = 'Ótimo rendimento até agora!';
-            } else {
-                greeting = 'Boa noite,';
-                iconClass = 'fas fa-moon';
-                dayMessage = 'Trabalhando com foco até o fim do dia!';
-            }
+    if (userTime < 12) {
+        greeting = 'Bom dia,';
+        iconClass = 'fas fa-sun';
+        dayMessage = 'Pronto para um ótimo início de dia?';
+    } else if (userTime < 18) {
+        greeting = 'Boa tarde,';
+        iconClass = 'fas fa-cloud-sun';
+        dayMessage = 'Ótimo rendimento até agora!';
+    } else {
+        greeting = 'Boa noite,';
+        iconClass = 'fas fa-moon';
+        dayMessage = 'Trabalhando com foco até o fim do dia!';
+    }
 
-            // Atualiza o ícone
-            iconElement.innerHTML = `<i class="${iconClass}"></i>`;
-            greetingElement.textContent = greeting;
-            dayMessageElement.textContent = dayMessage;
+    // Atualiza o ícone
+    iconElement.innerHTML = `<i class="${iconClass}"></i>`;
+    greetingElement.textContent = greeting;
+    dayMessageElement.textContent = dayMessage;
 
-            // Toast de boas-vindas
-            setTimeout(() => {
-                FDSMULTSERVICES.Toast.show(
-                    `<i class="${iconClass} me-1"></i> ${greeting} ${userName}! Bem-vindo(a) de volta.`,
-                    'success'
-                );
-            }, 1500);
+    // Toast de boas-vindas
+    setTimeout(() => {
+        FDSMULTSERVICES.Toast.show(
+            `<i class="${iconClass} me-1"></i> ${greeting} ${userName}! Bem-vindo(a) de volta.`,
+            'success'
+        );
+    }, 1500);
+
+    // Verificar alertas do dashboard
+    @if(session('dashboard_alert'))
+        setTimeout(() => {
+            FDSMULTSERVICES.Toast.show(
+                "{{ session('dashboard_alert')['message'] }}",
+                "{{ session('dashboard_alert')['type'] }}"
+            );
+        }, 2000);
+    @endif
+
+    // Tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+
+    // Animação para cards
+    document.querySelectorAll('.stat-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
         });
-    </script>
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
 
-    <style>
-        @keyframes bounce {
-
-            0%,
-            100% {
-                transform: translateY(0);
+    // Efeito de loading para links
+    document.querySelectorAll('a[href]').forEach(link => {
+        link.addEventListener('click', function() {
+            if (this.classList.contains('btn')) {
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Carregando...';
+                this.disabled = true;
             }
+        });
+    });
+});
+</script>
 
-            50% {
-                transform: translateY(-5px);
-            }
-        }
+<style>
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-5px);
+    }
+}
 
-        #greeting-icon i {
-            color: var(--print-blue);
-            font-size: 1.2em;
-            transition: transform 0.3s ease;
-        }
+#greeting-icon i {
+    color: var(--print-blue);
+    font-size: 1.2em;
+    transition: transform 0.3s ease;
+}
 
-        #greeting-icon:hover i {
-            transform: rotate(10deg) scale(1.1);
-        }
-    </style>
+#greeting-icon:hover i {
+    transform: rotate(10deg) scale(1.1);
+}
+
+.stat-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.stat-change {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-top: 5px;
+}
+
+.stat-change.positive {
+    background: rgba(40, 167, 69, 0.1);
+    color: var(--success-green);
+}
+
+.stat-change.negative {
+    background: rgba(220, 53, 69, 0.1);
+    color: var(--danger-red);
+}
+</style>
 @endpush

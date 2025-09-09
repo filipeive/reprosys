@@ -15,7 +15,8 @@ class Product extends Model
     protected $fillable = [
         'category_id', 'name', 'description', 'type', 
         'purchase_price', 'selling_price', 'stock_quantity',
-        'min_stock_level', 'unit', 'is_active'
+        'min_stock_level', 'unit', 'is_active',
+        'deleted_at','original_name',
     ];
 
     protected $casts = [
@@ -50,6 +51,26 @@ class Product extends Model
             $this->decrement('stock_quantity', $quantity);
         } else {
             $this->increment('stock_quantity', $quantity);
+        }
+    }
+    // Accessor para exibir o nome com marcação de exclusão
+    public function getNameAttribute($value)
+    {
+        if ($this->is_deleted) {
+            return $value . ' 🚫 (EXCLUÍDO)';
+        }
+        return $value;
+    }
+       // Mutator para salvar o nome original ao excluir
+    public function markAsDeleted()
+    {
+        if (!$this->is_deleted) {
+            $this->original_name = $this->name;
+            $this->name = $this->name . ' (EXCLUÍDO)';
+            $this->is_deleted = true;
+            $this->deleted_at = now();
+            $this->is_active = false;
+            $this->save();
         }
     }
 }

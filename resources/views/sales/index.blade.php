@@ -57,20 +57,35 @@
                     <i class="fas fa-arrow-up me-1"></i>vendas registradas
                 </div>
             </div>
-        </div>
-
+        </div>        
         <div class="stat-card success">
             <div class="stat-icon success">
-                <i class="fas fa-money-bill-wave"></i>
+            <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stat-content">
-                <div class="stat-value">{{ number_format($sales->sum('total_amount'), 0, ',', '.') }} MT</div>
-                <div class="stat-label">Valor Total</div>
-                <div class="stat-change positive">
-                    <i class="fas fa-arrow-up me-1"></i>em vendas
-                </div>
+            <div class="stat-value">{{ number_format($sales->sum('total_amount'), 0, ',', '.') }} MT</div>
+            <div class="stat-label">Valor Total</div>
+            <div class="stat-change positive">
+                <i class="fas fa-arrow-up me-1"></i>em vendas
+            </div>
             </div>
         </div>
+        {{-- o total em vendas menos o desconto --}}
+        <div class="stat-card info">
+            <div class="stat-icon info">
+            <i class="fas fa-tags"></i>
+            </div>
+            <div class="stat-content">
+            <div class="stat-value">
+                {{ number_format($sales->sum('total_amount') - $sales->sum('discount'), 0, ',', '.') }} MT
+            </div>
+            <div class="stat-label">Total Líquido</div>
+            <div class="stat-change positive">
+                <i class="fas fa-minus me-1"></i>descontos aplicados
+            </div>
+            </div>
+        </div>
+
 
         <div class="stat-card warning">
             <div class="stat-icon warning">

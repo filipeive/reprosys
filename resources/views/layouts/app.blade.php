@@ -1681,7 +1681,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
-
+            <!-- Sistema de Toasts Moderno -->
+            @include('partials.toasts')
             <!-- Page Content -->
             @yield('content')
         </div>

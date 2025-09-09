@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permissions' => \App\Http\Middleware\CheckPermissions::class,
             'search.log' => \App\Http\Middleware\SearchLogger::class,
+            'temp.password' => \App\Http\Middleware\CheckTemporaryPassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

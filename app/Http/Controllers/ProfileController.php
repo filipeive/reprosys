@@ -7,17 +7,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
-class ProfileController extends Controller
+class ProfileController extends AppBaseController
 {
     /**
      * Display the user's profile form.
      */
     public function edit(Request $request): View
     {
+        $user = $request->user();
+        $roles = \App\Models\Role::all(); // Carregar todas as funções disponíveis
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
+            'roles' => $roles,
         ]);
     }
 
@@ -26,12 +31,20 @@ class ProfileController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:users,email,' . $request->user()->id,
+            'email' => 'required|string|lowercase|email|max:255|unique:users,email,' . $user->id,
+            'role_id' => 'required|exists:roles,id',
+            'is_active' => 'boolean',
         ]);
 
-        $user = $request->user();
+        // Verificar se o usuário pode alterar a própria função
+        if (!$user->isAdmin() && $validated['role_id'] != $user->role_id) {
+            return $this->error('profile.edit', 'Você não tem permissão para alterar sua função.');
+        }
+
         $user->fill($validated);
 
         if ($user->isDirty('email')) {
@@ -40,7 +53,30 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return Redirect::route('profile.edit')->with('success', 'Perfil atualizado com sucesso!');
+        return $this->success('profile.edit', 'Perfil atualizado com sucesso!');
+    }
+
+    /**
+     * Update the user's profile photo.
+     */
+    public function updatePhoto(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        // Deletar foto antiga se existir
+        if ($user->photo_path) {
+            Storage::disk('public')->delete($user->photo_path);
+        }
+
+        // Salvar nova foto
+        $photoPath = $request->file('photo')->store('user-photos', 'public');
+        $user->update(['photo_path' => $photoPath]);
+
+        return $this->success('profile.edit', 'Foto de perfil atualizada com sucesso!');
     }
 
     /**
@@ -57,7 +93,7 @@ class ProfileController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        return Redirect::route('profile.edit')->with('success', 'Senha atualizada com sucesso!');
+        return $this->success('profile.edit', 'Senha atualizada com sucesso!');
     }
 
     /**
@@ -72,10 +108,16 @@ class ProfileController extends Controller
         $user = $request->user();
 
         // Evitar exclusão de admin (opcional)
-        if ($user->hasRole('admin') && Auth::user()->id !== $user->id) {
-            return Redirect::route('profile.edit')->with('error', 'Não é possível excluir contas de administrador.');
+        if ($user->hasRole('admin')) {
+            return $this->error('profile.edit', 'Não é possível excluir contas de administrador.');
         }
 
+        // Deletar foto de perfil se existir
+        if ($user->photo_path) {
+            Storage::disk('public')->delete($user->photo_path);
+        }
+
+        $userName = $user->name;
         Auth::logout();
 
         $user->delete();
@@ -83,7 +125,7 @@ class ProfileController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return Redirect::to('/');
+        return $this->success('/', "Conta de {$userName} excluída com sucesso!");
     }
 
     /**
@@ -126,7 +168,7 @@ class ProfileController extends Controller
                 'type' => 'sale',
                 'date' => $sale->sale_date,
                 'title' => 'Venda Registrada',
-                'description' => "Venda de {{ $sale->items->count() }} item(s) - MT " . number_format($sale->total_amount, 2, ',', '.'),
+                'description' => "Venda de {$sale->items->count()} item(s) - MT " . number_format($sale->total_amount, 2, ',', '.'),
                 'icon' => 'fas fa-shopping-cart',
                 'color' => 'success'
             ]);

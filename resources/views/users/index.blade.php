@@ -1,526 +1,624 @@
 @extends('layouts.app')
 
-@section('title', 'Gestão de Usuários')
+@section('title', 'Usuários')
 @section('page-title', 'Gestão de Usuários')
-@section('title-icon', 'fa-users')
+@section('title-icon', 'fa-users-gear')
+
 @section('breadcrumbs')
-    <li class="breadcrumb-item active">Usuários</li>
+<li class="breadcrumb-item active">Usuários</li>
 @endsection
 
 @section('content')
-    <!-- Offcanvas para Criar/Editar Usuário -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="userFormOffcanvas" style="width: 600px;">
-        <div class="offcanvas-header bg-primary text-white">
-            <h5 class="offcanvas-title">
-                <i class="fas fa-user me-2"></i><span id="form-title">Novo Usuário</span>
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body p-0">
-            <form id="user-form" method="POST" enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" name="_method" id="form-method" value="POST">
-                <input type="hidden" name="user_id" id="user-id">
-
-                <!-- Foto de Perfil -->
-                <div class="p-4 border-bottom bg-light">
-                    <div class="text-center mb-3">
-                        <div class="avatar-upload">
-                            <div class="avatar-preview mb-3">
-                                <img id="avatar-preview" src="{{ asset('images/avatar-placeholder.png') }}" 
-                                     class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover;">
-                            </div>
-                            <label class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-upload me-1"></i> Alterar Foto
-                                <input type="file" name="foto_perfil" id="avatar-upload" class="d-none" accept="image/*">
-                            </label>
-                        </div>
+<!-- Header com Estatísticas -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="row">
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-primary text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['total'] }}</h4>
+                        <small>Total</small>
                     </div>
                 </div>
-
-                <!-- Dados do Usuário -->
-                <div class="p-4">
-                    <h6 class="mb-3"><i class="fas fa-user me-2"></i> Informações Pessoais</h6>
-                    <div class="row g-3">
-                        <div class="col-md-12">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Nome Completo *</label>
-                                <input type="text" class="form-control" name="name" id="user-name" required>
-                                <div class="invalid-feedback"></div>
-                            </div>
-                        </div>
-                        <div class="col-md-12">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Email *</label>
-                                <input type="email" class="form-control" name="email" id="user-email" required>
-                                <div class="invalid-feedback"></div>
-                            </div>
-                        </div>
-                        <div class="col-md-12">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Telefone</label>
-                                <input type="text" class="form-control" name="telefone" id="user-phone">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Senha</label>
-                                <input type="password" class="form-control" name="password" id="user-password">
-                                <div class="form-text">Deixe em branco para manter a senha atual</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Confirmar Senha</label>
-                                <input type="password" class="form-control" name="password_confirmation" id="user-password-confirm">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Tipo de Usuário *</label>
-                                <select class="form-select" name="role" id="user-role" required>
-                                    <option value="">Selecione</option>
-                                    <option value="admin">Administrador</option>
-                                    <option value="staff">Funcionário</option>
-                                </select>
-                                <div class="invalid-feedback"></div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3 form-check mt-4">
-                                <input type="checkbox" class="form-check-input" name="is_active" id="user-active">
-                                <label class="form-check-label fw-semibold">Usuário Ativo</label>
-                            </div>
-                        </div>
+            </div>
+            
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-success text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-user-check fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['active'] }}</h4>
+                        <small>Ativos</small>
                     </div>
                 </div>
-            </form>
-        </div>
-        <div class="offcanvas-footer p-3 border-top">
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
-                    <i class="fas fa-times me-2"></i> Cancelar
-                </button>
-                <button type="submit" form="user-form" class="btn btn-primary flex-fill" id="save-user-btn">
-                    <i class="fas fa-save me-2"></i> Salvar Usuário
-                </button>
+            </div>
+            
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-info text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-user-shield fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['admin'] }}</h4>
+                        <small>Admins</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-warning text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-user-tie fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['manager'] }}</h4>
+                        <small>Gerentes</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-secondary text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['staff'] }}</h4>
+                        <small>Staff</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-2 mb-3">
+                <div class="card border-0 shadow-sm bg-orange text-white">
+                    <div class="card-body text-center py-3">
+                        <i class="fas fa-key fa-2x mb-2"></i>
+                        <h4 class="mb-0">{{ $stats['with_temp_password'] }}</h4>
+                        <small>Senha Temp</small>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Offcanvas para Visualizar Usuário -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="userViewOffcanvas" style="width: 500px;">
-        <div class="offcanvas-header bg-info text-white">
-            <h5 class="offcanvas-title">
-                <i class="fas fa-eye me-2"></i>Detalhes do Usuário
-            </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body" id="user-view-content">
-            <div class="text-center py-5">
-                <div class="loading-spinner mb-3"></div>
-                <p class="text-muted">Carregando detalhes...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="h3 mb-1 text-primary fw-bold">
-                <i class="fas fa-users me-2"></i>
-                Gestão de Usuários
-            </h2>
-            <p class="text-muted mb-0">Administração de usuários do sistema</p>
-        </div>
-        <button type="button" class="btn btn-success" onclick="openCreateUserOffcanvas()">
-            <i class="fas fa-user-plus me-2"></i> Novo Usuário
-        </button>
-    </div>
-
-    <!-- Filtros -->
-    <div class="card mb-4 fade-in">
-        <div class="card-header bg-white">
-            <h5 class="card-title mb-0 d-flex align-items-center">
-                <i class="fas fa-filter me-2 text-primary"></i>
-                Filtros de Usuários
-            </h5>
-        </div>
-        <div class="card-body">
-            <form method="GET" action="{{ route('users.index') }}" id="filters-form">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Buscar</label>
-                        <input type="text" class="form-control" name="search" placeholder="Nome ou email..." value="{{ request('search') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Tipo</label>
-                        <select class="form-select" name="role">
-                            <option value="">Todos os Tipos</option>
-                            <option value="admin" {{ request('role') === 'admin' ? 'selected' : '' }}>Administrador</option>
-                            <option value="staff" {{ request('role') === 'staff' ? 'selected' : '' }}>Funcionário</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Status</label>
-                        <select class="form-select" name="status">
-                            <option value="">Todos</option>
-                            <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Ativo</option>
-                            <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inativo</option>
-                        </select>
-                    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column justify-content-center">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Ações Rápidas
+                </h6>
+                <div class="d-grid gap-2">
+                    <a href="{{ route('users.create') }}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Novo Usuário
+                    </a>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Lista de Usuários -->
-    <div class="card fade-in">
-        <div class="card-header bg-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0 d-flex align-items-center">
-                    <i class="fas fa-list me-2 text-primary"></i>
-                    Lista de Usuários
-                </h5>
-                <span class="badge bg-primary">Total: {{ $users->total() }}</span>
             </div>
         </div>
-        <div class="card-body p-0">
+    </div>
+</div>
+
+<!-- Filtros e Pesquisa -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ route('users.index') }}" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Pesquisar</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ request('search') }}" placeholder="Nome, email...">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="role" class="form-label">Função</label>
+                <select class="form-select" id="role" name="role">
+                    <option value="">Todas</option>
+                    @foreach(App\Models\Role::all() as $role)
+                        <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>
+                            {{ ucfirst($role->name) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Todos</option>
+                    <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Ativos</option>
+                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inativos</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="sort" class="form-label">Ordenar por</label>
+                <select class="form-select" id="sort" name="sort">
+                    <option value="name" {{ request('sort') == 'name' ? 'selected' : '' }}>Nome</option>
+                    <option value="email" {{ request('sort') == 'email' ? 'selected' : '' }}>Email</option>
+                    <option value="created_at" {{ request('sort') == 'created_at' ? 'selected' : '' }}>Data Criação</option>
+                    <option value="last_login_at" {{ request('sort') == 'last_login_at' ? 'selected' : '' }}>Último Login</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Filtrar
+                    </button>
+                    @if(request()->hasAny(['search', 'role', 'status', 'sort']))
+                        <a href="{{ route('users.index') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times me-1"></i> Limpar
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de Usuários -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>
+            Lista de Usuários
+            @if(request()->hasAny(['search', 'role', 'status']))
+                <span class="badge bg-primary ms-2">{{ $users->total() }} encontrados</span>
+            @endif
+        </h6>
+    </div>
+    
+    <div class="card-body p-0">
+        @if($users->count() > 0)
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 60px;"></th>
-                            <th>Nome</th>
-                            <th>Email</th>
-                            <th>Telefone</th>
-                            <th>Tipo</th>
+                            <th>Foto</th>
+                            <th>Usuário</th>
+                            <th>Função</th>
                             <th>Status</th>
-                            <th class="text-center">Ações</th>
+                            <th>Senha Temp</th>
+                            <th>Cadastro</th>
+                            <th>Último Login</th>
+                            <th width="120">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($users as $user)
-                            <tr>
-                                <td>
-                                    @if($user->foto_perfil)
-                                        <img src="{{ asset($user->foto_perfil) }}" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
-                                    @else
-                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                            <i class="fas fa-user text-white"></i>
-                                        </div>
+                        @foreach($users as $user)
+                        <tr>
+                            <td>
+                                <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}"
+                                     class="rounded-circle" width="40" height="40"
+                                     style="object-fit: cover;">
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ $user->name }}</strong><br>
+                                    <small class="text-muted">{{ $user->email }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                @php
+                                    $badgeClass = match($user->role?->name) {
+                                        'admin' => 'bg-danger',
+                                        'manager' => 'bg-primary',
+                                        'staff' => 'bg-success',
+                                        default => 'bg-secondary'
+                                    };
+                                @endphp
+                                <span class="badge {{ $badgeClass }}">{{ $user->role_display }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ $user->is_active ? 'success' : 'danger' }}">
+                                    <i class="fas fa-{{ $user->is_active ? 'check' : 'times' }} me-1"></i>
+                                    {{ $user->status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                @if($user->hasActiveTemporaryPassword())
+                                    <span class="badge bg-warning" title="Senha temporária ativa">
+                                        <i class="fas fa-key me-1"></i>
+                                        Ativa
+                                    </span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ $user->created_at->format('d/m/Y') }}<br>
+                                    {{ $user->created_at->diffForHumans() }}
+                                </small>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {{ $user->last_login_formatted }}<br>
+                                    @if($user->last_login_at)
+                                        {{ $user->last_login_at->diffForHumans() }}
                                     @endif
-                                </td>
-                                <td><strong>{{ $user->name }}</strong></td>
-                                <td>{{ $user->email }}</td>
-                                <td>{{ $user->telefone ?? 'Não informado' }}</td>
-                                <td>
-                                    <span class="badge {{ $user->role === 'admin' ? 'bg-danger' : 'bg-info' }}">
-                                        {{ ucfirst($user->role) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge {{ $user->is_active ? 'bg-success' : 'bg-secondary' }}">
-                                        {{ $user->is_active ? 'Ativo' : 'Inativo' }}
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm">
-                                        <button type="button" class="btn btn-outline-info" 
-                                                onclick="viewUserDetails({{ $user->id }})" 
-                                                title="Ver Detalhes">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-warning" 
-                                                onclick="openEditUserOffcanvas({{ $user->id }})" 
-                                                title="Editar">
+                                </small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ route('users.show', $user) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Ver">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    @if(auth()->user()->canEdit($user))
+                                        <a href="{{ route('users.edit', $user) }}" 
+                                           class="btn btn-sm btn-outline-secondary" title="Editar">
                                             <i class="fas fa-edit"></i>
+                                        </a>
+                                    @endif
+                                    
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                                type="button" data-bs-toggle="dropdown">
+                                            <i class="fas fa-ellipsis-v"></i>
                                         </button>
-                                        @if($loggedId !== $user->id)
-                                            <button type="button" class="btn btn-outline-danger" 
-                                                    onclick="deleteUser({{ $user->id }}, '{{ $user->name }}')" 
-                                                    title="Excluir">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        @else
-                                            <button type="button" class="btn btn-outline-secondary" disabled title="Você não pode excluir seu próprio usuário">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        @endif
+                                        <ul class="dropdown-menu">
+                                            @if(auth()->user()->canEdit($user))
+                                                <li>
+                                                    <button class="dropdown-item reset-password" 
+                                                            data-user-id="{{ $user->id }}" 
+                                                            data-user-name="{{ $user->name }}">
+                                                        <i class="fas fa-key text-warning me-1"></i>
+                                                        Resetar Senha
+                                                    </button>
+                                                </li>
+                                            @endif
+                                            @if(auth()->user()->canEdit($user) && $user->id !== auth()->id())
+                                                <li>
+                                                    <button class="dropdown-item toggle-status" 
+                                                            data-user-id="{{ $user->id }}">
+                                                        <i class="fas fa-{{ $user->is_active ? 'ban text-warning' : 'check text-success' }} me-1"></i>
+                                                        {{ $user->is_active ? 'Desativar' : 'Ativar' }}
+                                                    </button>
+                                                </li>
+                                            @endif
+                                            @if($user->hasActiveTemporaryPassword() && auth()->user()->canEdit($user))
+                                                <li>
+                                                    <button class="dropdown-item invalidate-temp" 
+                                                            data-user-id="{{ $user->id }}" 
+                                                            data-user-name="{{ $user->name }}">
+                                                        <i class="fas fa-ban text-danger me-1"></i>
+                                                        Invalidar Senha Temp
+                                                    </button>
+                                                </li>
+                                            @endif
+                                            @if(auth()->user()->canDelete($user))
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <button class="dropdown-item text-danger delete-user" 
+                                                            data-user-id="{{ $user->id }}" 
+                                                            data-user-name="{{ $user->name }}">
+                                                        <i class="fas fa-trash me-1"></i> Excluir
+                                                    </button>
+                                                </li>
+                                            @endif
+                                        </ul>
                                     </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
-                                    <i class="fas fa-users fa-3x mb-3 opacity-50"></i>
-                                    <p>Nenhum usuário encontrado.</p>
-                                    <button type="button" class="btn btn-primary" onclick="openCreateUserOffcanvas()">
-                                        <i class="fas fa-user-plus me-2"></i> Criar Primeiro Usuário
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforelse
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                <small class="text-muted">
-                    Mostrando {{ $users->firstItem() ?? 0 }} a {{ $users->lastItem() ?? 0 }} de {{ $users->total() }}
-                </small>
-                {{ $users->appends(request()->query())->links('pagination::bootstrap-5') }}
+            
+            <!-- Paginação -->
+            @if($users->hasPages())
+                <div class="card-footer bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small">
+                            Mostrando {{ $users->firstItem() }} a {{ $users->lastItem() }} 
+                            de {{ $users->total() }} usuários
+                        </div>
+                        {{ $users->appends(request()->query())->links() }}
+                    </div>
+                </div>
+            @endif
+        @else
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">Nenhum usuário encontrado</h5>
+                <p class="text-muted mb-4">
+                    @if(request()->hasAny(['search', 'role', 'status']))
+                        Nenhum usuário corresponde aos filtros aplicados.
+                        <br>
+                        <a href="{{ route('users.index') }}" class="text-primary">Limpar filtros</a>
+                    @else
+                        Comece criando o primeiro usuário do sistema.
+                    @endif
+                </p>
+                <a href="{{ route('users.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i> Criar Primeiro Usuário
+                </a>
+            </div>
+        @endif
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    Tem certeza que deseja excluir o usuário <strong id="deleteUserName"></strong>?
+                </p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Esta ação não pode ser desfeita.
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteUserForm" method="POST" class="d-inline">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> Excluir Usuário
+                    </button>
+                </form>
             </div>
         </div>
     </div>
+</div>
 @endsection
 
-@push('scripts')
-    <script>
-        // Função para visualizar detalhes do usuário
-        function viewUserDetails(userId) {
-            const content = document.getElementById('user-view-content');
-            content.innerHTML = '<div class="text-center py-5"><div class="loading-spinner"></div><p class="text-muted mt-3">Carregando...</p></div>';
-            
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('userViewOffcanvas'));
-            offcanvas.show();
-            
-            fetch(`/users/${userId}/details`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        content.innerHTML = data.html;
-                    } else {
-                        content.innerHTML = '<div class="alert alert-danger">Erro ao carregar detalhes.</div>';
-                    }
-                })
-                .catch(() => {
-                    content.innerHTML = '<div class="alert alert-danger">Erro de conexão.</div>';
-                });
-        }
-
-        // Função para abrir o offcanvas de novo usuário
-        function openCreateUserOffcanvas() {
-            resetUserForm();
-            document.getElementById('form-title').textContent = 'Novo Usuário';
-            document.getElementById('form-method').value = 'POST';
-            document.getElementById('user-form').action = "{{ route('users.store') }}";
-            document.getElementById('user-id').value = '';
-            document.getElementById('avatar-preview').src = "{{ asset('images/avatar-placeholder.png') }}";
-            document.getElementById('user-active').checked = true;
-            
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('userFormOffcanvas'));
-            offcanvas.show();
-        }
-
-        // Função para editar usuário
-        function openEditUserOffcanvas(userId) {
-            resetUserForm();
-            document.getElementById('form-title').textContent = 'Editar Usuário';
-            document.getElementById('form-method').value = 'PUT';
-            document.getElementById('user-form').action = `/users/${userId}`;
-            document.getElementById('user-id').value = userId;
-
-            fetch(`/users/${userId}/edit-data`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        const u = data.data;
-                        document.getElementById('user-name').value = u.name;
-                        document.getElementById('user-email').value = u.email;
-                        document.getElementById('user-phone').value = u.telefone || '';
-                        document.getElementById('user-role').value = u.role;
-                        document.getElementById('user-active').checked = u.is_active;
-                        if (u.foto_perfil) {
-                            document.getElementById('avatar-preview').src = u.foto_perfil;
-                        }
-                    }
-                })
-                .catch(() => showToast('Erro ao carregar dados', 'error'));
-
-            const offcanvas = new bootstrap.Offcanvas(document.getElementById('userFormOffcanvas'));
-            offcanvas.show();
-        }
-
-        // Resetar formulário
-        function resetUserForm() {
-            document.getElementById('user-form').reset();
-            document.getElementById('user-password').value = '';
-            document.getElementById('user-password-confirm').value = '';
-            document.getElementById('avatar-preview').src = "{{ asset('images/avatar-placeholder.png') }}";
-            clearValidation();
-        }
-
-        // Preview da foto
-        document.getElementById('avatar-upload').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('avatar-preview').src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Validar formulário
-        function validateUserForm() {
-            clearValidation();
-            let isValid = true;
-            const name = document.getElementById('user-name').value.trim();
-            const email = document.getElementById('user-email').value.trim();
-            const role = document.getElementById('user-role').value;
-
-            if (!name) {
-                showFieldError('user-name', 'Nome é obrigatório');
-                isValid = false;
-            }
-            if (!email) {
-                showFieldError('user-email', 'Email é obrigatório');
-                isValid = false;
-            } else if (!/\S+@\S+\.\S+/.test(email)) {
-                showFieldError('user-email', 'Email inválido');
-                isValid = false;
-            }
-            if (!role) {
-                showFieldError('user-role', 'Tipo de usuário é obrigatório');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        // Submit do formulário
-        document.getElementById('user-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            if (!validateUserForm()) return;
-
-            const formData = new FormData(this);
-            const url = this.action;
-            const submitBtn = document.getElementById('save-user-btn');
-            const originalText = submitBtn.innerHTML;
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Salvando...';
-
-            fetch(url, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    bootstrap.Offcanvas.getInstance(document.getElementById('userFormOffcanvas')).hide();
-                    showToast(data.message || 'Usuário salvo com sucesso!', 'success');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    if (data.errors) {
-                        Object.keys(data.errors).forEach(field => {
-                            const selector = `#${field.replace('_', '-')}`;
-                            showFieldError(selector, data.errors[field][0]);
-                        });
-                    }
-                    showToast(data.message || 'Erro ao salvar usuário.', 'error');
-                }
-            })
-            .catch(() => showToast('Erro de conexão.', 'error'))
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
-        });
-
-        // Excluir usuário
-        function deleteUser(userId, userName) {
-            if (!confirm(`Tem certeza que deseja excluir o usuário "${userName}"?`)) return;
-
-            fetch(`/users/${userId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    showToast(data.message || 'Usuário excluído com sucesso!', 'success');
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    showToast(data.message || 'Erro ao excluir usuário.', 'error');
-                }
-            })
-            .catch(() => showToast('Erro de conexão.', 'error'));
-        }
-
-        // Funções de utilidade
-        function showFieldError(fieldId, message) {
-            const field = document.querySelector(fieldId);
-            if (field) {
-                field.classList.add('is-invalid');
-                const feedback = field.parentNode.querySelector('.invalid-feedback') || field.nextElementSibling;
-                if (feedback) feedback.textContent = message;
-            }
-        }
-
-        function clearValidation() {
-            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-            document.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
-        }
-
-        function showToast(message, type = 'info') {
-            const bg = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-primary';
-            const toast = document.createElement('div');
-            toast.className = `toast align-items-center text-white ${bg} border-0`;
-            toast.style = 'position: fixed; top: 20px; right: 20px; z-index: 10000; width: 350px;';
-            toast.innerHTML = `
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            `;
-            document.body.appendChild(toast);
-            const bsToast = new bootstrap.Toast(toast, { delay: 5000 });
-            bsToast.show();
-            toast.addEventListener('hidden.bs.toast', () => toast.remove());
-        }
-
-        // Auto-submit nos filtros
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('filters-form');
-            const inputs = form.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                input.addEventListener('change', () => form.submit());
-            });
-        });
-    </script>
+@push('styles')
+<style>
+.bg-orange {
+    background-color: #fd7e14 !important;
+}
+</style>
 @endpush
 
-@push('styles')
-    <style>
-        .avatar-preview img {
-            border: 3px solid #e9ecef;
-            transition: all 0.2s ease;
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle status functionality
+    document.querySelectorAll('.toggle-status').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            
+            if (!confirm('Tem certeza que deseja alterar o status deste usuário?')) {
+                return;
+            }
+            
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processando...';
+            this.disabled = true;
+            
+            fetch(`/users/${userId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    FDSMULTSERVICES.Toast.show(data.message, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    FDSMULTSERVICES.Toast.show(data.error || 'Erro ao alterar status', 'error');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                FDSMULTSERVICES.Toast.show('Erro ao alterar status', 'error');
+                this.innerHTML = originalText;
+                this.disabled = false;
+            });
+        });
+    });
+
+    // Reset password functionality
+    document.querySelectorAll('.reset-password').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            
+            if (!confirm(`Tem certeza que deseja resetar a senha de ${userName}? Uma nova senha temporária será gerada.`)) {
+                return;
+            }
+
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Gerando...';
+            this.disabled = true;
+            
+            fetch(`/users/${userId}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = originalText;
+                this.disabled = false;
+                
+                if (data.success) {
+                    showPasswordModal(data.password, data.expires_at, userName);
+                    FDSMULTSERVICES.Toast.show(data.message, 'success');
+                } else {
+                    FDSMULTSERVICES.Toast.show(data.error || 'Erro ao resetar senha', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.innerHTML = originalText;
+                this.disabled = false;
+                FDSMULTSERVICES.Toast.show('Erro ao resetar senha', 'error');
+            });
+        });
+    });
+
+    // Invalidate temporary password functionality  
+    document.querySelectorAll('.invalidate-temp').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            
+            if (!confirm(`Tem certeza que deseja invalidar a senha temporária de ${userName}?`)) {
+                return;
+            }
+
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invalidando...';
+            this.disabled = true;
+            
+            fetch(`/users/${userId}/invalidate-temporary-passwords`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    FDSMULTSERVICES.Toast.show(data.message, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    FDSMULTSERVICES.Toast.show(data.error || 'Erro ao invalidar senha', 'error');
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                FDSMULTSERVICES.Toast.show('Erro ao invalidar senha', 'error');
+                this.innerHTML = originalText;
+                this.disabled = false;
+            });
+        });
+    });
+
+    // Delete user functionality
+    document.querySelectorAll('.delete-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            const userName = this.dataset.userName;
+            
+            document.getElementById('deleteUserName').textContent = userName;
+            document.getElementById('deleteUserForm').action = `/users/${userId}`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+            modal.show();
+        });
+    });
+
+    // Auto-submit form on filter change
+    document.querySelectorAll('#role, #status, #sort').forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+
+    // Clear search on ESC key
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                this.form.submit();
+            }
+        });
+    }
+});
+
+function showPasswordModal(password, expiresAt, userName) {
+    const modalHtml = `
+        <div class="modal fade" id="passwordModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-key me-2"></i>Senha Temporária - ${userName}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        <div class="alert alert-warning border-0">
+                            <div class="mb-3">
+                                <h6><strong>Nova Senha Temporária:</strong></h6>
+                                <div class="bg-dark text-light p-3 rounded my-3 position-relative">
+                                    <h3 class="fw-bold font-monospace mb-0">${password}</h3>
+                                    <button type="button" class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2" 
+                                            onclick="copyPassword('${password}')" title="Copiar senha">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Válida até: ${expiresAt}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="button" class="btn btn-warning" onclick="copyPassword('${password}')">
+                            <i class="fas fa-copy me-2"></i>Copiar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById('passwordModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    modal.show();
+}
+
+function copyPassword(password) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(password).then(() => {
+            FDSMULTSERVICES.Toast.show('Senha copiada!', 'success');
+        }).catch(err => {
+            fallbackCopyTextToClipboard(password);
+        });
+    } else {
+        fallbackCopyTextToClipboard(password);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            FDSMULTSERVICES.Toast.show('Senha copiada!', 'success');
+        } else {
+            FDSMULTSERVICES.Toast.show('Erro ao copiar senha', 'error');
         }
-        .avatar-preview img:hover {
-            border-color: #0d6efd;
-            transform: scale(1.05);
-        }
-        .loading-spinner {
-            width: 30px; height: 30px; border: 3px solid #f3f4f6; border-top: 3px solid #0d6efd; border-radius: 50%; animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+    } catch (err) {
+        FDSMULTSERVICES.Toast.show('Erro ao copiar senha', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+</script>
 @endpush
