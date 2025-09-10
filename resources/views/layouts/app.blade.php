@@ -1184,10 +1184,10 @@
     <nav class="app-sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-container">
-                <div class="brand-logo">
+                <div class="brand-logo" id="brand-logo">
                     <i class="fas fa-print m-0"></i>
                 </div>
-                <div class="brand-text">
+                <div class="brand-text" id="brand-text">
                     <div class="brand-title" style="margin-left: -2px !important">FDS+</div>
                     <div class="brand-subtitle">MULTSERVICES</div>
                 </div>
@@ -1199,6 +1199,7 @@
 
         <div class="sidebar-nav">
             <div class="nav-section">
+                {{-- Icone do Sistema --}}
                 <ul class="nav-list">
                     <li class="nav-item">
                         <a href="{{ route('dashboard') }}"
@@ -1407,7 +1408,7 @@
                                     </span>
                                     <span class="nav-text">Usuários</span>
                                     <span class="nav-badge badge-danger">Admin</span>
-                                </a>
+                                </as>
                             </li>
                         @endif
 
@@ -2269,7 +2270,9 @@
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
             const toggleIcon = document.getElementById('toggle-icon');
-
+            const brandLogo = document.getElementById('brand-logo');
+            const brandText = document.getElementById('brand-text');
+            
             if (!sidebar || !mainContent) {
                 console.error('Elementos do sidebar não encontrados');
                 return;
@@ -2287,11 +2290,21 @@
             if (sidebarCollapsed) {
                 sidebar.classList.add('collapsed');
                 mainContent.classList.add('collapsed');
+                if (brandText) brandText.style.display = 'none';
+                if (brandLogo) brandLogo.style.display = 'none';
                 if (toggleIcon) toggleIcon.className = 'fas fa-chevron-right';
             } else {
                 sidebar.classList.remove('collapsed');
                 mainContent.classList.remove('collapsed');
-                if (toggleIcon) toggleIcon.className = 'fas fa-chevron-left';
+                if (brandText) brandText.style.display = 'inline';
+                if (brandLogo) {
+                    brandLogo.style.display = 'inline-flex';
+                    brandLogo.querySelector('i').style.fontSize = '18px';
+                }
+                if (toggleIcon) {
+                    toggleIcon.margin = '0 5px';
+                    toggleIcon.className = 'fas fa-chevron-left';
+                }
             }
         }
 
