@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
@@ -141,9 +142,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         });
         
         // Deletar pedidos - delete_orders permission
-        Route::middleware('permissions:delete_orders')->group(function () {
             Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
-        });
         
         // Relatórios - view_reports permission
         Route::middleware('permissions:view_reports')->group(function () {
@@ -200,7 +199,54 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::middleware('permissions:view_sales')->group(function () {
             Route::get('/export/{format}', [SaleController::class, 'exportSales'])->name('export-data');
         });
-    });
+            
+            // ===== GESTÃO DE DESCONTOS - Permissão edit_sales =====
+            Route::middleware('permissions:edit_sales')->group(function () {
+                // Aplicar desconto a uma venda
+                Route::post('/{sale}/discount/apply', [SaleController::class, 'applyDiscount'])
+                    ->name('discount.apply');
+                    
+                // Remover desconto de uma venda
+                Route::delete('/{sale}/discount/remove', [SaleController::class, 'removeDiscount'])
+                    ->name('discount.remove');
+                    
+                // Aplicar desconto a item específico
+                Route::post('/{sale}/items/{item}/discount', [SaleController::class, 'applyItemDiscount'])
+                    ->name('item.discount.apply');
+                    
+                // Remover desconto de item específico  
+                Route::delete('/{sale}/items/{item}/discount', [SaleController::class, 'removeItemDiscount'])
+                    ->name('item.discount.remove');
+            });
+
+            // ===== RELATÓRIOS DE DESCONTO - Permissão view_reports =====
+            Route::middleware('permissions:view_reports')->group(function () {
+                // Relatório de descontos aplicados
+                Route::get('/reports/discounts', [SaleController::class, 'discountReport'])
+                    ->name('reports.discounts');
+                    
+                // Análise de impacto de descontos
+                Route::get('/reports/discount-impact', [SaleController::class, 'discountImpactReport'])
+                    ->name('reports.discount-impact');
+                    
+                // Exportar relatório de descontos
+                Route::get('/reports/discounts/export/{format}', [SaleController::class, 'exportDiscountReport'])
+                    ->name('reports.discounts.export');
+            });
+
+            // ===== APIs PARA DESCONTOS - Permissão view_sales =====
+            Route::middleware('permissions:view_sales')->group(function () {
+                Route::prefix('api')->name('api.')->group(function () {
+                    // Estatísticas de desconto em tempo real
+                    Route::get('/discount-stats', [SaleController::class, 'getDiscountStats'])
+                        ->name('discount-stats');
+                        
+                    // Verificar se desconto pode ser aplicado
+                    Route::post('/discount/validate', [SaleController::class, 'validateDiscount'])
+                        ->name('discount.validate');
+                });
+            });
+        });
     
     // ===== DÍVIDAS =====
     Route::prefix('debts')->name('debts.')->group(function () {
@@ -241,7 +287,9 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
     });
-    
+
+    //expense category
+    Route::resource('expense-categories', ExpenseCategoryController::class)->only(['store']);
     // ===== DESPESAS =====
     Route::prefix('expenses')->name('expenses.')->group(function () {
         // Visualizar despesas - todos podem

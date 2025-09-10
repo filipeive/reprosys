@@ -17,10 +17,10 @@
         <div class="d-flex align-items-center">
             <i class="fas fa-info-circle fa-lg me-3"></i>
             <div>
-                <strong>Venda Manual</strong>
+                <strong>Venda Manual com Sistema de Descontos</strong>
                 <p class="mb-0 small">
-                    Use esta tela para lançar vendas antigas do livro físico, informando a data/hora real da venda.
-                    Os preços podem ser editados conforme necessário.
+                    Use esta tela para lançar vendas antigas do livro físico. O sistema agora rastreia automaticamente
+                    os descontos aplicados, permitindo uma análise precisa da receita real vs. potencial.
                 </p>
             </div>
         </div>
@@ -123,7 +123,46 @@
             </div>
         </div>
 
-        <!-- Card 4: Produtos/Serviços com Preços Editáveis -->
+        <!-- Card 4: Desconto Geral da Venda (NOVO) -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-percentage me-2"></i>
+                    Desconto Geral da Venda
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="general_discount" class="form-label">Valor do Desconto</label>
+                        <input type="number" step="0.01" min="0" class="form-control" 
+                               name="general_discount" id="general_discount" placeholder="0.00"
+                               value="{{ old('general_discount') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="general_discount_type" class="form-label">Tipo de Desconto</label>
+                        <select class="form-select" name="general_discount_type" id="general_discount_type">
+                            <option value="fixed" {{ old('general_discount_type') == 'fixed' ? 'selected' : '' }}>Valor Fixo (MZN)</option>
+                            <option value="percentage" {{ old('general_discount_type') == 'percentage' ? 'selected' : '' }}>Percentual (%)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="general_discount_reason" class="form-label">Motivo do Desconto</label>
+                        <input type="text" class="form-control" name="general_discount_reason" 
+                               id="general_discount_reason" placeholder="Ex: Cliente fidelizado, desconto promocional..."
+                               value="{{ old('general_discount_reason') }}">
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Este desconto será aplicado sobre o subtotal da venda, além de qualquer desconto individual nos produtos.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 5: Produtos/Serviços com Preços Editáveis -->
         <div class="card mb-4 shadow-sm">
             <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
@@ -131,9 +170,17 @@
                     Produtos/Serviços
                 </h5>
                 <div class="total-display">
-                    <span class="badge bg-light text-dark fs-6 px-3 py-2">
-                        Total: MZN <span id="total-amount">0,00</span>
-                    </span>
+                    <div class="d-flex gap-3">
+                        <span class="badge bg-light text-dark fs-6 px-3 py-2">
+                            Subtotal: MZN <span id="subtotal-amount">0,00</span>
+                        </span>
+                        <span class="badge bg-warning text-dark fs-6 px-3 py-2" id="discount-badge" style="display: none;">
+                            Desconto: MZN <span id="discount-amount">0,00</span>
+                        </span>
+                        <span class="badge bg-primary text-white fs-6 px-3 py-2">
+                            Total: MZN <span id="total-amount">0,00</span>
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
@@ -174,7 +221,10 @@
                                     <i class="fas fa-box me-2"></i>Produto
                                 </th>
                                 <th class="text-center" width="130">
-                                    <i class="fas fa-tag me-2"></i>Preço Unit.
+                                    <i class="fas fa-tag me-2"></i>Preço Original
+                                </th>
+                                <th class="text-center" width="130">
+                                    <i class="fas fa-edit me-2"></i>Preço Final
                                 </th>
                                 <th class="text-center" width="120">
                                     <i class="fas fa-sort-numeric-up me-2"></i>Qtd.
@@ -212,6 +262,12 @@
                                         </div>
                                     </td>
                                     <td class="text-center">
+                                        <div class="text-muted fw-bold">
+                                            MZN {{ number_format($product->selling_price, 2, ',', '.') }}
+                                        </div>
+                                        <small class="text-muted">Preço de tabela</small>
+                                    </td>
+                                    <td class="text-center">
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text">MZN</span>
                                             <input type="number" step="0.01" min="0" 
@@ -219,9 +275,9 @@
                                                    class="form-control text-end unit-price"
                                                    data-original-price="{{ $product->selling_price }}">
                                         </div>
-                                        <small class="text-muted d-block mt-1">
-                                            Original: {{ number_format($product->selling_price, 2, ',', '.') }}
-                                        </small>
+                                        <div class="discount-info small text-warning mt-1" style="display: none;">
+                                            <span class="discount-amount"></span>
+                                        </div>
                                     </td>
                                     <td class="text-center">
                                         <input type="number" min="0" value="0"
@@ -236,8 +292,8 @@
                                             <span class="fw-bold text-success subtotal" data-subtotal="0">
                                                 MZN 0,00
                                             </span>
-                                            <div class="discount-info small text-muted mt-1" style="display: none;">
-                                                <span class="discount-amount"></span>
+                                            <div class="savings-info small text-success mt-1" style="display: none;">
+                                                <span class="savings-amount"></span>
                                             </div>
                                         </div>
                                     </td>
@@ -258,40 +314,55 @@
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="4" class="text-end fw-bold fs-5">
-                                    <i class="fas fa-calculator me-2 text-success"></i>
-                                    TOTAL GERAL:
+                                <td colspan="5" class="text-end fw-bold fs-5">
+                                    <i class="fas fa-receipt me-2 text-primary"></i>
+                                    SUBTOTAL (sem desconto):
                                 </td>
-                                <td class="text-center fw-bold fs-5 text-success">
-                                    MZN <span id="footer-total">0,00</span>
+                                <td class="text-center fw-bold fs-5 text-primary">
+                                    MZN <span id="footer-subtotal">0,00</span>
                                 </td>
                                 <td></td>
                             </tr>
                             <tr id="discount-summary" style="display: none;">
-                                <td colspan="4" class="text-end text-muted">
+                                <td colspan="5" class="text-end text-danger fw-bold">
                                     <i class="fas fa-percentage me-2"></i>
                                     Total de Descontos:
                                 </td>
-                                <td class="text-center text-danger">
+                                <td class="text-center text-danger fw-bold">
                                     MZN <span id="total-discount">0,00</span>
+                                </td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold fs-4">
+                                    <i class="fas fa-calculator me-2 text-success"></i>
+                                    TOTAL FINAL:
+                                </td>
+                                <td class="text-center fw-bold fs-4 text-success">
+                                    MZN <span id="footer-total">0,00</span>
                                 </td>
                                 <td></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
+                
                 <div class="p-3 bg-light border-top">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <small class="text-muted">
-                                <i class="fas fa-lightbulb me-1 text-warning"></i>
-                                <strong>Dica:</strong> Os preços podem ser editados para aplicar descontos ou valores especiais.
-                                Selecione os produtos e informe as quantidades desejadas.
-                            </small>
+                            <div class="alert alert-info mb-0 small">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                <strong>Sistema de Descontos Integrado:</strong>
+                                <ul class="mb-0 mt-1">
+                                    <li>Edite os preços diretamente para aplicar descontos nos produtos</li>
+                                    <li>Use o campo "Desconto Geral" para aplicar desconto sobre toda a venda</li>
+                                    <li>O sistema calculará automaticamente a receita real vs. potencial</li>
+                                </ul>
+                            </div>
                         </div>
                         <div class="col-md-4 text-end">
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="apply-discount">
-                                <i class="fas fa-percentage me-1"></i> Aplicar Desconto Geral
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="apply-bulk-discount">
+                                <i class="fas fa-percentage me-1"></i> Desconto em Lote
                             </button>
                         </div>
                     </div>
@@ -306,7 +377,7 @@
                     <div>
                         <small class="text-muted">
                             <i class="fas fa-shield-check me-1"></i>
-                            Todos os dados serão salvos com segurança
+                            Todos os dados e descontos serão registrados com precisão
                         </small>
                     </div>
                     <div class="btn-group" role="group">
@@ -323,43 +394,43 @@
         </div>
     </form>
 
-    <!-- Modal de Desconto Geral -->
-    <div class="modal fade" id="discountModal" tabindex="-1">
+    <!-- Modal de Desconto em Lote -->
+    <div class="modal fade" id="bulkDiscountModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-percentage me-2"></i>Aplicar Desconto Geral
+                        <i class="fas fa-percentage me-2"></i>Aplicar Desconto em Lote
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group mb-3">
-                        <label for="discount-type" class="form-label">Tipo de Desconto</label>
-                        <select class="form-select" id="discount-type">
+                        <label for="bulk-discount-type" class="form-label">Tipo de Desconto</label>
+                        <select class="form-select" id="bulk-discount-type">
                             <option value="percentage">Percentual (%)</option>
-                            <option value="fixed">Valor Fixo (MZN)</option>
+                            <option value="fixed">Valor Fixo (MZN) por unidade</option>
                         </select>
                     </div>
                     <div class="form-group mb-3">
-                        <label for="discount-value" class="form-label">Valor do Desconto</label>
-                        <input type="number" step="0.01" min="0" class="form-control" id="discount-value" placeholder="0">
+                        <label for="bulk-discount-value" class="form-label">Valor do Desconto</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="bulk-discount-value" placeholder="0">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Aplicar aos produtos:</label>
                         <div class="form-check">
-                            <input type="radio" name="discount-apply" value="selected" class="form-check-input" id="discount-selected" checked>
-                            <label class="form-check-label" for="discount-selected">Apenas produtos selecionados</label>
+                            <input type="radio" name="bulk-discount-apply" value="selected" class="form-check-input" id="bulk-discount-selected" checked>
+                            <label class="form-check-label" for="bulk-discount-selected">Apenas produtos selecionados</label>
                         </div>
                         <div class="form-check">
-                            <input type="radio" name="discount-apply" value="all" class="form-check-input" id="discount-all">
-                            <label class="form-check-label" for="discount-all">Todos os produtos com quantidade</label>
+                            <input type="radio" name="bulk-discount-apply" value="all" class="form-check-input" id="bulk-discount-all">
+                            <label class="form-check-label" for="bulk-discount-all">Todos os produtos com quantidade</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="apply-discount-btn">Aplicar Desconto</button>
+                    <button type="button" class="btn btn-primary" id="apply-bulk-discount-btn">Aplicar Desconto</button>
                 </div>
             </div>
         </div>
@@ -402,35 +473,23 @@
         align-items: center;
     }
 
-    .discount-info {
+    .discount-info, .savings-info {
         font-style: italic;
-    }
-
-    .quick-add:hover {
-        background: #28a745;
-        color: white;
-    }
-
-    .clear-row:hover {
-        background: #dc3545;
-        color: white;
-    }
-
-    .btn-group .btn {
-        border-radius: 0;
-    }
-
-    .btn-group .btn:first-child {
-        border-radius: 0.375rem 0 0 0.375rem;
-    }
-
-    .btn-group .btn:last-child {
-        border-radius: 0 0.375rem 0.375rem 0;
+        font-weight: bold;
     }
 
     .total-display .badge {
-        font-size: 1rem;
-        border-radius: 2rem;
+        font-size: 0.9rem;
+        border-radius: 1rem;
+    }
+
+    .alert-info ul li {
+        margin-bottom: 0.25rem;
+    }
+
+    /* Highlight para indicar desconto */
+    .has-discount {
+        background: rgba(255, 193, 7, 0.1);
     }
 </style>
 @endpush
@@ -439,6 +498,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let totalDiscount = 0;
+    let subtotalAmount = 0;
 
     // Aplicar máscara no telefone
     const phoneInput = document.getElementById('customer_phone');
@@ -496,27 +556,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Função para calcular subtotal
+    // Função atualizada para calcular subtotal com sistema de desconto
     function calculateSubtotal(row) {
         const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
         const originalPrice = parseFloat(row.querySelector('.unit-price').getAttribute('data-original-price')) || 0;
         const quantity = parseInt(row.querySelector('.quantity').value) || 0;
         const subtotal = unitPrice * quantity;
+        const originalSubtotal = originalPrice * quantity;
         
         const subtotalElement = row.querySelector('.subtotal');
         const discountInfo = row.querySelector('.discount-info');
+        const savingsInfo = row.querySelector('.savings-info');
         
         subtotalElement.textContent = 'MZN ' + subtotal.toFixed(2).replace('.', ',');
         subtotalElement.setAttribute('data-subtotal', subtotal);
+        subtotalElement.setAttribute('data-original-subtotal', originalSubtotal);
         
         // Mostrar informação de desconto se houver diferença no preço
-        const discount = (originalPrice - unitPrice) * quantity;
-        if (discount > 0 && quantity > 0) {
+        const itemDiscount = (originalPrice - unitPrice) * quantity;
+        if (itemDiscount > 0 && quantity > 0) {
+            row.classList.add('has-discount');
             discountInfo.style.display = 'block';
             discountInfo.querySelector('.discount-amount').textContent = 
-                'Desconto: MZN ' + discount.toFixed(2).replace('.', ',');
+                `Desc: -MZN ${itemDiscount.toFixed(2).replace('.', ',')}`;
+            
+            savingsInfo.style.display = 'block';
+            savingsInfo.querySelector('.savings-amount').textContent = 
+                `Economia: MZN ${itemDiscount.toFixed(2).replace('.', ',')}`;
         } else {
+            row.classList.remove('has-discount');
             discountInfo.style.display = 'none';
+            savingsInfo.style.display = 'none';
         }
         
         // Marcar campo de preço como modificado
@@ -530,38 +600,61 @@ document.addEventListener('DOMContentLoaded', function() {
         calculateTotal();
     }
 
-    // Função para calcular total geral
+    // Função atualizada para calcular total geral com desconto geral
     function calculateTotal() {
         let total = 0;
-        let totalDiscountAmount = 0;
+        let originalTotal = 0;
+        let itemDiscountAmount = 0;
         
         document.querySelectorAll('.subtotal').forEach(function(element) {
             total += parseFloat(element.getAttribute('data-subtotal')) || 0;
+            originalTotal += parseFloat(element.getAttribute('data-original-subtotal')) || 0;
         });
 
-        // Calcular desconto total
+        // Calcular desconto nos itens
         document.querySelectorAll('.product-row').forEach(function(row) {
             const unitPrice = parseFloat(row.querySelector('.unit-price').value) || 0;
             const originalPrice = parseFloat(row.querySelector('.unit-price').getAttribute('data-original-price')) || 0;
             const quantity = parseInt(row.querySelector('.quantity').value) || 0;
             const discount = (originalPrice - unitPrice) * quantity;
             if (discount > 0) {
-                totalDiscountAmount += discount;
+                itemDiscountAmount += discount;
             }
         });
+
+        // Calcular desconto geral
+        const generalDiscountValue = parseFloat(document.getElementById('general_discount').value) || 0;
+        const generalDiscountType = document.getElementById('general_discount_type').value;
+        let generalDiscountAmount = 0;
         
-        const formattedTotal = total.toFixed(2).replace('.', ',');
-        document.getElementById('total-amount').textContent = formattedTotal;
-        document.getElementById('footer-total').textContent = formattedTotal;
+        if (generalDiscountValue > 0) {
+            if (generalDiscountType === 'percentage') {
+                generalDiscountAmount = (originalTotal * generalDiscountValue) / 100;
+            } else {
+                generalDiscountAmount = generalDiscountValue;
+            }
+        }
+
+        const totalDiscountAmount = itemDiscountAmount + generalDiscountAmount;
+        const finalTotal = originalTotal - totalDiscountAmount;
+
+        // Atualizar displays
+        subtotalAmount = originalTotal;
+        document.getElementById('subtotal-amount').textContent = originalTotal.toFixed(2).replace('.', ',');
+        document.getElementById('footer-subtotal').textContent = originalTotal.toFixed(2).replace('.', ',');
         
-        // Mostrar resumo de desconto se houver
-        const discountSummary = document.getElementById('discount-summary');
         if (totalDiscountAmount > 0) {
-            discountSummary.style.display = 'table-row';
+            document.getElementById('discount-badge').style.display = 'inline-block';
+            document.getElementById('discount-amount').textContent = totalDiscountAmount.toFixed(2).replace('.', ',');
+            document.getElementById('discount-summary').style.display = 'table-row';
             document.getElementById('total-discount').textContent = totalDiscountAmount.toFixed(2).replace('.', ',');
         } else {
-            discountSummary.style.display = 'none';
+            document.getElementById('discount-badge').style.display = 'none';
+            document.getElementById('discount-summary').style.display = 'none';
         }
+
+        document.getElementById('total-amount').textContent = finalTotal.toFixed(2).replace('.', ',');
+        document.getElementById('footer-total').textContent = finalTotal.toFixed(2).replace('.', ',');
     }
 
     // Event listeners para cálculos automáticos
@@ -570,6 +663,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = e.target.closest('.product-row');
             calculateSubtotal(row);
         }
+        
+        // Recalcular quando desconto geral for alterado
+        if (e.target.id === 'general_discount') {
+            calculateTotal();
+        }
+    });
+
+    // Event listener para mudança no tipo de desconto geral
+    document.getElementById('general_discount_type').addEventListener('change', function() {
+        calculateTotal();
     });
 
     // Botões de ação rápida
@@ -608,6 +711,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('clear-all-rows').addEventListener('click', function() {
         if (confirm('Tem certeza que deseja limpar todos os produtos?')) {
             document.querySelectorAll('.clear-row').forEach(btn => btn.click());
+            document.getElementById('general_discount').value = '';
+            calculateTotal();
         }
     });
 
@@ -631,17 +736,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Modal de desconto geral
-    document.getElementById('apply-discount').addEventListener('click', function() {
-        const modal = new bootstrap.Modal(document.getElementById('discountModal'));
+    // Modal de desconto em lote
+    document.getElementById('apply-bulk-discount').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('bulkDiscountModal'));
         modal.show();
     });
 
-    // Aplicar desconto geral
-    document.getElementById('apply-discount-btn').addEventListener('click', function() {
-        const discountType = document.getElementById('discount-type').value;
-        const discountValue = parseFloat(document.getElementById('discount-value').value) || 0;
-        const applyTo = document.querySelector('input[name="discount-apply"]:checked').value;
+    // Aplicar desconto em lote
+    document.getElementById('apply-bulk-discount-btn').addEventListener('click', function() {
+        const discountType = document.getElementById('bulk-discount-type').value;
+        const discountValue = parseFloat(document.getElementById('bulk-discount-value').value) || 0;
+        const applyTo = document.querySelector('input[name="bulk-discount-apply"]:checked').value;
         
         if (discountValue <= 0) {
             alert('Por favor, informe um valor de desconto válido.');
@@ -674,10 +779,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        bootstrap.Modal.getInstance(document.getElementById('discountModal')).hide();
+        bootstrap.Modal.getInstance(document.getElementById('bulkDiscountModal')).hide();
         
         if (typeof window.showToast === 'function') {
-            window.showToast('Desconto aplicado com sucesso!', 'success');
+            window.showToast('Desconto em lote aplicado com sucesso!', 'success');
         }
     });
 
@@ -720,6 +825,27 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('payment_method').focus();
             e.preventDefault();
             return false;
+        }
+
+        // Validar desconto geral se informado
+        const generalDiscount = parseFloat(document.getElementById('general_discount').value) || 0;
+        if (generalDiscount > 0) {
+            const discountType = document.getElementById('general_discount_type').value;
+            const subtotal = subtotalAmount;
+            
+            if (discountType === 'percentage' && generalDiscount > 100) {
+                alert('Desconto percentual não pode ser maior que 100%.');
+                document.getElementById('general_discount').focus();
+                e.preventDefault();
+                return false;
+            }
+            
+            if (discountType === 'fixed' && generalDiscount > subtotal) {
+                alert('Desconto fixo não pode ser maior que o subtotal da venda.');
+                document.getElementById('general_discount').focus();
+                e.preventDefault();
+                return false;
+            }
         }
 
         // Adicionar dados dos itens ao formulário
