@@ -29,7 +29,8 @@
                         <div class="input-group" style="width: 250px;">
                             <input type="text" class="form-control" id="product-search"
                                 placeholder="Pesquisar produtos..." autocomplete="off">
-                            <button class="btn btn-light" type="button" id="clear-search" title="Limpar pesquisa" style="display: none;">
+                            <button class="btn btn-light" type="button" id="clear-search" title="Limpar pesquisa"
+                                style="display: none;">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -436,47 +437,93 @@
         </div>
     </div>
 
-    <!-- Offcanvas para Criar Dívida -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="debtCreationOffcanvas">
+    <!-- Offcanvas para Criar Dívida (Atualizado) -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="debtCreationOffcanvas" style="width: 600px;">
         <div class="offcanvas-header bg-danger text-white">
             <h5 class="offcanvas-title">
-                <i class="fas fa-hand-holding-usd me-2"></i> Criar Dívida
+                <i class="fas fa-hand-holding-usd me-2"></i> Converter em Dívida
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
         </div>
         <div class="offcanvas-body">
+            <!-- Alerta informativo -->
+            <div class="alert alert-info d-flex align-items-center mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <div>
+                    <strong>Atenção:</strong> Esta venda será convertida em uma dívida de produtos.
+                    O estoque será reduzido imediatamente.
+                </div>
+            </div>
+
             <form id="debt-form">
                 @csrf
-                <div class="mb-3">
-                    <label for="debt_customer_name" class="form-label">Nome do Cliente *</label>
-                    <input type="text" class="form-control" id="debt_customer_name" required>
-                </div>
-                <div class="mb-3">
-                    <label for="debt_customer_phone" class="form-label">Telefone</label>
-                    <input type="text" class="form-control" id="debt_customer_phone">
-                </div>
-                <div class="mb-3">
-                    <label for="debt_description" class="form-label">Descrição *</label>
-                    <input type="text" class="form-control" id="debt_description" value="Venda a crédito" required>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="debt_date" class="form-label">Data da Dívida</label>
-                        <input type="date" class="form-control" id="debt_date" value="{{ now()->format('Y-m-d') }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label for="due_date" class="form-label">Vencimento</label>
-                        <input type="date" class="form-control" id="due_date">
+
+                <!-- Dados do Cliente -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-user me-2"></i> Dados do Cliente
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="debt_customer_name" class="form-label fw-semibold">Nome do Cliente *</label>
+                            <input type="text" class="form-control" id="debt_customer_name" required
+                                placeholder="Nome completo do cliente">
+                            <div class="invalid-feedback">Nome do cliente é obrigatório</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="debt_customer_phone" class="form-label fw-semibold">Telefone</label>
+                            <input type="text" class="form-control" id="debt_customer_phone"
+                                placeholder="(00) 00000-0000">
+                        </div>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label for="debt_notes" class="form-label">Observações</label>
-                    <textarea class="form-control" id="debt_notes" rows="2"></textarea>
+
+                <!-- Detalhes da Dívida -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3">
+                        <i class="fas fa-file-alt me-2"></i> Detalhes da Dívida
+                    </h6>
+                    <div class="mb-3">
+                        <label for="debt_description" class="form-label fw-semibold">Descrição *</label>
+                        <input type="text" class="form-control" id="debt_description" value="Venda a crédito"
+                            required maxlength="255" placeholder="Descreva o motivo da dívida">
+                        <div class="invalid-feedback">Descrição é obrigatória</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="debt_date" class="form-label fw-semibold">Data da Dívida *</label>
+                            <input type="date" class="form-control" id="debt_date"
+                                value="{{ now()->format('Y-m-d') }}" required>
+                            <div class="invalid-feedback">Data da dívida é obrigatória</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="due_date" class="form-label fw-semibold">Data de Vencimento</label>
+                            <input type="date" class="form-control" id="due_date">
+                            <small class="text-muted">Padrão: 30 dias após a data da dívida</small>
+                            <div class="invalid-feedback">Data de vencimento deve ser posterior à data da dívida</div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Observações -->
+                <div class="mb-4">
+                    <label for="debt_notes" class="form-label fw-semibold">Observações</label>
+                    <textarea class="form-control" id="debt_notes" rows="3" maxlength="500"
+                        placeholder="Observações adicionais sobre a dívida (opcional)"></textarea>
+                    <small class="text-muted">Máximo 500 caracteres</small>
+                </div>
+
+                <!-- Campo hidden para os produtos -->
                 <input type="hidden" id="debt-items-input">
+
+                <!-- Container para resumo dos itens (será preenchido via JS) -->
+                <!-- O resumo será inserido aqui dinamicamente -->
             </form>
         </div>
-        <div class="offcanvas-footer">
+
+        <!-- Footer com ações -->
+        <div class="offcanvas-footer p-3 border-top bg-light">
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-secondary flex-fill" data-bs-dismiss="offcanvas">
                     <i class="fas fa-times me-2"></i>Cancelar
@@ -484,6 +531,14 @@
                 <button type="button" class="btn btn-danger flex-fill" id="submit-debt-form">
                     <i class="fas fa-save me-2"></i> Criar Dívida
                 </button>
+            </div>
+
+            <!-- Informação adicional -->
+            <div class="text-center mt-2">
+                <small class="text-muted">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    O estoque será atualizado imediatamente após criar a dívida
+                </small>
             </div>
         </div>
     </div>
@@ -748,6 +803,45 @@
             cursor: not-allowed;
             transform: none;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .offcanvas-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+        #debt-items-summary .table th {
+            background-color: #f1f3f5;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        #debt-items-summary .table td {
+            font-size: 0.875rem;
+            vertical-align: middle;
+        }
+
+        .is-invalid {
+            border-color: #dc3545 !important;
+        }
+
+        .invalid-feedback {
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+
+        .alert {
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
         }
 
         /* Animações */
@@ -1075,6 +1169,7 @@
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -1125,7 +1220,7 @@
             }
 
             // ===== SISTEMA DE FILTROS E PESQUISA =====
-            
+
             // Limpar pesquisa
             document.getElementById('clear-search').addEventListener('click', function() {
                 document.getElementById('product-search').value = '';
@@ -1150,9 +1245,10 @@
                     e.preventDefault();
                     const filter = this.dataset.filter;
                     applyFilter(filter);
-                    
+
                     // Atualizar UI do filtro ativo
-                    document.querySelectorAll('.filter-option').forEach(opt => opt.classList.remove('active'));
+                    document.querySelectorAll('.filter-option').forEach(opt => opt.classList.remove(
+                        'active'));
                     this.classList.add('active');
                 });
             });
@@ -1234,7 +1330,7 @@
             function updateStats() {
                 const visibleProducts = document.querySelectorAll('.product-item:not(.hidden)');
                 const totalVisible = visibleProducts.length;
-                
+
                 let productsCount = 0;
                 let servicesCount = 0;
                 let lowStockCount = 0;
@@ -1273,10 +1369,10 @@
             document.querySelectorAll('.add-product-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     if (this.disabled) return;
-                    
+
                     const card = this.closest('.product-card');
                     card.classList.add('loading');
-                    
+
                     setTimeout(() => {
                         card.classList.remove('loading');
                     }, 500);
@@ -1414,7 +1510,7 @@
                             <div class="small text-muted">
                                 ${hasDiscount ? 
                                     `<span class="text-decoration-line-through">MZN ${item.original_price.toFixed(2).replace('.', ',')}</span> 
-                                                 <span class="text-success">MZN ${item.unit_price.toFixed(2).replace('.', ',')}</span> x ${item.quantity}` :
+                                                         <span class="text-success">MZN ${item.unit_price.toFixed(2).replace('.', ',')}</span> x ${item.quantity}` :
                                     `MZN ${item.unit_price.toFixed(2).replace('.', ',')} x ${item.quantity}`
                                 }
                             </div>
@@ -1909,8 +2005,7 @@
                         this.innerHTML = '<i class="fas fa-save me-2"></i> Criar Pedido';
                     });
             });
-
-            // ===== GERENCIAMENTO DE DÍVIDAS =====
+            // ===== GERENCIAMENTO DE DÍVIDAS (Corrigido) =====
             document.getElementById('save-as-debt').addEventListener('click', function() {
                 if (cart.length === 0) {
                     showToast('Adicione itens ao carrinho!', 'error');
@@ -1918,10 +2013,13 @@
                 }
 
                 // Preencher dados automaticamente
-                document.getElementById('debt_customer_name').value = document.getElementById(
-                    'customer_name').value || '';
-                document.getElementById('debt_customer_phone').value = document.getElementById(
-                    'customer_phone').value || '';
+                const customerNameField = document.getElementById('customer_name');
+                const customerPhoneField = document.getElementById('customer_phone');
+
+                document.getElementById('debt_customer_name').value = customerNameField ? customerNameField
+                    .value || '' : '';
+                document.getElementById('debt_customer_phone').value = customerPhoneField ?
+                    customerPhoneField.value || '' : '';
                 document.getElementById('debt_date').value = new Date().toISOString().split('T')[0];
 
                 // Data de vencimento padrão: 30 dias
@@ -1931,26 +2029,79 @@
 
                 // Gerar descrição baseada nos itens
                 const itemsDescription = cart.map(item => `${item.name} (${item.quantity}x)`).join(', ');
-                document.getElementById('debt_description').value = `Venda a crédito: ${itemsDescription}`;
+                const maxDescLength = 200; // Limitar descrição
+                let description = `Venda a crédito: ${itemsDescription}`;
+                if (description.length > maxDescLength) {
+                    description = description.substring(0, maxDescLength) + '...';
+                }
+                document.getElementById('debt_description').value = description;
 
-                // Preparar dados dos produtos para o controller
+                // Preparar dados dos produtos para o controller (formato correto)
                 const debtProducts = cart.map(item => ({
                     product_id: item.product_id,
                     quantity: item.quantity,
-                    unit_price: item.unit_price
+                    unit_price: item.unit_price,
+                    // Manter informações extras para referência
+                    name: item.name,
+                    type: item.type
                 }));
 
                 document.getElementById('debt-items-input').value = JSON.stringify(debtProducts);
+
+                // Mostrar resumo dos itens no offcanvas
+                updateDebtItemsSummary();
 
                 const offcanvas = new bootstrap.Offcanvas(document.getElementById('debtCreationOffcanvas'));
                 offcanvas.show();
             });
 
-            // ===== SUBMETER FORMULÁRIO DE DÍVIDA =====
+            // ===== FUNÇÃO PARA MOSTRAR RESUMO DOS ITENS NA DÍVIDA =====
+            function updateDebtItemsSummary() {
+                // Criar ou atualizar seção de resumo no offcanvas
+                let summaryContainer = document.getElementById('debt-items-summary');
+                if (!summaryContainer) {
+                    // Criar container se não existe
+                    summaryContainer = document.createElement('div');
+                    summaryContainer.id = 'debt-items-summary';
+                    summaryContainer.className = 'mb-3';
+
+                    // Inserir antes do campo de observações
+                    const notesField = document.getElementById('debt_notes').parentElement;
+                    notesField.parentNode.insertBefore(summaryContainer, notesField);
+                }
+
+                let totalValue = 0;
+                let itemsHtml =
+                    '<div class="card"><div class="card-header"><h6 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Itens da Dívida</h6></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead class="table-light"><tr><th>Item</th><th class="text-center">Qtd</th><th class="text-end">Valor</th></tr></thead><tbody>';
+
+                cart.forEach(item => {
+                    const itemTotal = item.quantity * item.unit_price;
+                    totalValue += itemTotal;
+
+                    itemsHtml += `
+            <tr>
+                <td>
+                    <div class="fw-semibold">${item.name}</div>
+                    <small class="text-muted">${item.type === 'product' ? 'Produto' : 'Serviço'}</small>
+                </td>
+                <td class="text-center">${item.quantity}x</td>
+                <td class="text-end">MT ${itemTotal.toFixed(2).replace('.', ',')}</td>
+            </tr>
+        `;
+                });
+
+                itemsHtml +=
+                    `</tbody><tfoot class="table-light"><tr><td colspan="2" class="text-end fw-bold">Total:</td><td class="text-end fw-bold text-primary">MT ${totalValue.toFixed(2).replace('.', ',')}</td></tr></tfoot></table></div></div></div>`;
+
+                summaryContainer.innerHTML = itemsHtml;
+            }
+
+            // ===== SUBMETER FORMULÁRIO DE DÍVIDA (Corrigido) =====
             document.getElementById('submit-debt-form').addEventListener('click', function() {
-                const errorMessages = [];
+                const submitBtn = this;
 
                 // Validações
+                const errorMessages = [];
                 const customerName = document.getElementById('debt_customer_name').value.trim();
                 const debtDate = document.getElementById('debt_date').value;
                 const dueDate = document.getElementById('due_date').value;
@@ -1959,6 +2110,8 @@
                 if (!customerName) errorMessages.push('Nome do cliente é obrigatório.');
                 if (!debtDate) errorMessages.push('Data da dívida é obrigatória.');
                 if (!description) errorMessages.push('Descrição é obrigatória.');
+                if (cart.length === 0) errorMessages.push('Carrinho vazio.');
+
                 if (dueDate && new Date(dueDate) < new Date(debtDate)) {
                     errorMessages.push('Data de vencimento deve ser posterior à data da dívida.');
                 }
@@ -1968,34 +2121,36 @@
                     return;
                 }
 
-                // Preparar dados
+                // Desabilitar botão e mostrar loading
+                submitBtn.disabled = true;
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando Dívida...';
+
+                // Preparar dados para envio
                 const formData = new FormData();
                 formData.append('customer_name', customerName);
-                formData.append('customer_phone', document.getElementById('debt_customer_phone').value);
+                formData.append('customer_phone', document.getElementById('debt_customer_phone').value ||
+                    '');
                 formData.append('debt_date', debtDate);
-                formData.append('due_date', dueDate);
+                formData.append('due_date', dueDate || '');
                 formData.append('description', description);
-                formData.append('notes', document.getElementById('debt_notes').value);
+                formData.append('notes', document.getElementById('debt_notes').value || '');
                 formData.append('products', document.getElementById('debt-items-input').value);
 
-                this.disabled = true;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando...';
-
-                // URL da rota de dívidas (assumindo que existe)
-                const debtStoreUrl = '/debts'; // Você pode precisar ajustar esta URL conforme sua aplicação
-
-                fetch(debtStoreUrl, {
+                // Fazer requisição para a rota correta
+                fetch('/debts/from-sale', {
                         method: 'POST',
                         body: formData,
                         headers: {
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
                                 .getAttribute('content'),
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
                     })
                     .then(response => {
                         if (!response.ok) {
-                            throw new Error('Erro na requisição');
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                         return response.json();
                     })
@@ -2003,14 +2158,26 @@
                         if (data.success) {
                             showToast(data.message || 'Dívida criada com sucesso!', 'success');
 
-                            // Limpar carrinho
+                            // Limpar carrinho e dados
                             cart = [];
-                            generalDiscount = {
-                                value: 0,
-                                type: 'fixed',
-                                reason: ''
-                            };
-                            updateCartDisplay();
+                            if (typeof generalDiscount !== 'undefined') {
+                                generalDiscount = {
+                                    value: 0,
+                                    type: 'fixed',
+                                    reason: ''
+                                };
+                            }
+
+                            // Atualizar display do carrinho
+                            if (typeof updateCartDisplay === 'function') {
+                                updateCartDisplay();
+                            }
+
+                            // Limpar campos do cliente se existirem
+                            ['customer_name', 'customer_phone', 'customer_email'].forEach(fieldId => {
+                                const field = document.getElementById(fieldId);
+                                if (field) field.value = '';
+                            });
 
                             // Fechar offcanvas
                             const offcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
@@ -2019,29 +2186,84 @@
                                 offcanvas.hide();
                             }
 
-                            // Redirecionar após pequeno delay
+                            // Redirecionar após delay
                             setTimeout(() => {
                                 if (data.redirect) {
                                     window.location.href = data.redirect;
                                 } else {
-                                    // Fallback para route de dívidas
+                                    // Fallback para lista de dívidas
                                     window.location.href = '/debts';
                                 }
                             }, 1500);
                         } else {
-                            throw new Error(data.message || 'Erro ao criar dívida');
+                            // Erro retornado pela API
+                            throw new Error(data.message || 'Erro desconhecido ao criar dívida');
                         }
                     })
-                    .catch(err => {
-                        console.error('Erro:', err);
-                        showToast(err.message || 'Erro de conexão. Tente novamente.', 'error');
+                    .catch(error => {
+                        console.error('Erro ao criar dívida:', error);
+
+                        let errorMessage = 'Erro de conexão. Tente novamente.';
+
+                        if (error.message) {
+                            errorMessage = error.message;
+                        }
+
+                        showToast(errorMessage, 'error');
                     })
                     .finally(() => {
-                        this.disabled = false;
-                        this.innerHTML = '<i class="fas fa-save me-2"></i> Criar Dívida';
+                        // Restaurar botão
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
                     });
             });
 
+            // ===== LIMPAR FORMULÁRIO DE DÍVIDA AO FECHAR =====
+            document.getElementById('debtCreationOffcanvas').addEventListener('hidden.bs.offcanvas', function() {
+                // Limpar campos do formulário
+                document.getElementById('debt_customer_name').value = '';
+                document.getElementById('debt_customer_phone').value = '';
+                document.getElementById('debt_description').value = 'Venda a crédito';
+                document.getElementById('debt_notes').value = '';
+                document.getElementById('debt-items-input').value = '';
+
+                // Remover resumo de itens se existe
+                const summaryContainer = document.getElementById('debt-items-summary');
+                if (summaryContainer) {
+                    summaryContainer.remove();
+                }
+            });
+
+            // ===== VALIDAÇÃO EM TEMPO REAL =====
+            document.getElementById('debt_customer_name').addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+
+            document.getElementById('debt_date').addEventListener('change', function() {
+                this.classList.remove('is-invalid');
+
+                // Atualizar data de vencimento automaticamente se não foi definida
+                const dueDate = document.getElementById('due_date');
+                if (!dueDate.value && this.value) {
+                    const newDueDate = new Date(this.value);
+                    newDueDate.setDate(newDueDate.getDate() + 30);
+                    dueDate.value = newDueDate.toISOString().split('T')[0];
+                }
+            });
+
+            document.getElementById('due_date').addEventListener('change', function() {
+                const debtDate = document.getElementById('debt_date').value;
+                if (debtDate && this.value && new Date(this.value) < new Date(debtDate)) {
+                    this.classList.add('is-invalid');
+                    showToast('Data de vencimento deve ser posterior à data da dívida', 'warning');
+                } else {
+                    this.classList.remove('is-invalid');
+                }
+            });
+
+            document.getElementById('debt_description').addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
             // ===== FUNCÕES UTILITÁRIAS =====
 
             // Função para formatar valores monetários
@@ -2202,7 +2424,7 @@
 
             // Inicializar display do carrinho
             updateCartDisplay();
-            
+
             // Inicializar estatísticas
             updateStats();
 

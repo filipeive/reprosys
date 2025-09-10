@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,16 +21,23 @@ class DebtController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Debt::with(['user', 'payments', 'items.product'])
+        $query = Debt::with(['user', 'employee', 'payments', 'items.product'])
             ->latest();
 
         // Filtros
+        if ($request->filled('debt_type')) {
+            $query->where('debt_type', $request->debt_type);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         if ($request->filled('customer')) {
-            $query->where('customer_name', 'like', '%' . $request->customer . '%');
+            $query->where(function($q) use ($request) {
+                $q->where('customer_name', 'like', '%' . $request->customer . '%')
+                  ->orWhere('employee_name', 'like', '%' . $request->customer . '%');
+            });
         }
 
         if ($request->filled('overdue_only')) {
@@ -47,40 +55,108 @@ class DebtController extends Controller
 
         $debts = $query->paginate(15);
 
-        // Estatísticas
+        // Estatísticas separadas por tipo
         $stats = [
+            // Estatísticas gerais
             'total_active' => Debt::where('status', 'active')->sum('remaining_amount'),
             'total_overdue' => Debt::where('status', 'active')
                                   ->where('due_date', '<', now()->toDateString())
                                   ->sum('remaining_amount'),
             'count_active' => Debt::where('status', 'active')->count(),
-            'count_overdue' => Debt::where('status', 'active')
-                                  ->where('due_date', '<', now()->toDateString())
-                                  ->count(),
             'count_paid_this_month' => Debt::where('status', 'paid')
                 ->whereMonth('updated_at', now()->month)
-                ->count()
+                ->count(),
+            
+            // Estatísticas de produtos
+            'product_debts' => [
+                'total_active' => Debt::productDebts()->where('status', 'active')->sum('remaining_amount'),
+                'count_active' => Debt::productDebts()->where('status', 'active')->count(),
+                'total_overdue' => Debt::productDebts()->where('status', 'active')
+                                      ->where('due_date', '<', now()->toDateString())
+                                      ->sum('remaining_amount'),
+            ],
+            
+            // Estatísticas de dinheiro (funcionários)
+            'money_debts' => [
+                'total_active' => Debt::moneyDebts()->where('status', 'active')->sum('remaining_amount'),
+                'count_active' => Debt::moneyDebts()->where('status', 'active')->count(),
+                'total_overdue' => Debt::moneyDebts()->where('status', 'active')
+                                     ->where('due_date', '<', now()->toDateString())
+                                     ->sum('remaining_amount'),
+            ]
         ];
 
         $products = Product::where('is_active', true)->get();
+        $employees = User::where('is_active', true)->orderBy('name')->get();
 
-        return view('debts.index', compact('debts', 'stats', 'products'));
+        return view('debts.index', compact('debts', 'stats', 'products', 'employees'));
     }
 
     /**
-     * Criar nova dívida com produtos
+     * Criar nova dívida
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'customer_name' => 'required|string|max:100',
-            'customer_phone' => 'nullable|string|max:20',
-            'customer_document' => 'nullable|string|max:20',
+        // Validação base
+        $baseRules = [
+            'debt_type' => 'required|in:product,money',
             'debt_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:debt_date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string',
             'initial_payment' => 'nullable|numeric|min:0',
+        ];
+
+        // Validação específica por tipo
+        if ($request->debt_type === 'product') {
+            $specificRules = [
+                'customer_name' => 'required|string|max:100',
+                'customer_phone' => 'nullable|string|max:20',
+                'customer_document' => 'nullable|string|max:20',
+                'products' => 'required|string', // JSON dos produtos
+            ];
+        } else {
+            $specificRules = [
+                'employee_id' => 'required|exists:users,id',
+                'employee_name' => 'required|string|max:100',
+                'employee_phone' => 'nullable|string|max:20',
+                'employee_document' => 'nullable|string|max:20',
+                'amount' => 'required|numeric|min:0.01', // Valor da dívida de dinheiro
+            ];
+        }
+
+        $request->validate(array_merge($baseRules, $specificRules));
+
+        try {
+            if ($request->debt_type === 'product') {
+                return $this->storeProductDebt($request);
+            } else {
+                return $this->storeMoneyDebt($request);
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar dívida: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'request_data' => $request->all()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
+     * Criar dívida a partir de uma venda (carrinho de vendas)
+     */
+    public function storeFromSale(Request $request)
+    {
+        $request->validate([
+            'customer_name' => 'required|string|max:100',
+            'customer_phone' => 'nullable|string|max:20',
+            'debt_date' => 'required|date',
+            'due_date' => 'nullable|date|after_or_equal:debt_date',
+            'description' => 'required|string|max:255',
+            'notes' => 'nullable|string',
             'products' => 'required|string' // JSON string dos produtos
         ]);
 
@@ -95,49 +171,41 @@ class DebtController extends Controller
                 ], 400);
             }
 
-            // Validar estrutura dos produtos
-            foreach ($products as $index => $productData) {
-                if (!isset($productData['product_id']) || !isset($productData['quantity']) || !isset($productData['unit_price'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Produto #{$index} com dados incompletos."
-                    ], 400);
-                }
-
-                if ($productData['quantity'] <= 0 || $productData['unit_price'] < 0) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Quantidade e preço devem ser valores positivos."
-                    ], 400);
-                }
-            }
-
             $debt = DB::transaction(function () use ($request, $products) {
-                // Validar estoque disponível
+                // Validar produtos e estoque
+                $totalAmount = 0;
+                $validatedProducts = [];
+                
                 foreach ($products as $productData) {
-                    $product = Product::find($productData['product_id']);
+                    if (!isset($productData['product_id']) || !isset($productData['quantity']) || !isset($productData['unit_price'])) {
+                        throw new \Exception('Dados de produto incompletos.');
+                    }
                     
+                    $product = Product::find($productData['product_id']);
                     if (!$product) {
                         throw new \Exception("Produto não encontrado: ID {$productData['product_id']}");
                     }
 
+                    // Para produtos físicos, verificar estoque
                     if ($product->type === 'product' && $product->stock_quantity < $productData['quantity']) {
                         throw new \Exception("Estoque insuficiente para o produto: {$product->name}. Disponível: {$product->stock_quantity}");
                     }
-                }
 
-                // Calcular total
-                $totalAmount = 0;
-                foreach ($products as $productData) {
+                    $validatedProducts[] = [
+                        'product' => $product,
+                        'quantity' => (int)$productData['quantity'],
+                        'unit_price' => (float)$productData['unit_price']
+                    ];
+
                     $totalAmount += $productData['quantity'] * $productData['unit_price'];
                 }
 
                 // Criar a dívida
                 $debt = Debt::create([
+                    'debt_type' => 'product',
                     'user_id' => auth()->id(),
                     'customer_name' => $request->customer_name,
                     'customer_phone' => $request->customer_phone,
-                    'customer_document' => $request->customer_document,
                     'original_amount' => $totalAmount,
                     'remaining_amount' => $totalAmount,
                     'debt_date' => $request->debt_date,
@@ -148,55 +216,33 @@ class DebtController extends Controller
                 ]);
 
                 // Adicionar itens da dívida e movimentar estoque
-                foreach ($products as $productData) {
-                    $product = Product::find($productData['product_id']);
-                    $subtotal = $productData['quantity'] * $productData['unit_price'];
+                foreach ($validatedProducts as $item) {
+                    $subtotal = $item['quantity'] * $item['unit_price'];
 
                     // Criar item da dívida
                     DebtItem::create([
                         'debt_id' => $debt->id,
-                        'product_id' => $product->id,
-                        'quantity' => $productData['quantity'],
-                        'unit_price' => $productData['unit_price'],
+                        'product_id' => $item['product']->id,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
                         'total_price' => $subtotal
                     ]);
 
                     // Movimentar estoque apenas para produtos físicos
-                    if ($product->type === 'product') {
-                        $product->decrement('stock_quantity', $productData['quantity']);
+                    if ($item['product']->type === 'product') {
+                        $item['product']->decrement('stock_quantity', $item['quantity']);
 
                         // Registrar movimento de estoque
                         StockMovement::create([
-                            'product_id' => $product->id,
+                            'product_id' => $item['product']->id,
                             'user_id' => auth()->id(),
                             'movement_type' => 'out',
-                            'quantity' => $productData['quantity'],
-                            'reason' => 'Dívida',
+                            'quantity' => $item['quantity'],
+                            'reason' => 'Venda convertida em dívida',
                             'reference_id' => $debt->id,
                             'movement_date' => $request->debt_date
                         ]);
                     }
-                }
-
-                // Registrar pagamento inicial se houver
-                if ($request->filled('initial_payment') && $request->initial_payment > 0) {
-                    $initialPayment = min($request->initial_payment, $totalAmount);
-                    
-                    DebtPayment::create([
-                        'debt_id' => $debt->id,
-                        'user_id' => auth()->id(),
-                        'amount' => $initialPayment,
-                        'payment_method' => 'cash',
-                        'payment_date' => $request->debt_date,
-                        'notes' => 'Pagamento inicial (entrada)'
-                    ]);
-
-                    // Atualizar valor restante
-                    $debt->remaining_amount = $totalAmount - $initialPayment;
-                    if ($debt->remaining_amount <= 0) {
-                        $debt->status = 'paid';
-                    }
-                    $debt->save();
                 }
 
                 return $debt;
@@ -205,17 +251,19 @@ class DebtController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Dívida criada com sucesso! Estoque atualizado.',
+                'debt_id' => $debt->id,
                 'redirect' => route('debts.show', $debt)
             ]);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Dados inválidos: ' . implode(' ', $e->validator->errors()->all())
+                'message' => 'Dados inválidos fornecidos.',
+                'errors' => $e->validator->errors()
             ], 422);
             
         } catch (\Exception $e) {
-            Log::error('Erro ao criar dívida: ' . $e->getMessage(), [
+            Log::error('Erro ao criar dívida a partir de venda: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'request_data' => $request->all()
             ]);
@@ -226,6 +274,354 @@ class DebtController extends Controller
             ], 500);
         }
     }
+    /**
+     * Criar dívida de produtos
+     */
+    private function storeProductDebt(Request $request)
+    {
+        // Decodificar produtos
+        $products = json_decode($request->products, true);
+        
+        if (!$products || !is_array($products) || empty($products)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nenhum produto foi fornecido para a dívida.'
+            ], 400);
+        }
+
+        // Validar estrutura dos produtos
+        foreach ($products as $index => $productData) {
+            if (!isset($productData['product_id']) || !isset($productData['quantity']) || !isset($productData['unit_price'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Produto #{$index} com dados incompletos."
+                ], 400);
+            }
+        }
+
+        $debt = DB::transaction(function () use ($request, $products) {
+            // Validar estoque disponível
+            foreach ($products as $productData) {
+                $product = Product::find($productData['product_id']);
+                
+                if (!$product) {
+                    throw new \Exception("Produto não encontrado: ID {$productData['product_id']}");
+                }
+
+                if ($product->type === 'product' && $product->stock_quantity < $productData['quantity']) {
+                    throw new \Exception("Estoque insuficiente para o produto: {$product->name}");
+                }
+            }
+
+            // Calcular total
+            $totalAmount = 0;
+            foreach ($products as $productData) {
+                $totalAmount += $productData['quantity'] * $productData['unit_price'];
+            }
+
+            // Criar a dívida
+            $debt = Debt::create([
+                'debt_type' => 'product',
+                'user_id' => auth()->id(),
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
+                'customer_document' => $request->customer_document,
+                'original_amount' => $totalAmount,
+                'remaining_amount' => $totalAmount,
+                'debt_date' => $request->debt_date,
+                'due_date' => $request->due_date ?: now()->addDays(30)->toDateString(),
+                'status' => 'active',
+                'description' => $request->description,
+                'notes' => $request->notes
+            ]);
+
+            // Adicionar itens da dívida e movimentar estoque
+            foreach ($products as $productData) {
+                $product = Product::find($productData['product_id']);
+                $subtotal = $productData['quantity'] * $productData['unit_price'];
+
+                DebtItem::create([
+                    'debt_id' => $debt->id,
+                    'product_id' => $product->id,
+                    'quantity' => $productData['quantity'],
+                    'unit_price' => $productData['unit_price'],
+                    'total_price' => $subtotal
+                ]);
+
+                // Movimentar estoque apenas para produtos físicos
+                if ($product->type === 'product') {
+                    $product->decrement('stock_quantity', $productData['quantity']);
+
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'out',
+                        'quantity' => $productData['quantity'],
+                        'reason' => 'Dívida de produtos',
+                        'reference_id' => $debt->id,
+                        'movement_date' => $request->debt_date
+                    ]);
+                }
+            }
+
+            // Processar pagamento inicial se houver
+            $this->processInitialPayment($debt, $request);
+
+            return $debt;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dívida de produtos criada com sucesso!',
+            'redirect' => route('debts.show', $debt)
+        ]);
+    }
+
+    /**
+     * Criar dívida de dinheiro
+     */
+    private function storeMoneyDebt(Request $request)
+    {
+        $debt = DB::transaction(function () use ($request) {
+            // Buscar dados do funcionário
+            $employee = User::find($request->employee_id);
+            
+            if (!$employee) {
+                throw new \Exception('Funcionário não encontrado.');
+            }
+
+            $totalAmount = $request->amount;
+
+            // Criar a dívida
+            $debt = Debt::create([
+                'debt_type' => 'money',
+                'user_id' => auth()->id(),
+                'employee_id' => $employee->id,
+                'employee_name' => $request->employee_name ?: $employee->name,
+                'employee_phone' => $request->employee_phone ?: $employee->phone,
+                'employee_document' => $request->employee_document,
+                'original_amount' => $totalAmount,
+                'remaining_amount' => $totalAmount,
+                'debt_date' => $request->debt_date,
+                'due_date' => $request->due_date ?: now()->addDays(30)->toDateString(),
+                'status' => 'active',
+                'description' => $request->description,
+                'notes' => $request->notes
+            ]);
+
+            // Processar pagamento inicial se houver
+            $this->processInitialPayment($debt, $request);
+
+            return $debt;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dívida de dinheiro criada com sucesso!',
+            'redirect' => route('debts.show', $debt)
+        ]);
+    }
+
+    /**
+     * Processar pagamento inicial
+     */
+    private function processInitialPayment(Debt $debt, Request $request)
+    {
+        if ($request->filled('initial_payment') && $request->initial_payment > 0) {
+            $initialPayment = min($request->initial_payment, $debt->original_amount);
+            
+            DebtPayment::create([
+                'debt_id' => $debt->id,
+                'user_id' => auth()->id(),
+                'amount' => $initialPayment,
+                'payment_method' => 'cash',
+                'payment_date' => $request->debt_date,
+                'notes' => 'Pagamento inicial (entrada)'
+            ]);
+
+            // Atualizar valor restante
+            $debt->remaining_amount = $debt->original_amount - $initialPayment;
+            if ($debt->remaining_amount <= 0) {
+                $debt->status = 'paid';
+                
+                // Criar venda se for dívida de produtos
+                if ($debt->isProductDebt()) {
+                    $this->createSaleFromPaidDebt($debt);
+                }
+            }
+            $debt->save();
+        }
+    }
+
+    /**
+     * Registrar pagamento
+     */
+    public function addPayment(Request $request, Debt $debt)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:' . $debt->remaining_amount,
+            'payment_method' => 'required|in:cash,card,transfer,mpesa,emola',
+            'payment_date' => 'required|date|before_or_equal:today',
+            'notes' => 'nullable|string|max:500',
+            'create_sale' => 'sometimes|boolean' // Opção para criar venda
+        ]);
+
+        if (!$debt->canReceivePayment()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta dívida não pode receber pagamentos.'
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($debt, $request) {
+                // Criar pagamento
+                $payment = $debt->payments()->create([
+                    'user_id' => auth()->id(),
+                    'amount' => $request->amount,
+                    'payment_method' => $request->payment_method,
+                    'payment_date' => $request->payment_date,
+                    'notes' => $request->notes
+                ]);
+
+                // Atualizar valor restante
+                $debt->remaining_amount -= $request->amount;
+                
+                if ($debt->remaining_amount <= 0) {
+                    $debt->status = 'paid';
+                    $debt->remaining_amount = 0;
+                    
+                    // Criar venda automática se for dívida de produtos
+                    if ($debt->isProductDebt() && ($request->create_sale ?? true)) {
+                        $this->createSaleFromPaidDebt($debt);
+                    }
+                }
+                
+                $debt->save();
+            });
+
+            $message = $debt->status === 'paid'
+                ? ($debt->isProductDebt() 
+                   ? 'Dívida quitada com sucesso! Venda registrada automaticamente.'
+                   : 'Dívida quitada com sucesso!')
+                : 'Pagamento registrado com sucesso.';
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao registrar pagamento: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar pagamento.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Criar venda automática quando dívida de produtos é totalmente paga
+     */
+    private function createSaleFromPaidDebt(Debt $debt)
+    {
+        if (!$debt->isProductDebt() || !$debt->hasItems()) {
+            return null;
+        }
+
+        try {
+            $sale = DB::transaction(function () use ($debt) {
+                $sale = Sale::create([
+                    'user_id' => $debt->user_id,
+                    'customer_name' => $debt->customer_name,
+                    'customer_phone' => $debt->customer_phone,
+                    'subtotal' => $debt->original_amount,
+                    'total_amount' => $debt->original_amount,
+                    'payment_method' => 'mixed', // Múltiplas formas de pagamento
+                    'sale_date' => now(),
+                    'notes' => "Venda gerada automaticamente da dívida #{$debt->id} - {$debt->description}",
+                ]);
+
+                // Copiar itens da dívida para a venda
+                foreach ($debt->items as $debtItem) {
+                    SaleItem::create([
+                        'sale_id' => $sale->id,
+                        'product_id' => $debtItem->product_id,
+                        'quantity' => $debtItem->quantity,
+                        'original_unit_price' => $debtItem->unit_price,
+                        'unit_price' => $debtItem->unit_price,
+                        'total_price' => $debtItem->total_price
+                    ]);
+                }
+
+                // Atualizar referência na dívida
+                $debt->update(['generated_sale_id' => $sale->id]);
+
+                return $sale;
+            });
+
+            Log::info("Venda #{$sale->id} criada automaticamente da dívida #{$debt->id}");
+            return $sale;
+            
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar venda da dívida #{$debt->id}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Cancelar dívida
+     */
+    public function cancel(Debt $debt)
+    {
+        if (!$debt->canBeCancelled()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta dívida não pode ser cancelada.'
+            ], 400);
+        }
+
+        try {
+            DB::transaction(function () use ($debt) {
+                // Para dívidas de produtos, devolver estoque
+                if ($debt->isProductDebt()) {
+                    foreach ($debt->items as $item) {
+                        if ($item->product->type === 'product') {
+                            $item->product->increment('stock_quantity', $item->quantity);
+
+                            StockMovement::create([
+                                'product_id' => $item->product_id,
+                                'user_id' => auth()->id(),
+                                'movement_type' => 'in',
+                                'quantity' => $item->quantity,
+                                'reason' => 'Cancelamento de dívida',
+                                'reference_id' => $debt->id,
+                                'movement_date' => now()->toDateString()
+                            ]);
+                        }
+                    }
+                }
+
+                $debt->update(['status' => 'cancelled']);
+            });
+
+            $message = $debt->isProductDebt() 
+                ? 'Dívida cancelada e estoque devolvido com sucesso!'
+                : 'Dívida cancelada com sucesso!';
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao cancelar dívida: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao cancelar dívida.'
+            ], 500);
+        }
+    }
 
     /**
      * Mostrar detalhes da dívida
@@ -233,30 +629,103 @@ class DebtController extends Controller
     public function show(Debt $debt)
     {   
         $products = Product::where('is_active', true)->get();
-        $debt->load(['user', 'items.product.category', 'payments.user']);
-        return view('debts.show', compact('debt', 'products'));
+        $employees = User::where('is_active', true)->orderBy('name')->get();
+        $debt->load(['user', 'employee', 'items.product.category', 'payments.user', 'generatedSale']);
+        
+        return view('debts.show', compact('debt', 'products', 'employees'));
     }
 
     /**
-     * Atualizar dívida (apenas dados básicos - produtos não editáveis após criação)
+     * Mostrar detalhes da dívida (para offcanvas)
+     */
+    public function showDetails(Debt $debt)
+    {
+        $debt->load(['user', 'employee', 'items.product.category', 'payments.user', 'generatedSale']);
+
+        $html = view('debts.partials.details', compact('debt'))->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html
+        ]);
+    }
+
+    /**
+     * Dados para edição (AJAX)
+     */
+    public function editData(Debt $debt)
+    {
+        $debt->load(['items.product', 'employee']);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $debt
+        ]);
+    }
+
+    /**
+     * Atualizar dívida
      */
     public function update(Request $request, Debt $debt)
     {
-        $request->validate([
-            'customer_name' => 'required|string|max:100',
-            'customer_phone' => 'nullable|string|max:20',
-            'customer_document' => 'nullable|string|max:20',
+        // Validação base
+        $baseRules = [
             'due_date' => 'nullable|date|after_or_equal:debt_date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string'
-        ]);
+        ];
+
+        // Validação específica por tipo
+        if ($debt->isProductDebt()) {
+            $specificRules = [
+                'customer_name' => 'required|string|max:100',
+                'customer_phone' => 'nullable|string|max:20',
+                'customer_document' => 'nullable|string|max:20',
+            ];
+        } else {
+            $specificRules = [
+                'employee_name' => 'required|string|max:100',
+                'employee_phone' => 'nullable|string|max:20',
+                'employee_document' => 'nullable|string|max:20',
+            ];
+        }
+
+        $request->validate(array_merge($baseRules, $specificRules));
+
+        if (!$debt->canBeEdited()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta dívida não pode ser editada.'
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', 'Esta dívida não pode ser editada.');
+        }
 
         try {
             DB::transaction(function () use ($debt, $request) {
-                $debt->update($request->only([
-                    'customer_name', 'customer_phone', 'customer_document',
-                    'due_date', 'description', 'notes'
-                ]));
+                $updateData = [
+                    'due_date' => $request->due_date,
+                    'description' => $request->description,
+                    'notes' => $request->notes
+                ];
+
+                if ($debt->isProductDebt()) {
+                    $updateData = array_merge($updateData, [
+                        'customer_name' => $request->customer_name,
+                        'customer_phone' => $request->customer_phone,
+                        'customer_document' => $request->customer_document,
+                    ]);
+                } else {
+                    $updateData = array_merge($updateData, [
+                        'employee_name' => $request->employee_name,
+                        'employee_phone' => $request->employee_phone,
+                        'employee_document' => $request->employee_document,
+                    ]);
+                }
+
+                $debt->update($updateData);
             });
 
             if ($request->expectsJson()) {
@@ -286,100 +755,16 @@ class DebtController extends Controller
     }
 
     /**
-     * Mostrar detalhes da dívida (para offcanvas)
-     */
-    public function showDetails(Debt $debt)
-    {
-        $debt->load(['user', 'items.product.category', 'payments.user']);
-
-        $html = view('debts.partials.details', compact('debt'))->render();
-
-        return response()->json([
-            'success' => true,
-            'html' => $html
-        ]);
-    }
-
-    /**
-     * Dados para edição (AJAX)
-     */
-    public function editData(Debt $debt)
-    {
-        $debt->load('items.product');
-        
-        return response()->json([
-            'success' => true,
-            'data' => $debt
-        ]);
-    }
-
-    /**
-     * Registrar pagamento
-     */
-    public function addPayment(Request $request, Debt $debt)
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $debt->remaining_amount,
-            'payment_method' => 'required|in:cash,card,transfer,mpesa,emola',
-            'payment_date' => 'required|date|before_or_equal:today',
-            'notes' => 'nullable|string|max:500'
-        ]);
-
-        if ($debt->status !== 'active') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Não é possível adicionar pagamento a esta dívida.'
-            ], 400);
-        }
-
-        try {
-            DB::transaction(function () use ($debt, $request) {
-                $payment = $debt->payments()->create([
-                    'user_id' => auth()->id(),
-                    'amount' => $request->amount,
-                    'payment_method' => $request->payment_method,
-                    'payment_date' => $request->payment_date,
-                    'notes' => $request->notes
-                ]);
-
-                // Atualizar valor restante
-                $debt->remaining_amount -= $request->amount;
-                
-                if ($debt->remaining_amount <= 0) {
-                    $debt->status = 'paid';
-                    $debt->remaining_amount = 0;
-                    
-                    // Criar venda automática quando totalmente pago
-                    $this->createSaleFromPaidDebt($debt);
-                }
-                
-                $debt->save();
-            });
-
-            $message = $debt->status === 'paid'
-                ? 'Dívida quitada com sucesso! Venda registrada automaticamente.'
-                : 'Pagamento registrado com sucesso.';
-
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Erro ao registrar pagamento: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao registrar pagamento.'
-            ], 500);
-        }
-    }
-
-    /**
-     * Marcar como paga
+     * Marcar como paga (com opção de criar venda)
      */
     public function markAsPaid(Request $request, Debt $debt)
     {
-        if ($debt->status !== 'active') {
+        $request->validate([
+            'payment_method' => 'required|in:cash,card,transfer,mpesa,emola',
+            'create_sale' => 'sometimes|boolean'
+        ]);
+
+        if (!$debt->canBeMarkedAsPaid()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Esta dívida não pode ser marcada como paga.'
@@ -388,12 +773,12 @@ class DebtController extends Controller
 
         try {
             DB::transaction(function () use ($debt, $request) {
-                // Criar pagamento final
+                // Criar pagamento final se necessário
                 if ($debt->remaining_amount > 0) {
                     $debt->payments()->create([
                         'user_id' => auth()->id(),
                         'amount' => $debt->remaining_amount,
-                        'payment_method' => $request->payment_method ?? 'cash',
+                        'payment_method' => $request->payment_method,
                         'payment_date' => now()->toDateString(),
                         'notes' => 'Pagamento final - quitação completa'
                     ]);
@@ -404,13 +789,19 @@ class DebtController extends Controller
                     'remaining_amount' => 0
                 ]);
 
-                // Criar venda automática
-                $this->createSaleFromPaidDebt($debt);
+                // Criar venda automática se solicitado e for dívida de produtos
+                if ($debt->isProductDebt() && ($request->create_sale ?? true)) {
+                    $this->createSaleFromPaidDebt($debt);
+                }
             });
+
+            $message = $debt->isProductDebt() && ($request->create_sale ?? true)
+                ? 'Dívida quitada e venda registrada com sucesso!'
+                : 'Dívida quitada com sucesso!';
 
             return response()->json([
                 'success' => true,
-                'message' => 'Dívida quitada com sucesso!'
+                'message' => $message
             ]);
             
         } catch (\Exception $e) {
@@ -423,157 +814,120 @@ class DebtController extends Controller
     }
 
     /**
-     * Criar venda automática quando dívida é totalmente paga
-     */
-    private function createSaleFromPaidDebt(Debt $debt)
-    {
-        try {
-            $sale = Sale::create([
-                'user_id' => $debt->user_id,
-                'customer_name' => $debt->customer_name,
-                'customer_phone' => $debt->customer_phone,
-                'total_amount' => $debt->original_amount,
-                'payment_method' => 'mixed',
-                'sale_date' => now(),
-                'notes' => "Venda gerada automaticamente da dívida #{$debt->id}",
-                'payment_status' => 'paid'
-            ]);
-
-            // Copiar itens da dívida para a venda
-            foreach ($debt->items as $debtItem) {
-                SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'product_id' => $debtItem->product_id,
-                    'quantity' => $debtItem->quantity,
-                    'unit_price' => $debtItem->unit_price,
-                    'total_price' => $debtItem->total_price
-                ]);
-            }
-
-            Log::info("Venda #{$sale->id} criada automaticamente da dívida #{$debt->id}");
-            return $sale;
-            
-        } catch (\Exception $e) {
-            Log::error("Erro ao criar venda da dívida #{$debt->id}: " . $e->getMessage());
-        }
-    }
-
-    /**
-     * Cancelar dívida (devolver estoque)
-     */
-    public function cancel(Debt $debt)
-    {
-        if ($debt->status === 'paid' || $debt->status === 'cancelled') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Esta dívida não pode ser cancelada.'
-            ], 400);
-        }
-
-        try {
-            DB::transaction(function () use ($debt) {
-                // Devolver estoque
-                foreach ($debt->items as $item) {
-                    if ($item->product->type === 'product') {
-                        $item->product->increment('stock_quantity', $item->quantity);
-
-                        // Registrar movimento de estoque
-                        StockMovement::create([
-                            'product_id' => $item->product_id,
-                            'user_id' => auth()->id(),
-                            'movement_type' => 'in',
-                            'quantity' => $item->quantity,
-                            'reason' => 'Cancelamento de dívida',
-                            'reference_id' => $debt->id,
-                            'movement_date' => now()->toDateString()
-                        ]);
-                    }
-                }
-
-                $debt->update(['status' => 'cancelled']);
-            });
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Dívida cancelada e estoque devolvido com sucesso!'
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Erro ao cancelar dívida: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao cancelar dívida.'
-            ], 500);
-        }
-    }
-
-    /**
-     * API para buscar produtos disponíveis
-     */
-    public function getAvailableProducts(Request $request)
-    {
-        $query = Product::with('category')
-            ->where('is_active', true);
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        $products = $query->orderBy('name')->get();
-
-        return response()->json([
-            'success' => true,
-            'products' => $products
-        ]);
-    }
-
-    /**
-     * API para buscar clientes
-     */
-    public function searchCustomers(Request $request)
-    {
-        $search = $request->get('q', '');
-        
-        $customers = Debt::select('customer_name', 'customer_phone')
-            ->where('customer_name', 'like', "%{$search}%")
-            ->orWhere('customer_phone', 'like', "%{$search}%")
-            ->groupBy('customer_name', 'customer_phone')
-            ->limit(10)
-            ->get();
-
-        return response()->json($customers);
-    }
-
-    /**
      * Relatório de devedores
      */
-    /**
- * Relatório de devedores (apenas dívidas ativas ou vencidas)
- */
     public function debtorsReport(Request $request)
     {
         $query = Debt::with(['payments'])
-            ->whereNotIn('status', ['paid', 'cancelled']) // ✅ Corrigido: exclui paid e cancelled
-            ->selectRaw('customer_name, customer_phone, SUM(remaining_amount) as total_debt, COUNT(*) as debt_count, MIN(debt_date) as oldest_debt')
-            ->groupBy('customer_name', 'customer_phone');
+            ->whereNotIn('status', ['paid', 'cancelled']);
+
+        // Filtro por tipo de dívida
+        if ($request->filled('debt_type')) {
+            $query->where('debt_type', $request->debt_type);
+        }
 
         if ($request->filled('customer')) {
-            $query->where('customer_name', 'like', '%' . $request->customer . '%');
+            $query->where(function($q) use ($request) {
+                $q->where('customer_name', 'like', '%' . $request->customer . '%')
+                  ->orWhere('employee_name', 'like', '%' . $request->customer . '%');
+            });
         }
-        $query->addSelect(DB::raw("
-            CASE 
-                WHEN MAX(due_date) < CURDATE() THEN 'Vencida'
-                ELSE 'Ativa'
-            END as status_group
-        "));
-        $debtors = $query->orderByDesc('total_debt')->paginate(20);
+
+        // Agrupar por devedor
+        if ($request->debt_type === 'money') {
+            $debtors = $query->selectRaw('
+                debt_type,
+                employee_name as debtor_name, 
+                employee_phone as debtor_phone, 
+                SUM(remaining_amount) as total_debt, 
+                COUNT(*) as debt_count, 
+                MIN(debt_date) as oldest_debt,
+                CASE 
+                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
+                    ELSE "Ativa"
+                END as status_group
+            ')
+            ->where('debt_type', 'money')
+            ->groupBy('debt_type', 'employee_name', 'employee_phone')
+            ->orderByDesc('total_debt')
+            ->paginate(20);
+        } else if ($request->debt_type === 'product') {
+            $debtors = $query->selectRaw('
+                debt_type,
+                customer_name as debtor_name, 
+                customer_phone as debtor_phone, 
+                SUM(remaining_amount) as total_debt, 
+                COUNT(*) as debt_count, 
+                MIN(debt_date) as oldest_debt,
+                CASE 
+                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
+                    ELSE "Ativa"
+                END as status_group
+            ')
+            ->where('debt_type', 'product')
+            ->groupBy('debt_type', 'customer_name', 'customer_phone')
+            ->orderByDesc('total_debt')
+            ->paginate(20);
+        } else {
+            // Relatório combinado
+            $productDebtors = $query->selectRaw('
+                debt_type,
+                customer_name as debtor_name, 
+                customer_phone as debtor_phone, 
+                SUM(remaining_amount) as total_debt, 
+                COUNT(*) as debt_count, 
+                MIN(debt_date) as oldest_debt,
+                CASE 
+                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
+                    ELSE "Ativa"
+                END as status_group
+            ')
+            ->where('debt_type', 'product')
+            ->groupBy('debt_type', 'customer_name', 'customer_phone');
+
+            $moneyDebtors = $query->selectRaw('
+                debt_type,
+                employee_name as debtor_name, 
+                employee_phone as debtor_phone, 
+                SUM(remaining_amount) as total_debt, 
+                COUNT(*) as debt_count, 
+                MIN(debt_date) as oldest_debt,
+                CASE 
+                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
+                    ELSE "Ativa"
+                END as status_group
+            ')
+            ->where('debt_type', 'money')
+            ->groupBy('debt_type', 'employee_name', 'employee_phone');
+
+            $debtors = $productDebtors->union($moneyDebtors)
+                ->orderByDesc('total_debt')
+                ->paginate(20);
+        }
 
         return view('debts.debtors-report', compact('debtors'));
     }
+
+    /**
+     * API para buscar funcionários
+     */
+    public function searchEmployees(Request $request)
+    {
+        $search = $request->get('q', '');
+        
+        $employees = User::where('is_active', true)
+            ->where(function($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%");
+            })
+            ->select('id', 'name', 'email', 'phone')
+            ->limit(10)
+            ->get();
+
+        return response()->json($employees);
+    }
+
     /**
      * Atualizar status de dívidas vencidas
      */
@@ -592,6 +946,54 @@ class DebtController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao atualizar status das dívidas.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Criar venda manual a partir de dívida paga
+     */
+    public function createManualSale(Request $request, Debt $debt)
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:500'
+        ]);
+
+        if (!$debt->isProductDebt() || $debt->status !== 'paid' || $debt->generated_sale_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não é possível criar venda para esta dívida.'
+            ], 400);
+        }
+
+        try {
+            $sale = $this->createSaleFromPaidDebt($debt);
+            
+            if ($sale) {
+                if ($request->filled('notes')) {
+                    $sale->update([
+                        'notes' => $sale->notes . "\n" . $request->notes
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Venda criada com sucesso!',
+                    'sale_id' => $sale->id,
+                    'redirect' => route('sales.show', $sale)
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar venda.'
+            ], 500);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar venda manual: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao criar venda.'
             ], 500);
         }
     }

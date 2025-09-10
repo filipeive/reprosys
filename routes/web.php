@@ -259,6 +259,9 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::middleware('permissions:create_debts')->group(function () {
             Route::get('/create', [DebtController::class, 'create'])->name('create');
             Route::post('/', [DebtController::class, 'store'])->name('store');
+            
+            // Criar dívida diretamente de uma venda (para integração com sales)
+            Route::post('/from-sale', [DebtController::class, 'storeFromSale'])->name('store-from-sale');
         });
         
         // Gerenciar pagamentos - manage_payments permission
@@ -273,7 +276,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
             Route::put('/{debt}', [DebtController::class, 'update'])->name('update');
             Route::get('/{debt}/edit-data', [DebtController::class, 'editData'])->name('edit-data');
         });
-    
+        
         // Cancelar/deletar dívidas - delete_debts permission
         Route::middleware('permissions:delete_debts')->group(function () {
             Route::patch('/{debt}/cancel', [DebtController::class, 'cancel'])->name('cancel');
@@ -283,9 +286,14 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         // Relatórios - view_reports permission
         Route::middleware('permissions:view_reports')->group(function () {
             Route::get('/reports/debtors', [DebtController::class, 'debtorsReport'])->name('debtors-report');
+            Route::get('/reports/export', [DebtController::class, 'exportDebtorsReport'])->name('export-debtors');
         });
         
+        // Utilitários
+        Route::get('/search/employees', [DebtController::class, 'searchEmployees'])->name('search-employees');
+        Route::get('/search/customers', [DebtController::class, 'searchCustomers'])->name('search-customers');
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
+        Route::post('/{debt}/create-manual-sale', [DebtController::class, 'createManualSale'])->name('create-manual-sale');
     });
 
     //expense category
