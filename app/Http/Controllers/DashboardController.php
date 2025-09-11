@@ -104,4 +104,21 @@ class DashboardController extends Controller
             ]);
         }
     }
+    /**
+     * API para atualizar métricas em tempo real
+     */
+    public function apiMetrics()
+    {
+        $today = Carbon::today();
+        
+        return response()->json([
+            'todaySales' => Sale::whereDate('sale_date', $today)->sum('total_amount'),
+            'todayExpenses' => Expense::whereDate('expense_date', $today)->sum('amount'),
+            'lowStockCount' => Product::whereRaw('stock_quantity <= min_stock_level')
+                ->where('type', 'product')
+                ->where('is_active', true)
+                ->count(),
+            'activeSales' => Sale::whereDate('sale_date', $today)->count(),
+        ]);
+    }
 }

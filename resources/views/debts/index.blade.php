@@ -649,6 +649,12 @@
                                             title="Ver Página Completa">
                                             <i class="fas fa-external-link-alt"></i>
                                         </a>
+                                        @if ($debt->isProductDebt() && $debt->status === 'paid' && !$debt->generated_sale_id)
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                onclick="createManualSale({{ $debt->id }})" title="Criar Venda">
+                                                <i class="fas fa-shopping-bag"></i>
+                                            </button>
+                                        @endif
                                         @if ($debt->canBeCancelled())
                                             <button type="button" class="btn btn-outline-danger btn-sm"
                                                 onclick="cancelDebt({{ $debt->id }})" title="Cancelar Dívida">
@@ -1387,6 +1393,51 @@
         function clearValidation() {
             document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
             document.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+        }
+        // Função corrigida para criar venda manual
+        function createManualSale(debtId) {
+            if (!confirm('Deseja criar uma venda com os itens desta dívida?')) {
+                return;
+            }
+
+            const button = document.querySelector(`[onclick="createManualSale(${debtId})"]`);
+            if (button) {
+                button.disabled = true;
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Criando...';
+
+                fetch(`/debts/${debtId}/create-manual-sale`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message || 'Venda criada com sucesso!', 'success');
+                            if (data.redirect) {
+                                setTimeout(() => window.location.href = data.redirect, 1500);
+                            } else {
+                                setTimeout(() => window.location.reload(), 1500);
+                            }
+                        } else {
+                            showToast(data.message || 'Erro ao criar venda', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        showToast('Erro de conexão', 'error');
+                    })
+                    .finally(() => {
+                        if (button && button.parentNode) {
+                            button.disabled = false;
+                            button.innerHTML = originalText;
+                        }
+                    });
+            }
         }
 
         function showToast(message, type = 'info') {

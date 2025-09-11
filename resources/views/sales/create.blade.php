@@ -5,7 +5,7 @@
 @section('page-title', 'Nova Venda')
 
 @php
-    $titleIcon = 'fa-cash-register';
+    $titleIcon = 'fas fa-cash-register me-2';
 @endphp
 
 @section('breadcrumbs')

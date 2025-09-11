@@ -520,10 +520,10 @@ class DebtController extends Controller
         }
     }
 
-    /**
+    /* *
      * Criar venda automática quando dívida de produtos é totalmente paga
      */
-    private function createSaleFromPaidDebt(Debt $debt)
+    /*private function createSaleFromPaidDebt(Debt $debt)
     {
         if (!$debt->isProductDebt() || !$debt->hasItems()) {
             return null;
@@ -567,18 +567,19 @@ class DebtController extends Controller
             Log::error("Erro ao criar venda da dívida #{$debt->id}: " . $e->getMessage());
             return null;
         }
-    }
+    }*/
 
-    /**
-     * Cancelar dívida
-     */
     public function cancel(Debt $debt)
     {
         if (!$debt->canBeCancelled()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Esta dívida não pode ser cancelada.'
-            ], 400);
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta dívida não pode ser cancelada.'
+                ], 400);
+            }
+
+            return redirect()->back()->with('error', 'Esta dívida não pode ser cancelada.');
         }
 
         try {
@@ -605,23 +606,33 @@ class DebtController extends Controller
                 $debt->update(['status' => 'cancelled']);
             });
 
-            $message = $debt->isProductDebt() 
+            $message = $debt->isProductDebt()
                 ? 'Dívida cancelada e estoque devolvido com sucesso!'
                 : 'Dívida cancelada com sucesso!';
 
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ]);
-            
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
+
         } catch (\Exception $e) {
             Log::error('Erro ao cancelar dívida: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao cancelar dívida.'
-            ], 500);
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao cancelar dívida.'
+                ], 500);
+            }
+
+            return redirect()->back()->with('error', 'Erro ao cancelar dívida.');
         }
     }
+
 
     /**
      * Mostrar detalhes da dívida
@@ -814,100 +825,234 @@ class DebtController extends Controller
     }
 
     /**
-     * Relatório de devedores
+     * Relatório de devedores (corrigido)
      */
     public function debtorsReport(Request $request)
     {
-        $query = Debt::with(['payments'])
-            ->whereNotIn('status', ['paid', 'cancelled']);
+        try {
+            $query = Debt::whereNotIn('status', ['paid', 'cancelled']);
 
-        // Filtro por tipo de dívida
-        if ($request->filled('debt_type')) {
-            $query->where('debt_type', $request->debt_type);
-        }
+            // Filtro por tipo de dívida
+            if ($request->filled('debt_type')) {
+                $query->where('debt_type', $request->debt_type);
+            }
 
-        if ($request->filled('customer')) {
-            $query->where(function($q) use ($request) {
-                $q->where('customer_name', 'like', '%' . $request->customer . '%')
-                  ->orWhere('employee_name', 'like', '%' . $request->customer . '%');
-            });
-        }
+            // Filtro por nome (busca tanto em customer_name quanto employee_name)
+            if ($request->filled('customer')) {
+                $search = '%' . $request->customer . '%';
+                $query->where(function($q) use ($search) {
+                    $q->where('customer_name', 'like', $search)
+                    ->orWhere('employee_name', 'like', $search);
+                });
+            }
 
-        // Agrupar por devedor
-        if ($request->debt_type === 'money') {
-            $debtors = $query->selectRaw('
-                debt_type,
-                employee_name as debtor_name, 
-                employee_phone as debtor_phone, 
-                SUM(remaining_amount) as total_debt, 
-                COUNT(*) as debt_count, 
-                MIN(debt_date) as oldest_debt,
-                CASE 
-                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
-                    ELSE "Ativa"
-                END as status_group
-            ')
-            ->where('debt_type', 'money')
-            ->groupBy('debt_type', 'employee_name', 'employee_phone')
-            ->orderByDesc('total_debt')
-            ->paginate(20);
-        } else if ($request->debt_type === 'product') {
-            $debtors = $query->selectRaw('
-                debt_type,
-                customer_name as debtor_name, 
-                customer_phone as debtor_phone, 
-                SUM(remaining_amount) as total_debt, 
-                COUNT(*) as debt_count, 
-                MIN(debt_date) as oldest_debt,
-                CASE 
-                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
-                    ELSE "Ativa"
-                END as status_group
-            ')
-            ->where('debt_type', 'product')
-            ->groupBy('debt_type', 'customer_name', 'customer_phone')
-            ->orderByDesc('total_debt')
-            ->paginate(20);
-        } else {
-            // Relatório combinado
-            $productDebtors = $query->selectRaw('
-                debt_type,
-                customer_name as debtor_name, 
-                customer_phone as debtor_phone, 
-                SUM(remaining_amount) as total_debt, 
-                COUNT(*) as debt_count, 
-                MIN(debt_date) as oldest_debt,
-                CASE 
-                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
-                    ELSE "Ativa"
-                END as status_group
-            ')
-            ->where('debt_type', 'product')
-            ->groupBy('debt_type', 'customer_name', 'customer_phone');
+            // Filtro por status
+            if ($request->filled('status')) {
+                if ($request->status === 'overdue') {
+                    $query->where('status', 'active')
+                        ->where('due_date', '<', now()->toDateString());
+                } else {
+                    $query->where('status', $request->status);
+                }
+            }
 
-            $moneyDebtors = $query->selectRaw('
-                debt_type,
-                employee_name as debtor_name, 
-                employee_phone as debtor_phone, 
-                SUM(remaining_amount) as total_debt, 
-                COUNT(*) as debt_count, 
-                MIN(debt_date) as oldest_debt,
-                CASE 
-                    WHEN MAX(due_date) < CURDATE() THEN "Vencida"
-                    ELSE "Ativa"
-                END as status_group
-            ')
-            ->where('debt_type', 'money')
-            ->groupBy('debt_type', 'employee_name', 'employee_phone');
-
-            $debtors = $productDebtors->union($moneyDebtors)
+            // Construir query otimizada baseada no tipo de dívida
+            if ($request->debt_type === 'money') {
+                // Apenas dívidas de funcionários
+                $debtors = $query->selectRaw('
+                    debt_type,
+                    employee_name as debtor_name, 
+                    employee_phone as debtor_phone, 
+                    SUM(remaining_amount) as total_debt, 
+                    COUNT(*) as debt_count, 
+                    MIN(debt_date) as oldest_debt,
+                    CASE 
+                        WHEN MAX(CASE WHEN due_date < CURDATE() THEN 1 ELSE 0 END) = 1 THEN "Vencida"
+                        ELSE "Ativa"
+                    END as status_group
+                ')
+                ->where('debt_type', 'money')
+                ->groupBy('debt_type', 'employee_name', 'employee_phone')
                 ->orderByDesc('total_debt')
                 ->paginate(20);
-        }
 
-        return view('debts.debtors-report', compact('debtors'));
+            } elseif ($request->debt_type === 'product') {
+                // Apenas dívidas de clientes
+                $debtors = $query->selectRaw('
+                    debt_type,
+                    customer_name as debtor_name, 
+                    customer_phone as debtor_phone, 
+                    SUM(remaining_amount) as total_debt, 
+                    COUNT(*) as debt_count, 
+                    MIN(debt_date) as oldest_debt,
+                    CASE 
+                        WHEN MAX(CASE WHEN due_date < CURDATE() THEN 1 ELSE 0 END) = 1 THEN "Vencida"
+                        ELSE "Ativa"
+                    END as status_group
+                ')
+                ->where('debt_type', 'product')
+                ->groupBy('debt_type', 'customer_name', 'customer_phone')
+                ->orderByDesc('total_debt')
+                ->paginate(20);
+
+            } else {
+                // Query combinada (mais simples para evitar timeout)
+                $productDebts = $query->where('debt_type', 'product')
+                    ->selectRaw('
+                        debt_type,
+                        customer_name as debtor_name, 
+                        customer_phone as debtor_phone, 
+                        SUM(remaining_amount) as total_debt, 
+                        COUNT(*) as debt_count, 
+                        MIN(debt_date) as oldest_debt,
+                        CASE 
+                            WHEN MAX(CASE WHEN due_date < CURDATE() THEN 1 ELSE 0 END) = 1 THEN "Vencida"
+                            ELSE "Ativa"
+                        END as status_group
+                    ')
+                    ->groupBy('debt_type', 'customer_name', 'customer_phone')
+                    ->get();
+
+                $moneyDebts = $query->where('debt_type', 'money')
+                    ->selectRaw('
+                        debt_type,
+                        employee_name as debtor_name, 
+                        employee_phone as debtor_phone, 
+                        SUM(remaining_amount) as total_debt, 
+                        COUNT(*) as debt_count, 
+                        MIN(debt_date) as oldest_debt,
+                        CASE 
+                            WHEN MAX(CASE WHEN due_date < CURDATE() THEN 1 ELSE 0 END) = 1 THEN "Vencida"
+                            ELSE "Ativa"
+                        END as status_group
+                    ')
+                    ->groupBy('debt_type', 'employee_name', 'employee_phone')
+                    ->get();
+
+                // Combinar resultados
+                $allDebtors = $productDebts->concat($moneyDebts)
+                    ->sortByDesc('total_debt')
+                    ->values();
+
+                // Paginar manualmente
+                $page = $request->get('page', 1);
+                $perPage = 20;
+                $offset = ($page - 1) * $perPage;
+                
+                $debtors = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $allDebtors->slice($offset, $perPage)->values(),
+                    $allDebtors->count(),
+                    $perPage,
+                    $page,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+            }
+
+            return view('debts.debtors-report', compact('debtors'));
+
+        } catch (\Exception $e) {
+            Log::error('Erro no relatório de devedores: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 
+                'Erro ao gerar relatório. Tente filtrar por tipo específico ou contate o suporte.'
+            );
+        }
     }
 
+    /**
+     * Exportar relatório de devedores
+     */
+    public function exportDebtorsReport(Request $request)
+    {
+        try {
+            // Reutilizar mesma lógica do relatório mas sem paginação
+            $query = Debt::whereNotIn('status', ['paid', 'cancelled']);
+
+            if ($request->filled('debt_type')) {
+                $query->where('debt_type', $request->debt_type);
+            }
+
+            if ($request->filled('customer')) {
+                $search = '%' . $request->customer . '%';
+                $query->where(function($q) use ($search) {
+                    $q->where('customer_name', 'like', $search)
+                    ->orWhere('employee_name', 'like', $search);
+                });
+            }
+
+            $debtors = collect();
+
+            if ($request->debt_type === 'money') {
+                $debtors = $query->selectRaw('
+                    debt_type,
+                    employee_name as debtor_name, 
+                    employee_phone as debtor_phone, 
+                    SUM(remaining_amount) as total_debt, 
+                    COUNT(*) as debt_count, 
+                    MIN(debt_date) as oldest_debt
+                ')
+                ->where('debt_type', 'money')
+                ->groupBy('debt_type', 'employee_name', 'employee_phone')
+                ->orderByDesc('total_debt')
+                ->get();
+
+            } elseif ($request->debt_type === 'product') {
+                $debtors = $query->selectRaw('
+                    debt_type,
+                    customer_name as debtor_name, 
+                    customer_phone as debtor_phone, 
+                    SUM(remaining_amount) as total_debt, 
+                    COUNT(*) as debt_count, 
+                    MIN(debt_date) as oldest_debt
+                ')
+                ->where('debt_type', 'product')
+                ->groupBy('debt_type', 'customer_name', 'customer_phone')
+                ->orderByDesc('total_debt')
+                ->get();
+            }
+
+            // Criar CSV
+            $filename = 'relatorio-devedores-' . date('Y-m-d') . '.csv';
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"$filename\"",
+            ];
+
+            $callback = function() use ($debtors) {
+                $file = fopen('php://output', 'w');
+                
+                // Header do CSV
+                fputcsv($file, [
+                    'Tipo', 'Nome do Devedor', 'Telefone', 
+                    'Número de Dívidas', 'Valor Total', 'Dívida Mais Antiga'
+                ]);
+
+                // Dados
+                foreach ($debtors as $debtor) {
+                    fputcsv($file, [
+                        $debtor->debt_type === 'product' ? 'Produtos' : 'Dinheiro',
+                        $debtor->debtor_name,
+                        $debtor->debtor_phone ?: 'Não informado',
+                        $debtor->debt_count,
+                        'MT ' . number_format($debtor->total_debt, 2, ',', '.'),
+                        \Carbon\Carbon::parse($debtor->oldest_debt)->format('d/m/Y')
+                    ]);
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao exportar relatório: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao exportar relatório.'
+            ], 500);
+        }
+    }
     /**
      * API para buscar funcionários
      */
@@ -953,29 +1098,44 @@ class DebtController extends Controller
     /**
      * Criar venda manual a partir de dívida paga
      */
-    public function createManualSale(Request $request, Debt $debt)
+    public function createManualSale(Debt $debt)
     {
-        $request->validate([
-            'notes' => 'nullable|string|max:500'
-        ]);
-
-        if (!$debt->isProductDebt() || $debt->status !== 'paid' || $debt->generated_sale_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Não é possível criar venda para esta dívida.'
-            ], 400);
-        }
-
         try {
+            // Verificar se pode criar venda
+            if (!$debt->isProductDebt()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Apenas dívidas de produtos podem gerar vendas.'
+                ], 400);
+            }
+
+            if ($debt->status !== 'paid') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Apenas dívidas pagas podem gerar vendas.'
+                ], 400);
+            }
+
+            if ($debt->generated_sale_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta dívida já possui uma venda associada.'
+                ], 400);
+            }
+
+            // Verificar se tem itens
+            $debt->load(['items.product']);
+            if (!$debt->items || $debt->items->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta dívida não possui itens para criar uma venda.'
+                ], 400);
+            }
+
+            // Criar a venda
             $sale = $this->createSaleFromPaidDebt($debt);
             
             if ($sale) {
-                if ($request->filled('notes')) {
-                    $sale->update([
-                        'notes' => $sale->notes . "\n" . $request->notes
-                    ]);
-                }
-
                 return response()->json([
                     'success' => true,
                     'message' => 'Venda criada com sucesso!',
@@ -986,15 +1146,73 @@ class DebtController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao criar venda.'
+                'message' => 'Erro ao criar venda. Tente novamente.'
             ], 500);
 
         } catch (\Exception $e) {
-            Log::error('Erro ao criar venda manual: ' . $e->getMessage());
+            Log::error('Erro ao criar venda manual da dívida: ' . $e->getMessage(), [
+                'debt_id' => $debt->id,
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao criar venda.'
+                'message' => 'Erro interno do servidor: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Método helper melhorado para criar venda a partir de dívida paga
+     */
+    private function createSaleFromPaidDebt(Debt $debt)
+    {
+        if (!$debt->isProductDebt() || !$debt->items || $debt->items->isEmpty()) {
+            return null;
+        }
+
+        try {
+            return DB::transaction(function () use ($debt) {
+                // Criar a venda
+                $sale = Sale::create([
+                    'user_id' => auth()->id(), // Usuário atual, não o original
+                    'customer_name' => $debt->customer_name,
+                    'customer_phone' => $debt->customer_phone,
+                    'subtotal' => $debt->original_amount,
+                    'total_amount' => $debt->original_amount,
+                    'payment_method' => 'mixed', // Múltiplas formas de pagamento
+                    'sale_date' => now(),
+                    'notes' => "Venda gerada manualmente da dívida #{$debt->id} - {$debt->description}",
+                ]);
+
+                // Copiar itens da dívida para a venda
+                foreach ($debt->items as $debtItem) {
+                    SaleItem::create([
+                        'sale_id' => $sale->id,
+                        'product_id' => $debtItem->product_id,
+                        'quantity' => $debtItem->quantity,
+                        'original_unit_price' => $debtItem->unit_price,
+                        'unit_price' => $debtItem->unit_price,
+                        'total_price' => $debtItem->total_price
+                    ]);
+                }
+
+                // Atualizar referência na dívida
+                $debt->update(['generated_sale_id' => $sale->id]);
+
+                Log::info("Venda #{$sale->id} criada manualmente da dívida #{$debt->id} pelo usuário " . auth()->id());
+                
+                return $sale;
+            });
+            
+        } catch (\Exception $e) {
+            Log::error("Erro ao criar venda da dívida #{$debt->id}: " . $e->getMessage(), [
+                'debt_id' => $debt->id,
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
     }
 }

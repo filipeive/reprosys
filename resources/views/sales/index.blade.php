@@ -4,7 +4,9 @@
 
 @section('title', 'Gestão de Vendas')
 @section('page-title', 'Gestão de Vendas')
-
+@php
+    $titleIcon = 'fas fa-shopping-cart';
+@endphp
 @section('content')
     <!-- Statistics Cards Atualizados -->
     <div class="row g-3 mb-4">
@@ -89,14 +91,14 @@
                 <div class="stat-label mb-2 fw-semibold text-primary">
                    <i class="fas fa-plus-circle"></i> Ações Rápidas 
                 </div>
-                <div class="d-grid gap-2">
+                <div class="d-flex gap-2">
                     <a href="{{ route('sales.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-cash-register me-2"></i>
-                        Nova Venda (PDV)
+                        (PDV)
                     </a>
                     <a href="{{ route('sales.manual-create') }}" class="btn btn-outline-info btn-sm">
                         <i class="fas fa-edit me-2"></i>
-                        Venda Manual
+                        Manual
                     </a>
                 </div>
             </div>
@@ -239,6 +241,11 @@
                                         <span class="badge badge-warning">
                                             <i class="fas fa-clock me-1"></i>Crédito
                                         </span>
+                                    @break
+                                    @case('mixed')
+                                        <span class="badge badge-light text-light bg-dark">
+                                            <i class="fas fa-wallet me-1"></i>Misto
+                                        </span>    
                                     @break
                                 @endswitch
                             </td>

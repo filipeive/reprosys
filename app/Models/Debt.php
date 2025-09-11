@@ -78,6 +78,10 @@ class Debt extends Model
         return $this->belongsTo(Sale::class, 'generated_sale_id');
     }
 
+    public function hasItems()
+    {
+        return $this->items && $this->items->count() > 0;
+    }
     // Scopes
     public function scopeProductDebts($query)
     {
@@ -226,10 +230,10 @@ class Debt extends Model
         return $this->status === 'active' && $this->remaining_amount > 0;
     }
 
-    public function hasItems(): bool
+    /* public function hasItems(): bool
     {
         return $this->items()->exists();
-    }
+    } */
 
     public function hasPayments(): bool
     {

@@ -7,7 +7,9 @@
 @section('breadcrumbs')
     <li class="breadcrumb-item active">Produtos</li>
 @endsection
-
+@php
+    $titleIcon = 'fas fa-box me-2 me-2';
+@endphp
 @section('content')
     <!-- Header -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-4 gap-3">

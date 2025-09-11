@@ -1184,7 +1184,7 @@
     <nav class="app-sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-container">
-                <div class="brand-logo" id="brand-logo">
+                <div class="brand-logo" id="brand-logo" style="background: linear-gradient(45deg, #5B9BD5, #4A90E2); margin-left: -8px !important ">
                     <i class="fas fa-print m-0"></i>
                 </div>
                 <div class="brand-text" id="brand-text">
@@ -1192,9 +1192,6 @@
                     <div class="brand-subtitle">MULTSERVICES</div>
                 </div>
             </div>
-            <button class="sidebar-toggle" type="button" onclick="toggleSidebar()">
-                <i class="fas fa-chevron-left" id="toggle-icon"></i>
-            </button>
         </div>
 
         <div class="sidebar-nav">
@@ -1504,6 +1501,9 @@
                 <button class="mobile-menu-btn" type="button" onclick="toggleMobileMenu()">
                     <i class="fas fa-bars"></i>
                 </button>
+                <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" style="padding: 10px; margin:0 20px 0 -20px;  background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); transition: var(--transition); color:#1A1D23" id="sidebar-toggle-btn" title="Expandir/Contrair Menu Lateral"> 
+                <i class="fas fa-chevron-left text-dark" id="toggle-icon"></i>
+            </button>
                 <h1 class="page-title">
                     <i class="{{ $titleIcon ?? 'fas fa-tachometer-alt' }}"></i>
                     @yield('page-title', 'Dashboard')
@@ -1717,7 +1717,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
 
     <script>
         // ===== VARIÁVEIS GLOBAIS =====
@@ -2291,7 +2291,6 @@
                 sidebar.classList.add('collapsed');
                 mainContent.classList.add('collapsed');
                 if (brandText) brandText.style.display = 'none';
-                if (brandLogo) brandLogo.style.display = 'none';
                 if (toggleIcon) toggleIcon.className = 'fas fa-chevron-right';
             } else {
                 sidebar.classList.remove('collapsed');

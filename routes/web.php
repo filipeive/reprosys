@@ -38,6 +38,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(function () {
     // Dashboard - Acesso para todos os usuários logados
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/api/dashboard/metrics', [DashboardController::class, 'apiMetrics'])
+    ->name('dashboard.api.metrics');
+    Route::get('/dashboard/metrics', [DashboardController::class, 'apiMetrics'])->name('dashboard.metrics');
    // Rotas para troca de senha temporária (apenas para usuários autenticados)
     Route::get('/password/change', [PasswordChangeController::class, 'show'])->name('password.change');
     Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.update');
