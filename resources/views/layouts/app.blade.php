@@ -955,11 +955,17 @@
         /* Responsive Design */
         @media (max-width: 1199.98px) {
             .app-content {
-                margin-left: var(--sidebar-collapsed-width);
+                margin-left: 0px !important;
             }
 
-            .app-sidebar:not(.mobile-visible) {
-                width: var(--sidebar-collapsed-width);
+            .app-sidebar{
+                /* display full */
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100vh;
+                display: block !important;
             }
 
             .content-area {
@@ -968,6 +974,9 @@
 
             .mobile-menu-btn {
                 display: flex !important;
+            }
+            #sidebar-toggle-btn {
+                display: none !important;
             }
 
             .app-header {
@@ -1023,7 +1032,9 @@
             .mobile-menu-btn {
                 display: flex !important;
             }
-
+            #sidebar-toggle-btn {
+                display: none !important;
+            }
             .sidebar-overlay.show {
                 opacity: 1;
                 visibility: visible;
@@ -1049,7 +1060,6 @@
                 font-size: 12px;
                 display: block !important;
             }
-
             .themet {
                 display: none !important;
             }
@@ -1086,7 +1096,7 @@
                 display: block !important;
                 font-size: 16px;
             }
-
+        
             .themet {
                 display: none !important;
             }
@@ -1501,7 +1511,7 @@
                 <button class="mobile-menu-btn" type="button" onclick="toggleMobileMenu()">
                     <i class="fas fa-bars"></i>
                 </button>
-                <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" style="padding: 10px; margin:0 20px 0 -20px;  background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); transition: var(--transition); color:#1A1D23" id="sidebar-toggle-btn" title="Expandir/Contrair Menu Lateral"> 
+                <button class="sidebar-toggle text-primary" type="button" onclick="toggleSidebar()" style="padding: 10px; margin:0 20px 0 -20px;  background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: var(--shadow-sm); transition: var(--transition);" id="sidebar-toggle-btn" title="Expandir/Contrair Menu Lateral"> 
                 <i class="fas fa-chevron-left text-dark" id="toggle-icon"></i>
             </button>
                 <h1 class="page-title">

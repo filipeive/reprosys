@@ -342,12 +342,36 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         
         // Gerenciar estoque - manage_stock permission (admin only)
         Route::middleware('permissions:manage_stock')->group(function () {
-            Route::get('/{stockMovement}/edit', [StockMovementController::class, 'edit'])->name('edit');
-            Route::put('/{stockMovement}', [StockMovementController::class, 'update'])->name('update');
-            Route::delete('/{stockMovement}', [StockMovementController::class, 'destroy'])->name('destroy');
+             // Rota para listagem (index)
+        Route::get('/stock-movements', [StockMovementController::class, 'index'])
+            ->name('stock-movements.index');
+        
+        // Rota para mostrar formulário de criação
+        Route::get('/stock-movements', [StockMovementController::class, 'create'])
+            ->name('create');
+        
+            Route::get('/stock-movements/{stockMovement}/edit', [StockMovementController::class, 'edit'])
+            ->name('edit');
+        
+        // Rota para armazenar novo movimento
+        Route::post('/stock-movements', [StockMovementController::class, 'store'])
+            ->name('store');
+        // Edit
+        
+        // Rota para mostrar detalhes de um movimento específico
+        Route::get('/stock-movements/{stockMovement}', [StockMovementController::class, 'show'])
+            ->name('show');
+        
+        // Rota para atualizar movimento
+        Route::put('/stock-movements/{stockMovement}', [StockMovementController::class, 'update'])
+            ->name('update');
+        
+        // Rota para excluir movimento
+        Route::delete('/stock-movements/{stockMovement}', [StockMovementController::class, 'destroy'])
+            ->name('destroy');
+            });
         });
-    });
-    
+        
     // ===== RELATÓRIOS =====
         Route::prefix('reports')->name('reports.')->group(function () {
         // ===== DASHBOARD PRINCIPAL =====
