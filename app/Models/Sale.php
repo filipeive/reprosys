@@ -35,25 +35,32 @@ class Sale extends Model
     }
 
     /**
-     * Calcular totais da venda com descontos
+     * Calcular totais da venda com base nos seus itens.
+     * Esta função deve ser a única fonte de verdade para os totais.
      */
     public function calculateTotals(): void
     {
-        // Subtotal = soma dos (preço original * quantidade) de todos os itens
+        // 1. Subtotal é sempre a soma dos preços originais dos itens
         $this->subtotal = $this->items->sum(function ($item) {
-            return $item->original_unit_price * $item->quantity;
+            return $item->getOriginalTotal(); // Usa o método do SaleItem
         });
 
-        // Desconto total = soma dos descontos de todos os itens + desconto geral da venda
+        // 2. Desconto total é sempre a soma dos descontos dos itens
         $itemsDiscountTotal = $this->items->sum('discount_amount');
         $this->discount_amount = $itemsDiscountTotal;
 
-        // Total final = subtotal - desconto total
+        // 3. Total final = subtotal - desconto total
         $this->total_amount = $this->subtotal - $this->discount_amount;
+        
+        // 4. Percentagem total
+        if ($this->subtotal > 0) {
+            $this->discount_percentage = ($this->discount_amount / $this->subtotal) * 100;
+        } else {
+            $this->discount_percentage = 0;
+        }
 
         $this->save();
     }
-
     /**
      * Aplicar desconto geral à venda
      */

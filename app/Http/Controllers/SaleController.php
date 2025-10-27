@@ -79,7 +79,10 @@ class SaleController extends Controller
         
         return view('sales.manual-create', compact('products'));
     }
-
+   
+    /**
+     * Armazenar nova venda
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -111,13 +114,11 @@ class SaleController extends Controller
                         ->with('error', "Dados do item #{$index} inválidos.")
                         ->withInput();
                 }
-                
                 if ($item['quantity'] <= 0) {
                     return redirect()->back()
                         ->with('error', 'Quantidade deve ser maior que zero.')
                         ->withInput();
                 }
-
                 if ($item['unit_price'] < 0) {
                     return redirect()->back()
                         ->with('error', 'Preço unitário não pode ser negativo.')
@@ -125,16 +126,21 @@ class SaleController extends Controller
                 }
             }
 
-            DB::transaction(function () use ($validated, $items, $request) {
-                // Determinar data da venda
-                $saleDate = array_key_exists('sale_date', $validated) && $validated['sale_date']
-                    ? Carbon::parse($validated['sale_date'])
-                    : now();
+            // Mover dados para variáveis para usar na transação
+            $saleDateInput = $validated['sale_date'] ?? null;
+            $userIdInput = $validated['user_id'] ?? null;
+            $generalDiscountValue = $validated['general_discount'] ?? 0;
+            $generalDiscountType = $validated['general_discount_type'] ?? null;
+            $generalDiscountReason = $validated['general_discount_reason'] ?? null;
 
-                // Determinar usuário
-                $userId = $validated['user_id'] ?? auth()->id();
+            $sale = null; // Inicializar a variável $sale
 
-                // Criar venda com campos de desconto
+            DB::transaction(function () use ($validated, $items, $saleDateInput, $userIdInput, $generalDiscountValue, $generalDiscountType, $generalDiscountReason, &$sale) {
+                
+                $saleDate = $saleDateInput ? Carbon::parse($saleDateInput) : now();
+                $userId = $userIdInput ?? auth()->id();
+
+                // Criar venda com totais ZERADOS inicialmente
                 $sale = Sale::create([
                     'user_id' => $userId,
                     'customer_name' => $validated['customer_name'] ?: 'Cliente Avulso',
@@ -142,92 +148,111 @@ class SaleController extends Controller
                     'payment_method' => $validated['payment_method'],
                     'notes' => $validated['notes'],
                     'sale_date' => $saleDate,
-                    'subtotal' => 0,
-                    'discount_amount' => 0,
-                    'total_amount' => 0,
-                    'discount_type' => $validated['general_discount_type'] ?? null,
-                    'discount_reason' => $validated['general_discount_reason'] ?? null,
+                    'subtotal' => 0, // Será calculado
+                    'discount_amount' => 0, // Será calculado
+                    'total_amount' => 0, // Será calculado
+                    'discount_type' => $generalDiscountType,
+                    'discount_reason' => $generalDiscountReason,
                 ]);
 
                 $subtotal = 0;
-                $totalDiscountAmount = 0;
+                $totalItemDiscount = 0; // Desconto APENAS de itens
+                $createdSaleItems = []; // Array para guardar itens criados
 
+                // --- ETAPA 1: CRIAR ITENS E CALCULAR DESCONTOS DE ITEM ---
                 foreach ($items as $item) {
                     $product = Product::find($item['product_id']);
-
-                    if (!$product) {
-                        throw new \Exception("Produto não encontrado: {$item['product_id']}");
+                    if (!$product) throw new \Exception("Produto não encontrado: {$item['product_id']}");
+                    
+                    if ($product->type === 'product' && $product->stock_quantity < $item['quantity']) {
+                        throw new \Exception("Stock insuficiente para {$product->name}. Disponível: {$product->stock_quantity}");
                     }
 
-                    // Verificar stock apenas para produtos físicos
-                    if ($product->type === 'product') {
-                        if ($product->stock_quantity < $item['quantity']) {
-                            throw new \Exception("Stock insuficiente para {$product->name}. Disponível: {$product->stock_quantity}");
-                        }
-                    }
-
-                    // Preço original e preço de venda
                     $originalUnitPrice = $product->selling_price;
                     $saleUnitPrice = (float) $item['unit_price'];
                     $quantity = $item['quantity'];
 
-                    // Calcular desconto por item
+                    // Calcular desconto APENAS a nível de item
                     $itemDiscountAmount = ($originalUnitPrice - $saleUnitPrice) * $quantity;
                     $itemDiscountPercentage = $originalUnitPrice > 0 ? 
                         (($originalUnitPrice - $saleUnitPrice) / $originalUnitPrice) * 100 : 0;
 
-                    // Criar item da venda com informações completas de desconto
                     $saleItem = SaleItem::create([
                         'sale_id' => $sale->id,
                         'product_id' => $item['product_id'],
                         'quantity' => $quantity,
                         'original_unit_price' => $originalUnitPrice,
-                        'unit_price' => $saleUnitPrice,
+                        'unit_price' => $saleUnitPrice, // Preço com desconto de item
                         'total_price' => $saleUnitPrice * $quantity,
-                        'discount_amount' => max(0, $itemDiscountAmount),
+                        'discount_amount' => max(0, $itemDiscountAmount), // Guarda desconto de item
                         'discount_percentage' => $itemDiscountAmount > 0 ? $itemDiscountPercentage : null,
                         'discount_type' => $itemDiscountAmount > 0 ? 'item_level' : null,
-                        'discount_reason' => $itemDiscountAmount > 0 ? 'Desconto aplicado na venda' : null,
+                        'discount_reason' => $itemDiscountAmount > 0 ? 'Desconto aplicado no item' : null,
                     ]);
 
-                    // Atualizar stock apenas para produtos físicos
                     if ($product->type === 'product') {
                         $product->decrement('stock_quantity', $quantity);
-
-                        // Registrar movimento de stock
                         StockMovement::create([
-                            'product_id' => $product->id,
-                            'user_id' => $userId,
-                            'movement_type' => 'out',
-                            'quantity' => $quantity,
-                            'reason' => 'Venda',
-                            'reference_id' => $sale->id,
+                            'product_id' => $product->id, 'user_id' => $userId,
+                            'movement_type' => 'out', 'quantity' => $quantity,
+                            'reason' => 'Venda', 'reference_id' => $sale->id,
                             'movement_date' => $saleDate->toDateString(),
                         ]);
                     }
-
-                    $subtotal += $originalUnitPrice * $quantity;
-                    $totalDiscountAmount += max(0, $itemDiscountAmount);
+                    
+                    $subtotal += $originalUnitPrice * $quantity; // Subtotal é sempre baseado no preço original
+                    $totalItemDiscount += max(0, $itemDiscountAmount);
+                    $createdSaleItems[] = $saleItem; // Adicionar ao array
                 }
 
-                // Aplicar desconto geral se fornecido
-                $generalDiscount = 0;
-                if (isset($validated['general_discount']) && $validated['general_discount'] > 0) {
-                    if ($validated['general_discount_type'] === 'percentage') {
-                        $generalDiscount = ($subtotal * $validated['general_discount']) / 100;
+                // --- ETAPA 2: CALCULAR DESCONTO GERAL ---
+                $generalDiscountAmount = 0;
+                if ($generalDiscountValue > 0) {
+                    if ($generalDiscountType === 'percentage') {
+                        // Desconto geral é sobre o subtotal
+                        $generalDiscountAmount = ($subtotal * $generalDiscountValue) / 100;
                     } else {
-                        $generalDiscount = $validated['general_discount'];
+                        $generalDiscountAmount = $generalDiscountValue;
                     }
-                    $totalDiscountAmount += $generalDiscount;
                 }
+                
+                // Desconto total final
+                $totalDiscountAmount = $totalItemDiscount + $generalDiscountAmount;
 
-                // Calcular totais finais
+                // --- ETAPA 3: (A CORREÇÃO) DISTRIBUIR O DESCONTO GERAL PELOS ITENS ---
+                if ($generalDiscountAmount > 0 && $subtotal > 0) {
+                    foreach ($createdSaleItems as $saleItem) {
+                        // Calcular a proporção deste item no subtotal
+                        $itemSubtotal = $saleItem->original_unit_price * $saleItem->quantity;
+                        $itemProportion = $itemSubtotal / $subtotal;
+                        
+                        // Calcular a parte do desconto geral para este item
+                        $itemGeneralDiscount = $generalDiscountAmount * $itemProportion;
+
+                        // Adicionar o desconto geral ao desconto de item já existente
+                        $newItemTotalDiscount = $saleItem->discount_amount + $itemGeneralDiscount;
+                        
+                        // Recalcular o preço unitário e total final do item
+                        $newUnitPrice = $saleItem->original_unit_price - ($newItemTotalDiscount / $saleItem->quantity);
+                        $newTotalPrice = $newUnitPrice * $saleItem->quantity;
+
+                        // Atualizar o item da venda
+                        $saleItem->update([
+                            'discount_amount' => $newItemTotalDiscount,
+                            'unit_price' => $newUnitPrice,
+                            'total_price' => $newTotalPrice,
+                            'discount_type' => $saleItem->discount_amount > 0 ? 'mixed' : 'general',
+                            'discount_reason' => trim(($saleItem->discount_reason ?? '') . ' + Desconto geral')
+                        ]);
+                    }
+                }
+                
+                // --- ETAPA 4: ATUALIZAR A VENDA PRINCIPAL COM OS TOTAIS FINAIS ---
                 $finalTotal = $subtotal - $totalDiscountAmount;
 
-                // Atualizar venda com totais calculados
                 $sale->update([
                     'subtotal' => $subtotal,
-                    'discount_amount' => $totalDiscountAmount,
+                    'discount_amount' => $totalDiscountAmount, // Agora bate certo com a soma dos itens
                     'total_amount' => $finalTotal,
                     'discount_percentage' => $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : null,
                 ]);
@@ -238,17 +263,18 @@ class SaleController extends Controller
                         'subtotal' => $subtotal,
                         'desconto_total' => $totalDiscountAmount,
                         'total_final' => $finalTotal,
-                        'percentual_desconto' => $sale->getTotalDiscountPercentage(),
                     ]);
                 }
             });
+            // Fim da Transação
 
-            $isManualSale = $request->has('sale_date') && $request->sale_date !== now()->format('Y-m-d\TH:i');
+            $isManualSale = $saleDateInput && $saleDateInput !== now()->format('Y-m-d\TH:i');
             $successMessage = $isManualSale 
                 ? 'Venda manual registrada com sucesso.' 
                 : 'Venda registrada com sucesso.';
 
-            return redirect()->route('sales.index')
+            // Usar o $sale->id que foi definido dentro da transação
+            return redirect()->route('sales.show', $sale)
                 ->with('success', $successMessage);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -268,7 +294,6 @@ class SaleController extends Controller
                 ->withInput();
         }
     }
-
     /**
      * Aplicar desconto a uma venda existente
      */
