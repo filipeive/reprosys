@@ -37,7 +37,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // ===== PROTECTED ROUTES =====
 Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(function () {
     // Dashboard - Acesso para todos os usuários logados
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/dashboard/metrics', [DashboardController::class, 'apiMetrics'])
     ->name('dashboard.api.metrics');
     Route::get('/dashboard/metrics', [DashboardController::class, 'apiMetrics'])->name('dashboard.metrics');

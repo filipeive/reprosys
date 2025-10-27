@@ -1209,7 +1209,7 @@
                 {{-- Icone do Sistema --}}
                 <ul class="nav-list">
                     <li class="nav-item">
-                        <a href="{{ route('dashboard') }}"
+                        <a href="{{ route('dashboard.index') }}"
                             class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                             <span class="nav-icon">
                                 <i class="fas fa-tachometer-alt"></i>
@@ -1649,7 +1649,7 @@
             <nav aria-label="breadcrumb" class="mb-4">
                 <ol class="breadcrumb bg-transparent p-0 mb-0">
                     <li class="breadcrumb-item">
-                        <a href="{{ route('dashboard') }}" class="text-decoration-none">
+                        <a href="{{ route('dashboard.index') }}" class="text-decoration-none">
                             <i class="fas fa-home"></i> Início
                         </a>
                     </li>
