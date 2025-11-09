@@ -116,40 +116,38 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     });
 
     // ===== PEDIDOS =====
-    Route::prefix('orders')->name('orders.')->group(function () {
-        // Relatórios - view_reports permission
-        Route::middleware('permissions:view_reports')->group(function () {
-            Route::get('/reports/orders', [OrderController::class, 'report'])->name('report');
-        });
-        // Visualizar pedidos - todos podem ver
+    Route::prefix('orders')->name('orders.')->middleware('auth')->group(function () {
+        // GET Routes
         Route::get('/', [OrderController::class, 'index'])->name('index');
+        Route::get('/create', [OrderController::class, 'create'])->name('create')->middleware('permissions:create_orders');
+        Route::get('/report', [OrderController::class, 'report'])->name('report')->middleware('permissions:view_reports');
         Route::get('/{order}', [OrderController::class, 'show'])->name('show');
-        Route::get('/{order}/details', [OrderController::class, 'showDetails'])->name('details');
-        Route::get('/{order}/duplicate', [OrderController::class, 'duplicate'])->name('duplicate');
+        Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit')->middleware('permissions:edit_orders');
+        Route::get('/{order}/duplicate', [OrderController::class, 'duplicate'])->name('duplicate')->middleware('permissions:create_orders');
+        
+        // NOVA ROTA: Página para concluir o pedido
+        Route::patch('/{order}/complete', [OrderController::class, 'complete'])->name('complete')->middleware('permissions:edit_orders');
 
-        // Criar pedidos - create_orders permission
-        Route::middleware('permissions:create_orders')->group(function () {
-            Route::get('/create', [OrderController::class, 'create'])->name('create');
-            Route::post('/', [OrderController::class, 'store'])->name('store');
-            Route::get('/api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
-        });
+        // POST/PUT/PATCH/DELETE Routes
+        Route::post('/', [OrderController::class, 'store'])->name('store')->middleware('permissions:create_orders');
+        Route::put('/{order}', [OrderController::class, 'update'])->name('update')->middleware('permissions:edit_orders');
+        Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status')->middleware('permissions:edit_orders');
+        Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy')->middleware('permissions:delete_orders');
 
-        // Editar pedidos - edit_orders permission
-        Route::middleware('permissions:edit_orders')->group(function () {
-            Route::get('/{order}/edit', [OrderController::class, 'edit'])->name('edit');
-            Route::put('/{order}', [OrderController::class, 'update'])->name('update');
-            Route::get('/{order}/edit-data', [OrderController::class, 'editData'])->name('edit-data');
-            Route::patch('/{order}/status', [OrderController::class, 'updateStatus'])->name('update-status');
-        });
+        // NOVA ROTA: Processa a ação de conclusão (venda ou dívida)
+        Route::post('/{order}/process-completion', [OrderController::class, 'processCompletion'])->name('process-completion')->middleware('permissions:edit_orders');
+        // converter em venda
+        Route::post('/{order}/convert-to-sale', [OrderController::class, 'convertToSale'])->name('convert-to-sale')->middleware('permissions:create_sales');
+        // converter em dívida
+        Route::post('/{order}/convert-to-debt', [OrderController::class, 'convertToDebt'])->name('convert-to-debt')->middleware('permissions:create_debts');
 
-        // Converter para venda - convert_orders permission
-        Route::middleware('permissions:convert_orders')->group(function () {
-            Route::post('/{order}/convert-to-sale', [OrderController::class, 'convertToSale'])->name('convert-to-sale');
-        });
+        // NOVA ROTA: Criar dívida diretamente de um pedido
+        Route::post('/{order}/create-debt', [OrderController::class, 'createDebt'])->name('create-debt');
 
-        // Deletar pedidos - delete_orders permission
-        Route::delete('/{order}', [OrderController::class, 'destroy'])->name('destroy');
+        // Rota para API (se ainda for usar para busca de produtos com Select2, por exemplo)
+        Route::get('/api/search-products', [OrderController::class, 'searchProducts'])->name('api.search-products');
     });
+
     // ===== VENDAS =====
     Route::prefix('sales')->name('sales.')->group(function () {
         Route::middleware('permissions:create_sales')->group(function () {

@@ -7,17 +7,25 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Debt;
+use App\Http\Requests\StoreOrderRequest;
+use App\Services\OrderService;
+use App\Models\Sale; // Adicionado
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+    // O método index() permanece praticamente o mesmo, está bom.
     public function index(Request $request)
     {
         $query = Order::with(['user', 'items'])->latest();
 
+        // Filtros (seu código existente está bom)
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
         // Filtros
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -41,32 +49,34 @@ class OrderController extends Controller
 
         $orders = $query->paginate(15);
 
-        // Estatísticas
+        // Estatísticas (seu código existente está bom)
         $stats = [
             'pending' => Order::where('status', 'pending')->count(),
             'in_progress' => Order::where('status', 'in_progress')->count(),
             'completed' => Order::where('status', 'completed')->count(),
             'overdue' => Order::where('delivery_date', '<', now())
-                            ->whereIn('status', ['pending', 'in_progress'])
-                            ->count()
+                ->whereIn('status', ['pending', 'in_progress'])
+                ->count()
         ];
-
-        $products = Product::where('is_active', true)->get();
-
-        return view('orders.index', compact('orders', 'stats', 'products'));
-    }
-
-    public function create()
-    {
         $products = Product::where('is_active', true)->get();
         $categories = Category::where('status', 'active')->get();
-        
-        // Não passar $order para evitar erro de rota
+
+        return view('orders.index', compact('orders', 'stats', 'products', 'categories'));
+    }
+
+    // Mostra o formulário de criação (página completa)
+    public function create()
+    {
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $categories = Category::where('status', 'active')->get();
         return view('orders.create', compact('products', 'categories'));
     }
 
+    // Salva um novo pedido
     public function store(Request $request)
     {
+        Log::info('Store method called', $request->all());
+
         $request->validate([
             'customer_name' => 'required|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
@@ -82,46 +92,49 @@ class OrderController extends Controller
             'debt_due_date' => 'nullable|date|after_or_equal:delivery_date'
         ]);
 
+        Log::info('Validation passed');
+
         try {
             // Decodificar itens
             $items = json_decode($request->items, true);
-            
+
+            Log::info('Items decoded', ['items' => $items]);
+
             if (!$items || !is_array($items) || empty($items)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Nenhum item foi fornecido para o pedido.'
-                ], 400);
+                Log::error('No items provided');
+                return back()->withErrors(['items' => 'Nenhum item foi fornecido para o pedido.'])->withInput();
             }
 
             // Validar estrutura dos itens
             foreach ($items as $index => $item) {
                 if (!isset($item['item_name']) || !isset($item['quantity']) || !isset($item['unit_price'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Item #{$index} com dados incompletos."
-                    ], 400);
+                    Log::error('Invalid item structure', ['item' => $item, 'index' => $index]);
+                    return back()->withErrors(['items' => "Item #{$index} com dados incompletos."])->withInput();
                 }
 
                 if ($item['quantity'] <= 0 || $item['unit_price'] < 0) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Quantidade e preço devem ser valores positivos."
-                    ], 400);
+                    Log::error('Invalid item values', ['item' => $item]);
+                    return back()->withErrors(['items' => "Quantidade e preço devem ser valores positivos."])->withInput();
                 }
             }
 
             $order = DB::transaction(function () use ($request, $items) {
                 // Validar valor estimado com soma dos itens
-                $calculatedTotal = array_sum(array_map(function($item) {
+                $calculatedTotal = array_sum(array_map(function ($item) {
                     return $item['quantity'] * $item['unit_price'];
                 }, $items));
 
                 $estimatedAmount = (float) $request->estimated_amount;
-                
+
                 // Permitir diferença de até 5% para flexibilidade
                 if (abs($calculatedTotal - $estimatedAmount) > ($calculatedTotal * 0.05)) {
                     $estimatedAmount = $calculatedTotal;
                 }
+
+                Log::info('Creating order', [
+                    'calculated_total' => $calculatedTotal,
+                    'estimated_amount' => $estimatedAmount
+                ]);
 
                 // Criar o pedido
                 $order = Order::create([
@@ -138,10 +151,12 @@ class OrderController extends Controller
                     'status' => 'pending'
                 ]);
 
+                Log::info('Order created', ['order_id' => $order->id]);
+
                 // Criar os itens do pedido
                 foreach ($items as $item) {
                     $totalPrice = $item['quantity'] * $item['unit_price'];
-                    
+
                     OrderItem::create([
                         'order_id' => $order->id,
                         'product_id' => $item['product_id'] ?? null,
@@ -152,6 +167,8 @@ class OrderController extends Controller
                         'total_price' => $totalPrice
                     ]);
                 }
+
+                Log::info('Order items created', ['count' => count($items)]);
 
                 // Criar dívida se solicitado
                 $remainingAmount = $order->estimated_amount - $order->advance_payment;
@@ -168,254 +185,407 @@ class OrderController extends Controller
                         'status' => 'active',
                         'notes' => "Valor em aberto do pedido #{$order->id}"
                     ]);
+
+                    Log::info('Debt created', ['amount' => $remainingAmount]);
                 }
 
                 return $order;
             });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pedido criado com sucesso!',
-                'redirect' => route('orders.show', $order)
-            ]);
+            Log::info('Order created successfully', ['order_id' => $order->id]);
 
+            return redirect()->route('orders.show', $order)
+                ->with('success', 'Pedido criado com sucesso!');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dados inválidos: ' . implode(' ', $e->validator->errors()->all())
-            ], 422);
-            
+            Log::error('Validation exception', ['errors' => $e->errors()]);
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('Erro ao criar pedido: ' . $e->getMessage(), [
+            Log::error('Error creating order: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
-                'request_data' => $request->all()
+                'exception' => $e
             ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao criar pedido: ' . $e->getMessage()
-            ], 500);
+            return back()->withErrors(['error' => 'Erro ao criar pedido: ' . $e->getMessage()])->withInput();
         }
     }
 
+    // Método para criar dívida a partir do pedido
+    public function createDebt(Request $request, Order $order)
+    {
+        if (!$order->canCreateDebt()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Não é possível criar dívida para este pedido.'
+                ], 400);
+            }
+            return back()->with('error', 'Não é possível criar dívida para este pedido.');
+        }
+
+        $request->validate([
+            'due_date' => 'required|date|after_or_equal:today',
+            'description' => 'nullable|string'
+        ]);
+
+        try {
+            $remainingAmount = $order->estimated_amount - $order->advance_payment;
+
+            $debt = Debt::create([
+                'user_id' => auth()->id(),
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'original_amount' => $remainingAmount,
+                'remaining_amount' => $remainingAmount,
+                'debt_date' => now()->toDateString(),
+                'due_date' => $request->due_date,
+                'description' => $request->description ?: "Valor restante do Pedido #{$order->id}",
+                'status' => 'active',
+                'order_id' => $order->id,
+            ]);
+
+            // Atualizar o pedido para refletir que tem uma dívida
+            $order->update(['debt_id' => $debt->id]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Dívida criada com sucesso!',
+                    'redirect' => route('debts.show', $debt)
+                ]);
+            }
+
+            return redirect()->route('debts.show', $debt)->with('success', 'Dívida criada com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('Erro ao criar dívida: ' . $e->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao criar dívida: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return back()->with('error', 'Erro ao criar dívida: ' . $e->getMessage());
+        }
+    }
+    // Método para converter pedido em venda
+    public function convertToSale(Request $request, Order $order)
+    {
+        if (!$order->canBeConvertedToSale()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este pedido não pode ser convertido em venda.'
+                ], 400);
+            }
+            return back()->with('error', 'Este pedido não pode ser convertido em venda.');
+        }
+
+        $request->validate([
+            'payment_method' => 'required|in:cash,card,transfer,mpesa,emola'
+        ]);
+
+        try {
+            $sale = null;
+
+            DB::transaction(function () use ($request, $order, &$sale) {
+                // Criar a venda
+                $sale = Sale::create([
+                    'user_id' => auth()->id(),
+                    'customer_name' => $order->customer_name,
+                    'customer_phone' => $order->customer_phone,
+                    'customer_email' => $order->customer_email,
+                    'subtotal' => $order->estimated_amount,
+                    'total_amount' => $order->estimated_amount,
+                    'payment_method' => $request->payment_method,
+                    'sale_date' => now(),
+                    'notes' => "Venda gerada a partir do Pedido #{$order->id} - {$order->description}",
+                    'order_id' => $order->id,
+                ]);
+
+                // Criar itens da venda
+                foreach ($order->items as $item) {
+                    $sale->items()->create([
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->item_name,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total_price' => $item->total_price,
+                        'description' => $item->description,
+                    ]);
+
+                    // Atualizar stock se necessário
+                    if ($item->product) {
+                        $item->product->decrement('stock_quantity', $item->quantity);
+                    }
+                }
+
+                // Atualizar status do pedido
+                $order->update([
+                    'status' => 'delivered',
+                    'sale_id' => $sale->id
+                ]);
+            });
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pedido convertido em venda com sucesso!',
+                    'redirect' => route('sales.show', $sale)
+                ]);
+            }
+
+            return redirect()->route('sales.show', $sale)->with('success', 'Pedido convertido em venda com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('Erro ao converter pedido em venda: ' . $e->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao converter pedido: ' . $e->getMessage()
+                ], 500);
+            }
+
+            return back()->with('error', 'Erro ao converter pedido: ' . $e->getMessage());
+        }
+    }
+    // Mostra os detalhes de um pedido (página cFompleta)
     public function show(Order $order)
     {
         $order->load(['user', 'items.product', 'debt']);
         return view('orders.show', compact('order'));
     }
 
+    // Mostra o formulário de edição (página completa)
     public function edit(Order $order)
     {
-        $products = Product::where('is_active', true)->get();
-        $categories = Category::where('status', 'active')->get();
-        $order->load('items');
-        
-        return view('orders.edit', compact('order', 'products', 'categories'));
+        if (!$order->canBeEdited()) {
+            return redirect()->route('orders.show', $order)->with('error', 'Este pedido não pode ser editado.');
+        }
+
+        $products = Product::where('is_active', true)->orderBy('name')->get();
+        $order->load('items'); // Carrega os itens do pedido
+
+        return view('orders.edit', compact('order', 'products'));
     }
 
+    // Atualiza um pedido existente
     public function update(Request $request, Order $order)
     {
-        $request->validate([
+        $validated = $request->validate([
             'customer_name' => 'required|string|max:100',
             'customer_phone' => 'nullable|string|max:20',
-            'customer_email' => 'nullable|email|max:100',
             'description' => 'required|string',
-            'estimated_amount' => 'required|numeric|min:0',
-            'advance_payment' => 'nullable|numeric|min:0',
-            'delivery_date' => 'nullable|date',
+            'delivery_date' => 'nullable|date|after_or_equal:today',
             'priority' => 'required|in:low,medium,high,urgent',
-            'status' => 'required|in:pending,in_progress,completed,delivered,cancelled',
             'notes' => 'nullable|string',
-            'internal_notes' => 'nullable|string'
+            'advance_payment' => 'nullable|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
         ]);
 
         try {
-            $order->update($request->all());
-
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Pedido atualizado com sucesso!'
-                ]);
-            }
-
-            return redirect()->route('orders.show', $order)
-                ->with('success', 'Pedido atualizado com sucesso!');
-                
-        } catch (\Exception $e) {
-            Log::error('Erro ao atualizar pedido: ' . $e->getMessage());
-            
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erro ao atualizar pedido.'
-                ], 500);
-            }
-
-            return redirect()->back()
-                ->with('error', 'Erro ao atualizar pedido.')
-                ->withInput();
-        }
-    }
-
-    public function showDetails(Order $order)
-    {
-        $order->load(['user', 'items.product.category', 'debt']);
-
-        $html = view('orders.partials.details', compact('order'))->render();
-
-        return response()->json([
-            'success' => true,
-            'html' => $html
-        ]);
-    }
-
-    public function editData(Order $order)
-    {
-        $order->load('items');
-        
-        // Transformar os itens em formato esperado pelo frontend
-        $orderData = $order->toArray();
-        $orderData['items'] = $order->items->map(function($item) {
-            return [
-                'id' => $item->product_id,
-                'name' => $item->item_name,
-                'price' => $item->unit_price,
-                'quantity' => $item->quantity
-            ];
-        });
-
-        return response()->json(['success' => true, 'data' => $orderData]);
-    }
-
-    public function destroy(Order $order)
-    {
-        try {
-            if (in_array($order->status, ['completed', 'delivered'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Pedidos concluídos ou entregues não podem ser cancelados.'
-                ], 400);
-            }
-
-            DB::transaction(function () use ($order) {
-                // Se há dívida relacionada, cancelar também
-                if ($order->debt) {
-                    $order->debt->update(['status' => 'cancelled']);
+            DB::transaction(function () use ($validated, $order) {
+                $totalAmount = 0;
+                foreach ($validated['items'] as $item) {
+                    $totalAmount += $item['quantity'] * $item['unit_price'];
                 }
-                
-                $order->update(['status' => 'cancelled']);
+
+                $order->update([
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                    'description' => $validated['description'],
+                    'estimated_amount' => $totalAmount,
+                    'advance_payment' => $validated['advance_payment'] ?? 0,
+                    'delivery_date' => $validated['delivery_date'],
+                    'priority' => $validated['priority'],
+                    'notes' => $validated['notes'],
+                ]);
+
+                // Sincronizar itens (remove os antigos e adiciona os novos)
+                $order->items()->delete();
+                foreach ($validated['items'] as $itemData) {
+                    $product = Product::find($itemData['product_id']);
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'item_name' => $product->name,
+                        'quantity' => $itemData['quantity'],
+                        'unit_price' => $itemData['unit_price'],
+                        'total_price' => $itemData['quantity'] * $itemData['unit_price'],
+                    ]);
+                }
             });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pedido cancelado com sucesso!'
-            ]);
-            
+            return redirect()->route('orders.show', $order)->with('success', 'Pedido atualizado com sucesso!');
         } catch (\Exception $e) {
-            Log::error('Erro ao cancelar pedido: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Erro ao cancelar pedido.'
-            ], 500);
+            Log::error("Erro ao atualizar pedido #{$order->id}: " . $e->getMessage());
+            return back()->with('error', 'Erro ao atualizar pedido: ' . $e->getMessage())->withInput();
         }
     }
 
+    // Atualiza apenas o status (ação rápida da listagem)
     public function updateStatus(Request $request, Order $order)
     {
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,delivered,cancelled'
+            'status' => ['required', Rule::in(['pending', 'in_progress', 'completed', 'delivered', 'cancelled'])],
         ]);
 
         try {
-            $order->update(['status' => $request->status]);
+            // Se for uma requisição AJAX/JSON, retorne JSON
+            if ($request->expectsJson() || $request->ajax()) {
+                $order->update(['status' => $request->status]);
 
-            if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Status atualizado com sucesso!'
+                    'message' => 'Status do pedido atualizado com sucesso!',
+                    'new_status' => $request->status,
+                    'status_text' => $order->status_text,
+                    'status_badge' => $order->status_badge
                 ]);
             }
 
-            return redirect()->route('orders.show', $order)
-                ->with('success', 'Status do pedido atualizado!');
-                
+            // Se for requisição normal, redireciona
+            $order->update(['status' => $request->status]);
+            return redirect()->route('orders.index')->with('success', 'Status do pedido atualizado!');
         } catch (\Exception $e) {
             Log::error('Erro ao atualizar status: ' . $e->getMessage());
-            
-            if ($request->expectsJson()) {
+
+            if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Erro ao atualizar status.'
+                    'message' => 'Erro ao atualizar status: ' . $e->getMessage()
                 ], 500);
             }
 
-            return redirect()->back()->with('error', 'Erro ao atualizar status.');
+            return back()->with('error', 'Erro ao atualizar status.');
         }
     }
 
-    public function convertToSale(Order $order)
+    /**
+     * NOVA: Mostra a página para concluir um pedido (gerar venda ou dívida).
+     */
+    public function complete(Order $order)
     {
-        // Verifique se o pedido está em um estado válido para conversão.
-        if (!in_array($order->status, ['completed', 'delivered'])) {
-            $message = 'Pedido deve estar concluído ou entregue para ser convertido em venda.';
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $message
-                ], 400); // Bad Request
-            }
-            return redirect()->route('orders.show', $order)->with('error', $message);
+        if ($order->status !== 'in_progress' && $order->status !== 'pending') {
+            return redirect()->route('orders.show', $order)->with('error', 'Apenas pedidos em andamento ou pendentes podem ser concluídos.');
         }
+
+        $remainingAmount = $order->estimated_amount - $order->advance_payment;
+
+        return view('orders.complete', compact('order', 'remainingAmount'));
+    }
+
+    /**
+     * NOVA: Processa a conclusão do pedido.
+     */
+    public function processCompletion(Request $request, Order $order)
+    {
+        $request->validate([
+            'action' => 'required|in:create_sale,create_debt',
+            'payment_method' => 'required_if:action,create_sale|in:cash,card,transfer,mpesa,emola',
+            'debt_due_date' => 'nullable|date|after_or_equal:today',
+        ]);
 
         try {
-            // A lógica de conversão foi movida para o modelo Order.php
-            $sale = $order->convertToSale();
-            
-            $message = 'Pedido convertido em venda com sucesso!';
-            
-            // Retorne JSON se a requisição for AJAX
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $message,
-                    'redirect_url' => route('sales.show', $sale)
-                ]);
-            }
-            
-            // Ou redirecione para navegação tradicional
-            return redirect()->route('sales.show', $sale)->with('success', $message);
-            
-        } catch (\Exception $e) {
-            Log::error('Erro ao converter pedido para venda: ' . $e->getMessage(), [
-                'order_id' => $order->id,
-                'exception' => $e
-            ]);
+            DB::transaction(function () use ($request, $order) {
+                if ($request->action === 'create_sale') {
+                    // Lógica para criar a venda
+                    $sale = Sale::create([
+                        'user_id' => auth()->id(),
+                        'customer_name' => $order->customer_name,
+                        'customer_phone' => $order->customer_phone,
+                        'subtotal' => $order->estimated_amount,
+                        'total_amount' => $order->estimated_amount,
+                        'payment_method' => $request->payment_method,
+                        'sale_date' => now(),
+                        'notes' => "Venda gerada a partir do Pedido #{$order->id}",
+                    ]);
 
-            $message = 'Erro ao converter pedido em venda: ' . $e->getMessage();
-            
-            // Retorne JSON para o JavaScript
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $message
-                ], 500); // Internal Server Error
-            }
-            
-            // Ou redirecione para o navegador
-            return redirect()->route('orders.show', $order)->with('error', $message);
+                    foreach ($order->items as $item) {
+                        $sale->items()->create([
+                            'product_id' => $item->product_id,
+                            'quantity' => $item->quantity,
+                            'original_unit_price' => $item->unit_price,
+                            'unit_price' => $item->unit_price,
+                            'total_price' => $item->total_price,
+                        ]);
+                        // Aqui você pode adicionar a lógica de baixar stock se ainda não foi feito
+                    }
+
+                    $order->update(['status' => 'delivered', 'sale_id' => $sale->id]);
+                } elseif ($request->action === 'create_debt') {
+                    // Lógica para criar a dívida
+                    $remaining = $order->estimated_amount - $order->advance_payment;
+                    if ($remaining > 0) {
+                        $debt = Debt::create([
+                            'user_id' => auth()->id(),
+                            'customer_name' => $order->customer_name,
+                            'customer_phone' => $order->customer_phone,
+                            'original_amount' => $remaining,
+                            'remaining_amount' => $remaining,
+                            'debt_date' => now()->toDateString(),
+                            'due_date' => $request->debt_due_date ?: now()->addDays(30)->toDateString(),
+                            'description' => "Valor restante do Pedido #{$order->id}",
+                            'status' => 'active',
+                            'order_id' => $order->id,
+                        ]);
+                        $order->update(['status' => 'completed', 'debt_id' => $debt->id]);
+                    } else {
+                        // Se não há valor restante, apenas marca como concluído
+                        $order->update(['status' => 'completed']);
+                    }
+                }
+            });
+
+            return redirect()->route('orders.show', $order)->with('success', 'Pedido concluído com sucesso!');
+        } catch (\Exception $e) {
+            Log::error("Erro ao processar conclusão do pedido #{$order->id}: " . $e->getMessage());
+            return back()->with('error', 'Ocorreu um erro: ' . $e->getMessage());
         }
     }
+
+    // O método destroy() pode ser simplificado para apenas cancelar.
+    public function destroy(Order $order)
+    {
+        if (!$order->canBeCancelled()) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este pedido não pode ser cancelado.'
+                ], 400);
+            }
+            return back()->with('error', 'Este pedido não pode ser cancelado.');
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Pedido cancelado com sucesso.',
+                'redirect' => route('orders.index')
+            ]);
+        }
+
+        return redirect()->route('orders.index')->with('success', 'Pedido cancelado com sucesso.');
+    }
+
+    // O método duplicate() está bom, apenas precisa apontar para a view `create` refatorada.
     public function duplicate(Order $order)
     {
         $products = Product::where('is_active', true)->get();
         $categories = Category::where('status', 'active')->get();
         $order->load('items');
-        
-        return view('orders.create', compact('order', 'products', 'categories'));
-    }
 
+        // Passamos o pedido a ser duplicado para a view de criação
+        return view('orders.create', [
+            'products' => $products,
+            'categories' => $categories,
+            'orderToDuplicate' => $order
+        ]);
+    }
     // Relatório de pedidos com filtros avançados
     public function report(Request $request)
     {
@@ -454,7 +624,7 @@ class OrderController extends Controller
             'total_orders' => $orders->count(),
             'total_amount' => $orders->sum('estimated_amount'),
             'total_advance' => $orders->sum('advance_payment'),
-            'total_pending' => $orders->sum(function($order) {
+            'total_pending' => $orders->sum(function ($order) {
                 return $order->estimated_amount - $order->advance_payment;
             }),
             'by_status' => [
@@ -470,9 +640,9 @@ class OrderController extends Controller
                 'high' => $orders->where('priority', 'high')->count(),
                 'urgent' => $orders->where('priority', 'urgent')->count(),
             ],
-            'overdue_count' => $orders->filter(function($order) {
-                return $order->delivery_date && $order->delivery_date < now() && 
-                       in_array($order->status, ['pending', 'in_progress']);
+            'overdue_count' => $orders->filter(function ($order) {
+                return $order->delivery_date && $order->delivery_date < now() &&
+                    in_array($order->status, ['pending', 'in_progress']);
             })->count()
         ];
 
@@ -483,16 +653,16 @@ class OrderController extends Controller
     public function searchProducts(Request $request)
     {
         $term = $request->get('term', $request->get('q', ''));
-        
+
         $products = Product::where('is_active', true)
             ->where(function ($query) use ($term) {
                 $query->where('name', 'like', '%' . $term . '%')
-                      ->orWhere('description', 'like', '%' . $term . '%');
+                    ->orWhere('description', 'like', '%' . $term . '%');
             })
             ->with('category')
             ->limit(10)
             ->get()
-            ->map(function($product) {
+            ->map(function ($product) {
                 return [
                     'id' => $product->id,
                     'name' => $product->name,

@@ -121,6 +121,11 @@ class Order extends Model
     /* ============================
      * MÉTODOS DE VERIFICAÇÃO
      * ============================ */
+    public function canBeEdited() : bool
+    {
+        return !in_array($this->status, ['delivered', 'cancelled']);
+    }
+
     public function isOverdue(): bool
     {
         return $this->delivery_date && 
@@ -197,6 +202,19 @@ class Order extends Model
             return $sale;
         });
     } */
+   
+        // No modelo Order.php
+    public function canCreateDebt()
+    {
+        return in_array($this->status, ['completed', 'delivered']) && 
+            !$this->debt && 
+            ($this->estimated_amount - $this->advance_payment) > 0;
+    }
+
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
     public function convertToSale()
     {
         // Esta função deve ser chamada dentro de um try/catch no controller
