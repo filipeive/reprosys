@@ -42,7 +42,7 @@
             </h5>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('debts.debtors-report') }}" id="report-filters">
+            <form method="GET" action="{{ route('debts.report') }}" id="report-filters">
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Tipo de Dívida</label>
@@ -449,7 +449,7 @@ function exportReport() {
     
     // Criar link temporário para download
     const link = document.createElement('a');
-    link.href = `{{ route('debts.debtors-report') }}?${params.toString()}`;
+    link.href = `{{ route('debts.report') }}?${params.toString()}`;
     link.download = `relatorio-devedores-${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();

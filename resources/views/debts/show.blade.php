@@ -129,54 +129,108 @@
     <!-- Ações Rápidas -->
     <div class="card mb-4">
         <div class="card-body">
-            <div class="row g-2">
+            <div class="d-flex align-items-center gap-2 flex-nowrap" style="overflow-x:auto;">
+                <div class="flex-shrink-0">
+                    <a href="{{ route('debts.index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i> Voltar
+                    </a>
+                </div>
+
                 @if ($debt->canReceivePayment())
-                    <div class="col-md-3">
-                        <button type="button" class="btn btn-success w-100" data-bs-toggle="offcanvas"
-                            data-bs-target="#paymentOffcanvas">
-                            <i class="fas fa-money-bill me-2"></i>
-                            Registrar Pagamento
-                        </button>
+                    <div class="flex-shrink-0">
+                        <a href="{{ route('debts.payment', $debt) }}" class="btn btn-success"
+                            title="Registrar Pagamento"> 
+                            <i class="fas fa-money-bill"></i> Registrar Pagamento
+                        </a>
                     </div>
                 @endif
 
                 @if ($debt->canBeMarkedAsPaid())
-                    <div class="col-md-3">
-                        <button type="button" class="btn btn-warning w-100" onclick="markAsPaid()">
-                            <i class="fas fa-check-circle me-2"></i>
-                            Marcar como Paga
-                        </button>
+                    <div class="flex-shrink-0">
+                        <a href="{{ route('debts.mark-as-paid', $debt) }}" class="btn btn-warning"
+                            onclick="event.preventDefault(); choosePaymentMethodAndMarkPaid(this);">
+                             <i class="fas fa-check-circle me-2"></i> Marcar como Paga
+                        </a>
+
+                        <script>
+                             function choosePaymentMethodAndMarkPaid(link) {
+                                  if (!confirm('Tem certeza que deseja marcar esta dívida como totalmente paga?')) {
+                                        return;
+                                  }
+
+                                  const paymentMethods = {
+                                        'cash': 'Dinheiro',
+                                        'card': 'Cartão',
+                                        'transfer': 'Transferência',
+                                        'mpesa': 'M-Pesa',
+                                        'emola': 'E-mola'
+                                  };
+
+                                  const methodsText = Object.entries(paymentMethods)
+                                        .map(([key, value]) => `${key} = ${value}`)
+                                        .join('\n');
+
+                                  const paymentMethod = prompt(`Qual foi a forma de pagamento?\n\n${methodsText}`, 'cash');
+
+                                  if (!paymentMethod || !paymentMethods[paymentMethod]) {
+                                        showToast('Forma de pagamento inválida', 'error');
+                                        return;
+                                  }
+
+                                  // Enviar pedido PATCH para marcar como paga
+                                  fetch(link.href, {
+                                        method: 'PATCH',
+                                        headers: {
+                                             'X-Requested-With': 'XMLHttpRequest',
+                                             'Accept': 'application/json',
+                                             'Content-Type': 'application/json',
+                                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                                        },
+                                        body: JSON.stringify({ payment_method: paymentMethod, create_sale: false })
+                                  })
+                                  .then(res => res.json())
+                                  .then(data => {
+                                        if (data.success) {
+                                             showToast(data.message || 'Dívida marcada como paga!', 'success');
+                                             setTimeout(() => window.location.reload(), 1000);
+                                        } else {
+                                             showToast(data.message || 'Erro ao marcar como paga', 'error');
+                                        }
+                                  })
+                                  .catch(err => {
+                                        console.error(err);
+                                        showToast('Erro de conexão', 'error');
+                                  });
+                             }
+                        </script>
                     </div>
                 @endif
 
                 @if ($debt->canBeEdited())
-                    <div class="col-md-3">
-                        <a href="{{ route('debts.index') }}?edit={{ $debt->id }}"
-                            class="btn btn-outline-primary w-100">
-                            <i class="fas fa-edit me-2"></i>
-                            Editar
+                    <div class="flex-shrink-0">
+                        <a href="{{ route('debts.edit', $debt) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit me-2"></i> Editar
                         </a>
                     </div>
                 @endif
 
                 @if ($debt->canBeCancelled())
-                    <div class="col-md-3">
-                        <form method="POST" action="{{ route('debts.cancel', $debt) }}" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja cancelar esta dívida?');">
+                    <div class="flex-shrink-0">
+                        <form method="POST" action="{{ route('debts.cancel', $debt) }}" class="d-inline"
+                            onsubmit="return confirm('Tem certeza que deseja cancelar esta dívida?');">
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="btn btn-outline-danger w-100">
-                                <i class="fas fa-ban me-2"></i>
-                                Cancelar
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-ban me-2"></i> Cancelar
                             </button>
                         </form>
                     </div>
                 @endif
 
                 @if ($debt->isProductDebt() && $debt->status === 'paid' && !$debt->generated_sale_id)
-                    <div class="col-md-3">
-                        <button type="button" class="btn btn-info w-100" onclick="createManualSale()">
-                            <i class="fas fa-shopping-bag me-2"></i>
-                            Criar Venda
+                    <div class="flex-shrink-0">
+                        <button type="button" class="btn btn-info" onclick="createManualSale()">
+                            <i class="fas fa-shopping-bag me-2"></i> Criar Venda
                         </button>
                     </div>
                 @endif
