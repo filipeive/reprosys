@@ -1,61 +1,402 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🖨️ ReproSys - Sistema de Reprografia e Serigrafia
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Versão:** 2.0.0  
+**Desenvolvido por:** Eng. Filipe dos Santos
 
-## About Laravel
+Um sistema web completo e moderno para gestão de reprografia, serigrafia e serviços relacionados. Permite gerenciar produtos, vendas, estoque, despesas, dívidas e gerar relatórios detalhados de fluxo de caixa.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📋 Índice
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- [Visão Geral](#visão-geral)
+- [Principais Características](#principais-características)
+- [Requisitos do Sistema](#requisitos-do-sistema)
+- [Instalação](#instalação)
+- [Configuração](#configuração)
+- [Como Usar](#como-usar)
+- [Estrutura do Banco de Dados](#estrutura-do-banco-de-dados)
+- [Troubleshooting](#troubleshooting)
+- [Suporte e Contato](#suporte-e-contato)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🎯 Visão Geral
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+**ReproSys** é um sistema empresarial desenvolvido com **Laravel 12** e **Tailwind CSS** que oferece uma solução completa para empresas de reprografia, serigrafia e serviços similares.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Para Quem é?
+- ✅ Empresas de reprografia
+- ✅ Serviços de serigrafia
+- ✅ Negócios de impressão e cópia
+- ✅ Qualquer empresa que precise gerenciar produtos, vendas e despesas
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## ⭐ Principais Características
 
-### Premium Partners
+### 1. **Gestão de Produtos e Serviços**
+- Cadastro de produtos e serviços
+- Controle de categorias
+- Associação de preços
+- Tipos: Produto ou Serviço
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 2. **Gerenciamento de Vendas**
+- Criação de pedidos e vendas
+- Cálculo automático de totais
+- Integração com estoque
+- Histórico completo de transações
 
-## Contributing
+### 3. **Controle de Estoque**
+- Movimentação em tempo real
+- Rastreamento de entradas e saídas
+- Alertas de produtos com baixo estoque
+- Relatórios de inventário
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 4. **Gestão de Despesas**
+- Registro detalhado de despesas
+- Categorização por tipo
+- Associação a recibos
+- Filtros e busca avançada
 
-## Code of Conduct
+### 5. **Controle de Dívidas**
+- Registrar dívidas de clientes
+- Rastreamento de pagamentos
+- Cálculo automático de juros
+- Status: Ativa, Parcial, Paga, Vencida
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 6. **Relatórios e Análises**
+- Fluxo de caixa detalhado
+- Gráficos de vendas e despesas
+- Análise de lucro/prejuízo
+- Exportação de dados
+- Insights financeiros
 
-## Security Vulnerabilities
+### 7. **Sistema de Usuários e Permissões**
+- Autenticação segura
+- Controle de acesso por perfil
+- Gerenciamento de permissões
+- Auditoria de ações
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 8. **Interface Moderna**
+- Design responsivo e intuitivo
+- Tema claro/escuro
+- Barra lateral recolhível
+- Notificações em tempo real
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 💻 Requisitos do Sistema
+
+### Backend
+- **PHP** >= 8.2
+- **Composer** (gerenciador de dependências PHP)
+- **Node.js** >= 16 (para assets frontend)
+- **NPM** ou **Yarn**
+
+### Banco de Dados
+- **MySQL** >= 5.7 ou **MariaDB** >= 10.3
+- **SQLite** (para desenvolvimento)
+
+### Servidor Web
+- **Apache** (com mod_rewrite) ou **Nginx**
+- **SSL/TLS** (recomendado para produção)
+
+### Sistema Operacional
+- Linux/Ubuntu, Windows, macOS
+
+---
+
+## 🚀 Instalação
+
+### 1. Clonar o Repositório
+
+```bash
+git clone https://github.com/filipeive/reprosys.git
+cd reprosys
+```
+
+### 2. Instalar Dependências PHP
+
+```bash
+composer install
+```
+
+### 3. Instalar Dependências Node.js
+
+```bash
+npm install
+```
+
+### 4. Copiar Arquivo de Ambiente
+
+```bash
+cp .env.example .env
+```
+
+### 5. Gerar Chave de Aplicação
+
+```bash
+php artisan key:generate
+```
+
+### 6. Executar Migrações e Seeders
+
+```bash
+php artisan migrate --seed
+```
+
+### 7. Compilar Assets
+
+```bash
+npm run build
+```
+
+### 8. Iniciar o Servidor
+
+```bash
+php artisan serve
+```
+
+A aplicação estará disponível em: `http://localhost:8000`
+
+---
+
+## ⚙️ Configuração
+
+### Arquivo `.env`
+
+```env
+APP_NAME=ReproSys
+APP_ENV=local
+APP_KEY=base64:...
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+# Banco de Dados
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sistema_reprografia
+DB_USERNAME=root
+DB_PASSWORD=
+
+# Autenticação
+MAIL_DRIVER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=465
+MAIL_USERNAME=seu_usuario
+MAIL_PASSWORD=sua_senha
+```
+
+### Configurar Banco de Dados MySQL
+
+```sql
+CREATE DATABASE sistema_reprografia;
+CREATE USER 'reprosys'@'localhost' IDENTIFIED BY 'senha_segura';
+GRANT ALL PRIVILEGES ON sistema_reprografia.* TO 'reprosys'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### Usar Arquivo SQL Fornecido
+
+```bash
+mysql -u root -p sistema_reprografia < sistema_reprografia.sql
+```
+
+---
+
+## 📚 Como Usar
+
+### Primeiro Acesso
+
+1. **Login Padrão:**
+   - Email: `admin@example.com`
+   - Senha: `password`
+
+2. **Acesso ao Sistema:**
+   - Navegue para `http://localhost:8000`
+   - Faça login com as credenciais acima
+
+### Navegação Principal
+
+A interface é dividida em seções principais na barra lateral:
+
+- 🏠 **Dashboard** - Visão geral do negócio
+- 📦 **Produtos** - Gestão de produtos e serviços
+- 🛒 **Vendas** - Registrar e gerenciar vendas
+- 💰 **Despesas** - Controlar gastos
+- 💳 **Dívidas** - Gerenciar débitos de clientes
+- 📊 **Relatórios** - Análises e fluxo de caixa
+- 👥 **Usuários** - Gerenciar funcionários
+
+### Fluxo Típico de Uso
+
+#### 1. **Adicionar um Produto**
+   - Clique em **Produtos → Novo Produto**
+   - Preencha: Nome, Descrição, Tipo, Preço
+   - Clique em **Salvar**
+
+#### 2. **Registrar uma Venda**
+   - Clique em **Vendas → Nova Venda**
+   - Selecione os produtos desejados
+   - Defina quantidades
+   - O total é calculado automaticamente
+   - Clique em **Concluir Venda**
+
+#### 3. **Registrar uma Despesa**
+   - Clique em **Despesas → Nova Despesa**
+   - Preencha os dados (descrição, valor, data)
+   - Opcionalmente, anexe recibo
+   - Clique em **Salvar**
+
+#### 4. **Gerar Relatório**
+   - Clique em **Relatórios → Fluxo de Caixa**
+   - Selecione o período desejado
+   - Visualize gráficos e estatísticas
+   - Exporte em PDF ou Excel se necessário
+
+---
+
+## 🗄️ Estrutura do Banco de Dados
+
+### Tabelas Principais
+
+| Tabela | Descrição |
+|--------|-----------|
+| `users` | Usuários do sistema |
+| `roles` | Perfis de acesso |
+| `categories` | Categorias de produtos |
+| `products` | Produtos e serviços |
+| `orders` | Pedidos realizados |
+| `order_items` | Itens dos pedidos |
+| `sales` | Vendas concluídas |
+| `sale_items` | Itens das vendas |
+| `expenses` | Despesas registradas |
+| `expense_categories` | Categorias de despesas |
+| `debts` | Dívidas de clientes |
+| `debt_payments` | Pagamentos de dívidas |
+| `stock_movements` | Movimentação de estoque |
+
+### Relacionamentos
+
+```
+Users ─┬─ Orders
+       ├─ Sales
+       ├─ Expenses
+       └─ Debts
+
+Products ─┬─ Order Items
+          └─ Sale Items
+```
+
+---
+
+## 🔧 Deployment
+
+### Deploy em Servidor Linux
+
+1. **Clone o repositório:**
+```bash
+cd /var/www
+git clone https://github.com/filipeive/reprosys.git
+```
+
+2. **Configure permissões:**
+```bash
+chmod -R 755 reprosys
+chmod -R 777 reprosys/storage
+chmod -R 777 reprosys/bootstrap/cache
+```
+
+3. **Instale dependências:**
+```bash
+cd reprosys
+composer install --no-dev --optimize-autoloader
+npm install && npm run build
+```
+
+4. **Configure .env para produção:**
+```env
+APP_ENV=production
+APP_DEBUG=false
+```
+
+5. **Configure Nginx ou Apache** com SSL/TLS
+
+---
+
+## 🐛 Troubleshooting
+
+### Erro: "Class not found"
+```bash
+php artisan config:clear
+composer dump-autoload
+```
+
+### Erro: "SQLSTATE[HY000]"
+- Verifique credenciais do banco de dados no `.env`
+- Confirme que o banco de dados existe
+- Reinicie o serviço MySQL
+
+### Erro: "Permission denied" em storage
+```bash
+chmod -R 777 storage bootstrap/cache
+```
+
+### Página em branco
+```bash
+php artisan config:cache
+php artisan cache:clear
+php artisan view:clear
+```
+
+### Assets não carregam
+```bash
+npm run dev
+# ou
+npm run build
+php artisan storage:link
+```
+
+---
+
+## 🔐 Segurança
+
+- ✅ Autenticação com hash bcrypt
+- ✅ Proteção CSRF em todos os formulários
+- ✅ Validação de entrada em servidor
+- ✅ Sanitização de dados
+- ✅ Controle de acesso baseado em funções
+- ✅ Auditoria de operações
+
+**Recomendações:**
+- Altere a senha padrão no primeiro acesso
+- Use senhas fortes
+- Mantenha o sistema atualizado
+- Faça backups regulares
+
+---
+
+## 📞 Suporte e Contato
+
+- **Email:** filipeive@example.com
+- **Portal de Suporte:** http://163.192.7.41/
+- **Issues GitHub:** [Reportar problema](https://github.com/filipeive/reprosys/issues)
+
+---
+
+## 📄 Licença
+
+MIT License - Veja o arquivo LICENSE para detalhes.
+
+---
+
+## 👨‍💼 Desenvolvedor
+
+**Eng. Filipe dos Santos**  
+FDSMULTSERVICES+
+
+---
+
+**Última atualização:** Novembro de 2025

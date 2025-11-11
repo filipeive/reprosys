@@ -1843,56 +1843,58 @@
         <!-- Professional Footer -->
         <footer class="footer">
             <div class="container-fluid" style="padding: 0 {{ auth()->check() ? '20px' : '20px' }};">
-                <div class="footer-content">
-                    <!-- Seção 1: Sobre -->
-                    <div class="footer-section">
-                        <h6><i class="fas fa-info-circle"></i> Sobre</h6>
-                        <ul>
-                            <li><strong class="text-primary">FDSMULTSERVICES+</strong></li>
-                            <li><small class="text-muted">Sistema de Reprografia e Serigrafia</small></li>
-                            <li><small class="text-muted">v2.0.0</small></li>
-                        </ul>
-                    </div>
+                @if (request()->routeIs('dashboard.index'))
+                    <div class="footer-content">
+                        <!-- Seção 1: Sobre -->
+                        <div class="footer-section">
+                            <h6><i class="fas fa-info-circle"></i> Sobre</h6>
+                            <ul>
+                                <li><strong class="text-primary">FDSMULTSERVICES+</strong></li>
+                                <li><small class="text-muted">Sistema de Reprografia e Serigrafia</small></li>
+                                <li><small class="text-muted">v2.0.0</small></li>
+                            </ul>
+                        </div>
 
-                    <!-- Seção 2: Links Rápidos -->
-                    <div class="footer-section">
-                        <h6><i class="fas fa-link"></i> Links Rápidos</h6>
-                        <ul>
-                            @if(userCan('view_dashboard'))
-                            <li><a href="{{ route('dashboard.index') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                            @endif
-                            @if(userCan('view_sales'))
-                            <li><a href="{{ route('sales.index') }}"><i class="fas fa-receipt"></i> Vendas</a></li>
-                            @endif
-                            @if(userCan('view_products'))
-                            <li><a href="{{ route('products.index') }}"><i class="fas fa-cube"></i> Produtos</a></li>
-                            @endif
-                            @if(userCan('view_reports'))
-                            <li><a href="{{ route('reports.index') }}"><i class="fas fa-chart-bar"></i> Relatórios</a></li>
-                            @endif
-                        </ul>
-                    </div>
+                        <!-- Seção 2: Links Rápidos -->
+                        <div class="footer-section">
+                            <h6><i class="fas fa-link"></i> Links Rápidos</h6>
+                            <ul>
+                                @if(userCan('view_dashboard'))
+                                <li><a href="{{ route('dashboard.index') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                                @endif
+                                @if(userCan('view_sales'))
+                                <li><a href="{{ route('sales.index') }}"><i class="fas fa-receipt"></i> Vendas</a></li>
+                                @endif
+                                @if(userCan('view_products'))
+                                <li><a href="{{ route('products.index') }}"><i class="fas fa-cube"></i> Produtos</a></li>
+                                @endif
+                                @if(userCan('view_reports'))
+                                <li><a href="{{ route('reports.index') }}"><i class="fas fa-chart-bar"></i> Relatórios</a></li>
+                                @endif
+                            </ul>
+                        </div>
 
-                    <!-- Seção 3: Suporte -->
-                    <div class="footer-section">
-                        <h6><i class="fas fa-headset"></i> Suporte</h6>
-                        <ul>
-                            <li><a href="http://163.192.7.41/" target="_blank"><i class="fas fa-external-link-alt"></i> Suporte Técnico</a></li>
-                            <li><a href="#" onclick="showHelp()"><i class="fas fa-book"></i> Manual do Usuário</a></li>
-                            <li><a href="#" onclick="showAbout()"><i class="fas fa-question-circle"></i> Sobre o Sistema</a></li>
-                        </ul>
-                    </div>
+                        <!-- Seção 3: Suporte -->
+                        <div class="footer-section">
+                            <h6><i class="fas fa-headset"></i> Suporte</h6>
+                            <ul>
+                                <li><a href="http://163.192.7.41/" target="_blank"><i class="fas fa-external-link-alt"></i> Suporte Técnico</a></li>
+                                <li><a href="#" onclick="showHelp()"><i class="fas fa-book"></i> Manual do Usuário</a></li>
+                                <li><a href="#" onclick="showAbout()"><i class="fas fa-question-circle"></i> Sobre o Sistema</a></li>
+                            </ul>
+                        </div>
 
-                    <!-- Seção 4: Status -->
-                    <div class="footer-section">
-                        <h6><i class="fas fa-server"></i> Status</h6>
-                        <ul>
-                            <li><span class="badge bg-success"><i class="fas fa-check-circle"></i> Sistema Online</span></li>
-                            <li><small class="text-muted">Última verificação: <span id="last-check-time">agora</span></small></li>
-                            <li><a href="#" onclick="checkSystemStatus()"><i class="fas fa-sync"></i> Verificar Status</a></li>
-                        </ul>
+                        <!-- Seção 4: Status -->
+                        <div class="footer-section">
+                            <h6><i class="fas fa-server"></i> Status</h6>
+                            <ul>
+                                <li><span class="badge bg-success"><i class="fas fa-check-circle"></i> Sistema Online</span></li>
+                                <li><small class="text-muted">Última verificação: <span id="last-check-time">agora</span></small></li>
+                                <li><a href="#" onclick="checkSystemStatus()"><i class="fas fa-sync"></i> Verificar Status</a></li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 <!-- Footer Bottom -->
                 <div class="footer-bottom">
@@ -1901,6 +1903,8 @@
                     </div>
                     <div class="footer-status">
                         <span class="badge bg-info">© {{ date('Y') }} FDSMULTSERVICES+</span>
+                        <span id="server-date">{{ now()->format('d/m/Y') }}</span>
+                        
                         <span class="text-muted">|</span>
                         <span id="server-time">{{ now()->format('H:i:s') }}</span>
                     </div>
@@ -2768,7 +2772,7 @@
                 
                 © 2024 - Desenvolvido por Eng. Filipe dos Santos
                 
-                Para suporte técnico, visite: http://163.192.7.41/
+                Para suporte técnico, visite: http://146.235.224.99/
             `;
             
             if (confirm(aboutMessage)) {
