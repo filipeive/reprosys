@@ -15,6 +15,15 @@
 
 @section('content')
 <div class="row">
+    {{-- error handling --}}
+    @if($errors->any())
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        alert(@json(implode("\n", $errors->all())));
+    });
+    </script>
+    @endif
+
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-warning text-dark">
@@ -93,34 +102,56 @@
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
-                        
-                        <div class="col-md-3 mb-3">
-                            <label class="form-label fw-semibold">Status *</label>
-                            <select class="form-select @error('status') is-invalid @enderror" name="status" required>
-                                <option value="pending" {{ old('status', $order->status) == 'pending' ? 'selected' : '' }}>Pendente</option>
-                                <option value="in_progress" {{ old('status', $order->status) == 'in_progress' ? 'selected' : '' }}>Em Andamento</option>
-                                <option value="completed" {{ old('status', $order->status) == 'completed' ? 'selected' : '' }}>Concluído</option>
-                                <option value="delivered" {{ old('status', $order->status) == 'delivered' ? 'selected' : '' }}>Entregue</option>
-                                <option value="cancelled" {{ old('status', $order->status) == 'cancelled' ? 'selected' : '' }}>Cancelado</option>
-                            </select>
-                            @error('status')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
                     </div>
 
                     <!-- Itens do Pedido -->
                     <div class="row mb-4">
                         <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="mb-0">
-                                    <i class="fas fa-box me-2"></i> Itens do Pedido
-                                </h6>
-                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
-                                    <i class="fas fa-plus me-1"></i> Adicionar Item
-                                </button>
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-box me-2"></i> Itens do Pedido
+                            </h6>
+                            
+                            <!-- Formulário para adicionar itens -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-5">
+                                            <label class="form-label fw-semibold">Produto/Serviço</label>
+                                            <select class="form-select" id="product-select">
+                                                <option value="">Selecione um produto...</option>
+                                                @foreach($products as $product)
+                                                    <option value="{{ $product->id }}" 
+                                                            data-name="{{ $product->name }}"
+                                                            data-description="{{ $product->description }}"
+                                                            data-price="{{ $product->selling_price }}">
+                                                        {{ $product->name }} - MT {{ number_format($product->selling_price, 2, ',', '.') }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-semibold">Quantidade</label>
+                                            <input type="number" class="form-control" id="item-quantity" value="1" min="1">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-semibold">Preço Unitário *</label>
+                                            <input type="number" step="0.01" class="form-control" id="item-price">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label fw-semibold">&nbsp;</label>
+                                            <button type="button" class="btn btn-primary w-100" onclick="addItemToOrder()">
+                                                <i class="fas fa-plus me-1"></i> Adicionar
+                                            </button>
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label class="form-label fw-semibold">Descrição do Item</label>
+                                            <textarea class="form-control" id="item-description" rows="2" placeholder="Descrição detalhada do item..."></textarea>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             
+                            <!-- Tabela de itens -->
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered" id="items-table">
                                     <thead class="table-light">
@@ -133,7 +164,12 @@
                                         </tr>
                                     </thead>
                                     <tbody id="items-tbody">
-                                        <!-- Itens serão carregados via JavaScript -->
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">
+                                                <i class="fas fa-box-open fa-2x mb-2 opacity-50"></i>
+                                                <p>Nenhum item adicionado ao pedido</p>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                     <tfoot>
                                         <tr>
@@ -204,12 +240,12 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <h6 class="border-bottom pb-2 mb-3">
-                                <i class="fas fa-sticky-note me-2"></i> Observações
+                                <i class="fas fa-cog me-2"></i> Opções Adicionais
                             </h6>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Observações do Cliente</label>
+                            <label class="form-label fw-semibold">Observações</label>
                             <textarea class="form-control @error('notes') is-invalid @enderror" 
                                       name="notes" rows="3">{{ old('notes', $order->notes) }}</textarea>
                             @error('notes')
@@ -230,83 +266,20 @@
                     <!-- Botões de Ação -->
                     <div class="row">
                         <div class="col-12">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    @if($order->canBeCompleted())
-                                        <button type="button" class="btn btn-success" 
-                                                onclick="changeOrderStatus('completed')">
-                                            <i class="fas fa-check me-2"></i> Marcar como Concluído
-                                        </button>
-                                    @endif
-                                    
-                                    @if($order->canBeCancelled())
-                                        <button type="button" class="btn btn-danger" 
-                                                onclick="confirmCancel()">
-                                            <i class="fas fa-times me-2"></i> Cancelar Pedido
-                                        </button>
-                                    @endif
-                                </div>
-                                
-                                <div class="d-flex gap-2">
-                                    <a href="{{ route('orders.show', $order) }}" class="btn btn-secondary">
-                                        <i class="fas fa-times me-2"></i> Cancelar
-                                    </a>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i> Atualizar Pedido
-                                    </button>
-                                </div>
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{{ route('orders.show', $order) }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i> Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary" id="submit-btn">
+                                    <i class="fas fa-save me-2"></i> Atualizar Pedido
+                                </button>
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Modal para Adicionar Item -->
-<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="addItemModalLabel">
-                    <i class="fas fa-plus me-2"></i> Adicionar Item ao Pedido
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Selecionar Produto</label>
-                        <select class="form-select" id="product-select">
-                            <option value="">Selecione um produto...</option>
-                            @foreach($products as $product)
-                                <option value="{{ $product->id }}" 
-                                        data-name="{{ $product->name }}"
-                                        data-description="{{ $product->description }}"
-                                        data-price="{{ $product->selling_price }}">
-                                    {{ $product->name }} - MT {{ number_format($product->selling_price, 2, ',', '.') }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Quantidade</label>
-                        <input type="number" class="form-control" id="item-quantity" value="1" min="1">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Preço Unitário</label>
-                        <input type="number" step="0.01" class="form-control" id="item-price">
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label fw-semibold">Descrição do Item</label>
-                        <textarea class="form-control" id="item-description" rows="2"></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="addItemToOrder()">Adicionar Item</button>
+                    <!-- Campo hidden para os itens -->
+                    {{-- Os itens são enviados como inputs array: items[index][field] gerados pelo JS --}}
+                </form>
             </div>
         </div>
     </div>
@@ -317,6 +290,16 @@
 <script>
     let orderItems = [];
     let itemCounter = 0;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
     document.addEventListener('DOMContentLoaded', function() {
         // Carregar itens existentes
@@ -349,6 +332,9 @@
 
         // Atualizar valores quando sinal mudar
         document.getElementById('advance-payment').addEventListener('input', updateAmounts);
+
+        // Validar formulário antes do envio
+        document.getElementById('order-form').addEventListener('submit', validateForm);
     }
 
     function addItemToOrder() {
@@ -357,30 +343,36 @@
         const priceInput = document.getElementById('item-price');
         const descriptionInput = document.getElementById('item-description');
 
-        if (!productSelect.value && !descriptionInput.value.trim()) {
+        // Validar campos obrigatórios
+        if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
+            alert('Preço unitário é obrigatório e deve ser maior que zero.');
+            priceInput.focus();
+            return;
+        }
+
+        const itemName = productSelect.value ? 
+            productSelect.options[productSelect.selectedIndex].dataset.name : 
+            descriptionInput.value.trim();
+        
+        if (!itemName) {
             alert('Selecione um produto ou digite uma descrição para o item.');
+            descriptionInput.focus();
             return;
         }
 
         const quantity = parseInt(quantityInput.value) || 1;
-        const unitPrice = parseFloat(priceInput.value) || 0;
+        const unitPrice = parseFloat(priceInput.value);
 
         if (quantity <= 0) {
             alert('Quantidade deve ser maior que zero.');
-            return;
-        }
-
-        if (unitPrice < 0) {
-            alert('Preço unitário não pode ser negativo.');
+            quantityInput.focus();
             return;
         }
 
         const item = {
             id: itemCounter++,
             product_id: productSelect.value || null,
-            item_name: productSelect.value ? 
-                productSelect.options[productSelect.selectedIndex].dataset.name : 
-                descriptionInput.value.trim(),
+            item_name: itemName,
             description: descriptionInput.value.trim(),
             quantity: quantity,
             unit_price: unitPrice,
@@ -396,9 +388,9 @@
         quantityInput.value = '1';
         priceInput.value = '';
         descriptionInput.value = '';
-
-        // Fechar modal
-        bootstrap.Modal.getInstance(document.getElementById('addItemModal')).hide();
+        
+        // Focar no próximo campo
+        productSelect.focus();
     }
 
     function updateItemsTable() {
@@ -419,18 +411,22 @@
 
         orderItems.forEach((item, index) => {
             const row = document.createElement('tr');
+            // Inputs nomeados para enviar como array: items[index][field]
             row.innerHTML = `
                 <td>
-                    <strong>${item.item_name}</strong>
-                    ${item.description ? `<br><small class="text-muted">${item.description}</small>` : ''}
+                    <strong>${escapeHtml(item.item_name)}</strong>
+                    ${item.description ? `<br><small class="text-muted">${escapeHtml(item.description)}</small>` : ''}
+                    <input type="hidden" name="items[${index}][product_id]" value="${item.product_id ?? ''}">
+                    <input type="hidden" name="items[${index}][item_name]" value="${escapeHtml(item.item_name)}">
+                    <input type="hidden" name="items[${index}][description]" value="${escapeHtml(item.description || '')}">
                 </td>
                 <td class="text-center">
-                    <input type="number" class="form-control form-control-sm" 
+                    <input type="number" name="items[${index}][quantity]" class="form-control form-control-sm" 
                            value="${item.quantity}" min="1" 
                            onchange="updateItemQuantity(${index}, this.value)">
                 </td>
                 <td class="text-end">
-                    <input type="number" step="0.01" class="form-control form-control-sm text-end" 
+                    <input type="number" step="0.01" name="items[${index}][unit_price]" class="form-control form-control-sm text-end" 
                            value="${item.unit_price.toFixed(2)}" 
                            onchange="updateItemPrice(${index}, this.value)">
                 </td>
@@ -439,6 +435,7 @@
                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(${index})">
                         <i class="fas fa-trash"></i>
                     </button>
+                    <input type="hidden" name="items[${index}][total_price]" value="${item.total_price.toFixed(2)}">
                 </td>
             `;
             tbody.appendChild(row);
@@ -480,45 +477,90 @@
 
         document.getElementById('estimated-amount').value = total.toFixed(2);
         document.getElementById('total-amount').textContent = `MT ${total.toFixed(2).replace('.', ',')}`;
-        document.getElementById('remaining-amount').value = remaining.toFixed(2);
+        document.getElementById('remaining-amount').value = remaining > 0 ? remaining.toFixed(2) : '0.00';
 
         // Validar sinal não maior que total
         if (advancePayment > total) {
             document.getElementById('advance-payment').classList.add('is-invalid');
+            document.getElementById('advance-payment').focus();
         } else {
             document.getElementById('advance-payment').classList.remove('is-invalid');
         }
     }
 
-    function changeOrderStatus(status) {
-        if (confirm('Deseja alterar o status do pedido?')) {
-            // Aqui você pode implementar uma chamada AJAX para atualizar o status
-            document.querySelector('select[name="status"]').value = status;
-            document.getElementById('order-form').submit();
-        }
-    }
-
-    function confirmCancel() {
-        if (confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
-            // Implementar cancelamento via AJAX ou redirecionar para rota de cancelamento
-            window.location.href = "{{ route('orders.destroy', $order) }}";
-        }
-    }
-
-    // Preparar dados antes do envio do formulário
-    document.getElementById('order-form').addEventListener('submit', function(e) {
+    function validateForm(e) {
+        // Validar se há itens
         if (orderItems.length === 0) {
             e.preventDefault();
             alert('Adicione pelo menos um item ao pedido.');
-            return;
+            return false;
         }
 
-        // Adicionar itens como campo hidden
-        const itemsInput = document.createElement('input');
-        itemsInput.type = 'hidden';
-        itemsInput.name = 'items';
-        itemsInput.value = JSON.stringify(orderItems);
-        this.appendChild(itemsInput);
-    });
+        // Validar valor do sinal
+        const total = orderItems.reduce((sum, item) => sum + item.total_price, 0);
+        const advancePayment = parseFloat(document.getElementById('advance-payment').value) || 0;
+        
+        if (advancePayment > total) {
+            e.preventDefault();
+            alert('O sinal recebido não pode ser maior que o valor total do pedido.');
+            document.getElementById('advance-payment').focus();
+            return false;
+        }
+
+    // Os inputs `items[index][...]` já são gerados em updateItemsTable(),
+    // portanto não precisamos serializar para JSON.
+        
+        // Mostrar loading no botão
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Salvando...';
+        
+        return true;
+    }
+
+    // Carregar itens do old() se houver erro de validação
+    @if(old('items'))
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const oldItems = JSON.parse(@json(old('items')));
+                if (Array.isArray(oldItems)) {
+                    orderItems = oldItems.map((item, index) => ({
+                        id: index,
+                        product_id: item.product_id || null,
+                        item_name: item.item_name,
+                        description: item.description || '',
+                        quantity: parseInt(item.quantity),
+                        unit_price: parseFloat(item.unit_price),
+                        total_price: parseFloat(item.unit_price) * parseInt(item.quantity)
+                    }));
+                    updateItemsTable();
+                    updateAmounts();
+                }
+            } catch (e) {
+                console.error('Erro ao carregar itens antigos:', e);
+            }
+        });
+    @endif
 </script>
+@endpush
+
+@push('styles')
+<style>
+    .table th {
+        border-top: none;
+        font-weight: 600;
+    }
+    
+    #items-table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    
+    .form-control-sm {
+        min-width: 80px;
+    }
+    
+    .card.bg-light {
+        border: 1px dashed #ccc;
+    }
+</style>
 @endpush
