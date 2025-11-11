@@ -458,26 +458,67 @@
 
         <div class="metric-card warning">
             <div class="d-flex align-items-center">
-                <div class="metric-icon warning me-3">
-                    <i class="fas fa-boxes"></i>
+            <div class="metric-icon warning me-3">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="metric-value" id="low-stock-count">
+                {{ $lowStockProducts->count() }}
                 </div>
-                <div class="flex-grow-1">
-                    <div class="metric-value" id="low-stock-count">
-                        {{ $lowStockProducts->count() }}
-                    </div>
-                    <div class="metric-label">Estoque Baixo</div>
-                    <div class="metric-change">
-                        @if($lowStockProducts->count() > 0)
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Atenção
-                        @else
-                            <i class="fas fa-check-circle"></i>
-                            OK
-                        @endif
-                    </div>
+                <div class="metric-label">Estoque Baixo</div>
+                <div class="metric-change">
+                @if($lowStockProducts->count() > 0)
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Atenção
+                @else
+                    <i class="fas fa-check-circle"></i>
+                    OK
+                @endif
                 </div>
             </div>
+            </div>
         </div>
+
+        {{-- Alerta da Sessão (vindo do checkAndSetAlerts) --}}
+        @if(session('dashboard_alert'))
+            <div class="alert-item metric-card">
+            <div class="alert-icon" style="background: 
+                @if(session('dashboard_alert')['type'] === 'success') var(--success-green)
+                @elseif(session('dashboard_alert')['type'] === 'warning') var(--warning-orange)
+                @elseif(session('dashboard_alert')['type'] === 'error') var(--danger-red)
+                @else var(--info-blue) @endif">
+                <i class="fas fa-
+                @if(session('dashboard_alert')['type'] === 'success') check
+                @elseif(session('dashboard_alert')['type'] === 'warning') exclamation-triangle
+                @elseif(session('dashboard_alert')['type'] === 'error') exclamation-circle
+                @else info @endif"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">{{ session('dashboard_alert')['message'] }}</div>
+                <small class="text-muted">Agora mesmo</small>
+            </div>
+            </div>
+        @endif
+
+        {{-- Alerta de Estoque Baixo (sempre visível se houver) --}}
+        @if($lowStockProducts->count() > 0)
+            <div class="alert-item metric-card">
+            <div class="alert-icon pulse" style="background: var(--danger-red);">
+                <i class="fas fa-box-open"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">Estoque Baixo Detectado</div>
+                <small class="text-muted">
+                {{ $lowStockProducts->count() }} produto(s) precisam de reposição:
+                {{ $lowStockProducts->take(3)->pluck('name')->join(', ') }}
+                @if($lowStockProducts->count() > 3) e outros... @endif
+                </small>
+            </div>
+            <a href="{{ route('products.index', ['filter' => 'low_stock']) }}" class="btn btn-sm btn-outline-danger">
+                Ver Produtos
+            </a>
+            </div>
+        @endif
     </div>
 
     <!-- Alertas -->
