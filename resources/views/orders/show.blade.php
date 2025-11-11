@@ -400,174 +400,150 @@
     </div>
 @endsection
 
+
 @push('scripts')
-    <script>
-        // Função para mudar status usando formulário tradicional
-        function changeOrderStatus(status) {
-            const statusText = {
-                'completed': 'concluído',
-                'delivered': 'entregue',
-                'cancelled': 'cancelado'
-            } [status] || status;
+<script>
+    // Função para mudar status usando formulário tradicional
+    function changeOrderStatus(status) {
+        const statusText = {
+            'completed': 'concluído',
+            'delivered': 'entregue',
+            'cancelled': 'cancelado'
+        }[status] || status;
 
-            if (confirm(`Deseja marcar este pedido como ${statusText}?`)) {
-                // Criar um formulário tradicional e submeter
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = `{{ route('orders.update-status', $order) }}`;
+        if (confirm(`Deseja marcar este pedido como ${statusText}?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `{{ route('orders.update-status', $order) }}`;
 
-                // Adicionar campos CSRF e método
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
-                form.appendChild(csrfToken);
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+            form.appendChild(csrfToken);
 
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'PATCH';
-                form.appendChild(methodField);
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'PATCH';
+            form.appendChild(methodField);
 
-                const statusField = document.createElement('input');
-                statusField.type = 'hidden';
-                statusField.name = 'status';
-                statusField.value = status;
-                form.appendChild(statusField);
+            const statusField = document.createElement('input');
+            statusField.type = 'hidden';
+            statusField.name = 'status';
+            statusField.value = status;
+            form.appendChild(statusField);
 
-                // Adicionar ao body e submeter
-                document.body.appendChild(form);
-                form.submit();
-            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Função para criar dívida - CORRIGIDA para usar formulário tradicional
+    function createDebt(event) {
+        event.preventDefault();
+        const form = event.target;
+        
+        // Verificar se todos os campos obrigatórios estão preenchidos
+        const dueDate = form.querySelector('input[name="due_date"]');
+        if (!dueDate || !dueDate.value) {
+            alert('Por favor, preencha a data de vencimento');
+            return false;
         }
 
-        // Função para criar dívida
-        function createDebt(event) {
-            event.preventDefault();
+        // Mostrar loading no botão
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando...';
+        submitBtn.disabled = true;
 
-            const form = event.target;
-            const formData = new FormData(form);
+        // Submeter o formulário normalmente (sem AJAX)
+        form.submit();
+    }
 
-            // Mostrar loading
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando...';
-            submitBtn.disabled = true;
-
-            fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Fechar modal e redirecionar
-                        bootstrap.Modal.getInstance(document.getElementById('createDebtModal')).hide();
-                        window.location.href = data.redirect;
-                    } else {
-                        alert('Erro: ' + data.message);
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro de conexão');
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                });
+    // Função para converter em venda - CORRIGIDA para usar formulário tradicional
+    function convertToSale(event) {
+        event.preventDefault();
+        const form = event.target;
+        
+        // Verificar se o método de pagamento foi selecionado
+        const paymentMethod = form.querySelector('select[name="payment_method"]');
+        if (!paymentMethod || !paymentMethod.value) {
+            alert('Por favor, selecione o método de pagamento');
+            return false;
         }
 
-        // Função para converter em venda
-        function convertToSale(event) {
-            event.preventDefault();
+        // Mostrar loading no botão
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Convertendo...';
+        submitBtn.disabled = true;
 
-            const form = event.target;
-            const formData = new FormData(form);
+        // Submeter o formulário normalmente (sem AJAX)
+        form.submit();
+    }
 
-            // Mostrar loading
-            const submitBtn = form.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Convertendo...';
-            submitBtn.disabled = true;
+    // Função para cancelar pedido
+    function confirmCancel() {
+        if (confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route('orders.destroy', $order) }}';
 
-            fetch(form.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Fechar modal e redirecionar
-                        bootstrap.Modal.getInstance(document.getElementById('convertToSaleModal')).hide();
-                        window.location.href = data.redirect;
-                    } else {
-                        alert('Erro: ' + data.message);
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro de conexão');
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                });
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+            form.appendChild(csrfToken);
+
+            const methodField = document.createElement('input');
+            methodField.type = 'hidden';
+            methodField.name = '_method';
+            methodField.value = 'DELETE';
+            form.appendChild(methodField);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Inicialização quando o documento carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Orders Show - Scripts carregados');
+
+        // Adicionar event listeners aos formulários dos modais
+        const createDebtForm = document.querySelector('#createDebtModal form');
+        const convertToSaleForm = document.querySelector('#convertToSaleModal form');
+
+        if (createDebtForm) {
+            createDebtForm.addEventListener('submit', createDebt);
+            console.log('Event listener adicionado ao formulário de criar dívida');
         }
 
-        // Função para cancelar pedido
-        function confirmCancel() {
-            if (confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
-                // Criar formulário tradicional para cancelar
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{{ route('orders.destroy', $order) }}';
-
-                const csrfToken = document.createElement('input');
-                csrfToken.type = 'hidden';
-                csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
-                form.appendChild(csrfToken);
-
-                const methodField = document.createElement('input');
-                methodField.type = 'hidden';
-                methodField.name = '_method';
-                methodField.value = 'DELETE';
-                form.appendChild(methodField);
-
-                document.body.appendChild(form);
-                form.submit();
-            }
+        if (convertToSaleForm) {
+            convertToSaleForm.addEventListener('submit', convertToSale);
+            console.log('Event listener adicionado ao formulário de converter em venda');
         }
 
-        // Inicialização
-        document.addEventListener('DOMContentLoaded', function() {
-            // Adicionar event listeners aos formulários dos modais
-            const createDebtForm = document.querySelector('#createDebtModal form');
-            const convertToSaleForm = document.querySelector('#convertToSaleModal form');
+        // Auto-focus nos modais quando abrirem
+        const createDebtModal = document.getElementById('createDebtModal');
+        const convertToSaleModal = document.getElementById('convertToSaleModal');
 
-            if (createDebtForm) {
-                createDebtForm.addEventListener('submit', createDebt);
-            }
-
-            if (convertToSaleForm) {
-                convertToSaleForm.addEventListener('submit', convertToSale);
-            }
-
-            // Auto-focus nos modais
-            $('#createDebtModal, #convertToSaleModal').on('shown.bs.modal', function() {
-                $(this).find('input[type="date"], select').first().focus();
+        if (createDebtModal) {
+            createDebtModal.addEventListener('shown.bs.modal', function () {
+                const firstInput = this.querySelector('input[type="date"]');
+                if (firstInput) firstInput.focus();
             });
-        });
-    </script>
+        }
+
+        if (convertToSaleModal) {
+            convertToSaleModal.addEventListener('shown.bs.modal', function () {
+                const firstSelect = this.querySelector('select');
+                if (firstSelect) firstSelect.focus();
+            });
+        }
+    });
+</script>
 @endpush
 
 @push('styles')

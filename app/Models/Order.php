@@ -156,52 +156,6 @@ class Order extends Model
     /* ============================
      * MÉTODOS DE NEGÓCIO
      * ============================ */
-    /* public function convertToSale()
-    {
-        if (!$this->canBeConvertedToSale()) {
-            throw new \Exception('Pedido não pode ser convertido em venda neste status.');
-        }
-
-        return DB::transaction(function () {
-            // Criar venda baseada no pedido
-            $sale = Sale::create([
-                'user_id'        => $this->user_id,
-                'customer_name'  => $this->customer_name,
-                'customer_phone' => $this->customer_phone,
-                'customer_email' => $this->customer_email,
-                'total_amount'   => $this->estimated_amount,
-                'payment_method' => 'mixed',
-                'payment_status' => $this->advance_payment >= $this->estimated_amount ? 'paid' : 'partial',
-                'notes'          => "Convertido do pedido #{$this->id}",
-                'sale_date'      => now(),
-                'order_id'       => $this->id
-            ]);
-
-            // Criar itens da venda
-            foreach ($this->items as $orderItem) {
-                SaleItem::create([
-                    'sale_id'     => $sale->id,
-                    'product_id'  => $orderItem->product_id,
-                    'item_name'   => $orderItem->item_name,
-                    'quantity'    => $orderItem->quantity,
-                    'unit_price'  => $orderItem->unit_price,
-                    'total_price' => $orderItem->total_price
-                ]);
-
-                // Atualizar estoque
-                if ($orderItem->product) {
-                    $orderItem->product->decrement('stock_quantity', $orderItem->quantity);
-                }
-            }
-
-            // Marcar como entregue
-            if ($this->status !== 'delivered') {
-                $this->update(['status' => 'delivered']);
-            }
-
-            return $sale;
-        });
-    } */
    
         // No modelo Order.php
     public function canCreateDebt()

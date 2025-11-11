@@ -7,6 +7,8 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Debt;
+use App\Models\DebtItem;
+use App\Models\StockMovement;
 use App\Http\Requests\StoreOrderRequest;
 use App\Services\OrderService;
 use App\Models\Sale; // Adicionado
@@ -228,9 +230,13 @@ class OrderController extends Controller
         ]);
 
         try {
+            DB::beginTransaction();
+
             $remainingAmount = $order->estimated_amount - $order->advance_payment;
 
+            // Criar a dívida
             $debt = Debt::create([
+                'debt_type' => 'product', // IMPORTANTE: definir como product
                 'user_id' => auth()->id(),
                 'customer_name' => $order->customer_name,
                 'customer_phone' => $order->customer_phone,
@@ -243,8 +249,44 @@ class OrderController extends Controller
                 'order_id' => $order->id,
             ]);
 
-            // Atualizar o pedido para refletir que tem uma dívida
+            // ADICIONAR: Criar os itens da dívida e movimentar stock
+            foreach ($order->items as $orderItem) {
+                // Criar item da dívida
+                DebtItem::create([
+                    'debt_id' => $debt->id,
+                    'product_id' => $orderItem->product_id,
+                    'quantity' => $orderItem->quantity,
+                    'unit_price' => $orderItem->unit_price,
+                    'total_price' => $orderItem->total_price
+                ]);
+
+                // Movimentar stock se for produto físico
+                if ($orderItem->product && $orderItem->product->type === 'product') {
+                    // Verificar se há stock suficiente
+                    if ($orderItem->product->stock_quantity < $orderItem->quantity) {
+                        throw new \Exception("Stock insuficiente para {$orderItem->product->name}");
+                    }
+
+                    // Decrementar stock
+                    $orderItem->product->decrement('stock_quantity', $orderItem->quantity);
+
+                    // Registrar movimentação
+                    StockMovement::create([
+                        'product_id' => $orderItem->product_id,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'out',
+                        'quantity' => $orderItem->quantity,
+                        'reason' => "Dívida #$debt->id do Pedido #$order->id",
+                        'reference_id' => $debt->id,
+                        'movement_date' => now()->toDateString()
+                    ]);
+                }
+            }
+
+            // Atualizar o pedido
             $order->update(['debt_id' => $debt->id]);
+
+            DB::commit();
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -256,6 +298,7 @@ class OrderController extends Controller
 
             return redirect()->route('debts.show', $debt)->with('success', 'Dívida criada com sucesso!');
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Erro ao criar dívida: ' . $e->getMessage());
 
             if ($request->expectsJson()) {
