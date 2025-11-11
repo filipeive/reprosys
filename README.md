@@ -380,8 +380,8 @@ php artisan storage:link
 
 ## 📞 Suporte e Contato
 
-- **Email:** filipeive@example.com
-- **Portal de Suporte:** http://163.192.7.41/
+- **Email:** filipedomingos198@gmail.com
+- **Portal de Suporte:** https://api.whatsapp.com/send/?phone=258847240296&text&type=phone_number&app_absent=0
 - **Issues GitHub:** [Reportar problema](https://github.com/filipeive/reprosys/issues)
 
 ---

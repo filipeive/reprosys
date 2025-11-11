@@ -1909,9 +1909,15 @@
                         <span id="server-time">{{ now()->format('H:i:s') }}</span>
                     </div>
                     <div class="footer-social">
-                        <a href="#" title="WhatsApp Suporte" onclick="return false;"><i class="fab fa-whatsapp"></i></a>
-                        <a href="#" title="Email Suporte" onclick="return false;"><i class="fas fa-envelope"></i></a>
-                        <a href="#" title="Documentação" onclick="return false;"><i class="fas fa-file-pdf"></i></a>
+                        <a href="https://wa.me/258847240296" title="WhatsApp Suporte" target="_blank" rel="noopener noreferrer">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                        <a href="https://github.com/filipeive/reprosys/blob/main/MANUAL_DO_USUARIO.md" title="Manual do Usuário" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-book"></i>
+                        </a>
+                        <a href="https://github.com/filipeive/reprosys?tab=readme-ov-file#readme" title="Documentação" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-file-pdf"></i>
+                        </a>
                     </div>
                 </div>
             </div>
