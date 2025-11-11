@@ -58,6 +58,7 @@ class DashboardController extends Controller
 
         // --- DADOS DO GRÁFICO (ÚLTIMOS 7 DIAS) ---
         $salesChartData = $this->getSalesChartData();
+        $cashFlowChartData = $this->getCashFlowChartData();
 
         // --- PRODUTOS COM ESTOQUE BAIXO ---
         $lowStockProducts = Product::whereRaw('stock_quantity <= min_stock_level')
@@ -96,7 +97,7 @@ class DashboardController extends Controller
         return view('dashboard.index', compact(
             'todaySales', 'todayExpenses', 'lowStockProducts', 'recentSales', 
             'monthSales', 'monthExpenses', 'monthProfit', 'todayProductsSold',
-            'monthActiveCustomers', 'salesChartData',
+            'monthActiveCustomers', 'salesChartData', 'cashFlowChartData',
             
             // Dados de Comparação (Hoje) - Agora definidos
             'salesChangePercent', 'salesChangeDirection', 'salesChangeIcon',
@@ -134,6 +135,7 @@ class DashboardController extends Controller
         
         // Dados do Gráfico (para atualização em tempo real)
         $salesChartData = $this->getSalesChartData();
+        $cashFlowChartData = $this->getCashFlowChartData();
         
         // Alertas Dinâmicos (para Toasts)
         $dynamicAlerts = $this->getDynamicAlerts($lowStockCount, $todayExpenses, $todaySales);
@@ -154,6 +156,7 @@ class DashboardController extends Controller
             'expensesChangeIcon' => $expensesChange['icon'],
             
             'salesChartData' => $salesChartData,
+            'cashFlowChartData' => $cashFlowChartData,
             'dynamicAlerts' => $dynamicAlerts,
         ]);
     }
@@ -194,38 +197,35 @@ class DashboardController extends Controller
     {
         $startDate = Carbon::today()->subDays(6);
         $endDate = Carbon::today();
-        
-        // 1. Obter vendas agrupadas por dia
-        $sales = Sale::whereBetween('sale_date', [$startDate, $endDate])
-            ->groupBy('date')
-            ->orderBy('date', 'ASC')
-            ->get([
-                DB::raw('DATE(sale_date) as date'),
-                DB::raw('SUM(total_amount) as total')
-            ])
-            ->pluck('total', 'date');
+        // 1. Obter vendas agrupadas por dia (garantindo uso de DATE() no groupBy)
+        $sales = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('SUM(total_amount) as total'))
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate)
+            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->orderBy(DB::raw('DATE(sale_date)'), 'ASC')
+            ->pluck('total', 'date')
+            ->toArray();
 
         // 2. Obter despesas agrupadas por dia
-        $expenses = Expense::whereBetween('expense_date', [$startDate, $endDate])
-            ->groupBy('date')
-            ->orderBy('date', 'ASC')
-            ->get([
-                DB::raw('DATE(expense_date) as date'),
-                DB::raw('SUM(amount) as total')
-            ])
-            ->pluck('total', 'date');
+        $expenses = Expense::select(DB::raw('DATE(expense_date) as date'), DB::raw('SUM(amount) as total'))
+            ->whereDate('expense_date', '>=', $startDate)
+            ->whereDate('expense_date', '<=', $endDate)
+            ->groupBy(DB::raw('DATE(expense_date)'))
+            ->orderBy(DB::raw('DATE(expense_date)'), 'ASC')
+            ->pluck('total', 'date')
+            ->toArray();
 
         $labels = [];
         $salesData = [];
         $expensesData = [];
 
-        // 3. Iterar pelos últimos 7 dias para preencher os arrays
+        // 3. Iterar pelos últimos 7 dias para preencher os arrays (garante 7 pontos diários)
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
             $dateString = $date->format('Y-m-d');
             $labels[] = $date->format('d/m'); // Formato "27/10"
-            
-            $salesData[] = $sales[$dateString] ?? 0;
-            $expensesData[] = $expenses[$dateString] ?? 0;
+
+            $salesData[] = isset($sales[$dateString]) ? (float) $sales[$dateString] : 0.0;
+            $expensesData[] = isset($expenses[$dateString]) ? (float) $expenses[$dateString] : 0.0;
         }
 
         return [
@@ -326,5 +326,59 @@ class DashboardController extends Controller
                 'user_agent' => request()->userAgent(),
             ]);
         }
+    }
+
+    /**
+     * Retorna dados de fluxo de caixa (entradas, saídas, fluxo líquido) para os últimos 7 dias.
+     * Ideal para o gráfico de cash flow no dashboard.
+     */
+    private function getCashFlowChartData()
+    {
+        $startDate = Carbon::today()->subDays(6);
+        $endDate = Carbon::today();
+
+        // 1. Obter vendas (entradas) agrupadas por dia
+        $inflows = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('SUM(total_amount) as total'))
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate)
+            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->orderBy(DB::raw('DATE(sale_date)'), 'ASC')
+            ->pluck('total', 'date')
+            ->toArray();
+
+        // 2. Obter despesas (saídas) agrupadas por dia
+        $outflows = Expense::select(DB::raw('DATE(expense_date) as date'), DB::raw('SUM(amount) as total'))
+            ->whereDate('expense_date', '>=', $startDate)
+            ->whereDate('expense_date', '<=', $endDate)
+            ->groupBy(DB::raw('DATE(expense_date)'))
+            ->orderBy(DB::raw('DATE(expense_date)'), 'ASC')
+            ->pluck('total', 'date')
+            ->toArray();
+
+        $labels = [];
+        $inflowsData = [];
+        $outflowsData = [];
+        $netFlowData = [];
+
+        // 3. Iterar pelos últimos 7 dias para preencher os arrays
+        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            $dateString = $date->format('Y-m-d');
+            $labels[] = $date->format('d/m'); // Formato "27/10"
+
+            $inflow = isset($inflows[$dateString]) ? (float) $inflows[$dateString] : 0.0;
+            $outflow = isset($outflows[$dateString]) ? (float) $outflows[$dateString] : 0.0;
+            $netFlow = $inflow - $outflow;
+
+            $inflowsData[] = $inflow;
+            $outflowsData[] = $outflow;
+            $netFlowData[] = $netFlow;
+        }
+
+        return [
+            'labels' => $labels,
+            'inflowsData' => $inflowsData,
+            'outflowsData' => $outflowsData,
+            'netFlowData' => $netFlowData,
+        ];
     }
 }

@@ -946,10 +946,152 @@
 
         /* Professional Footer */
         footer {
-            background: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-            padding: 20px 0;
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(91, 155, 213, 0.05) 100%);
+            border-top: 2px solid var(--border-color);
+            padding: 40px 0 20px 0;
             margin-top: auto;
+            color: var(--text-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+            margin-top: 20px;
+        }
+
+        .footer-section h6 {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-section h6 i {
+            color: var(--primary-blue);
+            font-size: 12px;
+        }
+
+        .footer-section ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-section li {
+            margin-bottom: 10px;
+        }
+
+        .footer-section a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer-section a:hover {
+            color: var(--primary-blue);
+            transform: translateX(3px);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .footer-branding {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .footer-branding strong {
+            color: var(--text-primary);
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11px;
+        }
+
+        .footer-status .badge {
+            font-size: 10px;
+            padding: 4px 8px;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .footer-social a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(91, 155, 213, 0.1);
+            color: var(--primary-blue);
+            transition: all 0.3s ease;
+        }
+
+        .footer-social a:hover {
+            background: var(--primary-blue);
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        /* Footer Responsive */
+        @media (max-width: 768px) {
+            footer {
+                padding: 30px 0 15px 0;
+            }
+
+            .footer-content {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .footer-social {
+                justify-content: center;
+            }
         }
 
         /* Responsive Design */
@@ -1699,26 +1841,73 @@
         </div>
 
         <!-- Professional Footer -->
-        <footer class="border-top bg-white">
-            <div class="content-area">
-                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center py-3">
-                    <div class="text-center text-sm-start mb-2 mb-sm-0">
-                        <small class="text-muted">
-                            © {{ date('Y') }} <strong class="text-primary">FDSMULTSERVICES+</strong> - Sistema de
-                            Reprografia e Serigrafia
-                        </small>
-                        <br class="d-block d-sm-none">
-                        <small class="text-muted">
-                            Desenvolvido por <strong>Eng. Filipe dos Santos</strong>
-                        </small>
+        <footer class="footer">
+            <div class="container-fluid" style="padding: 0 {{ auth()->check() ? '20px' : '20px' }};">
+                <div class="footer-content">
+                    <!-- Seção 1: Sobre -->
+                    <div class="footer-section">
+                        <h6><i class="fas fa-info-circle"></i> Sobre</h6>
+                        <ul>
+                            <li><strong class="text-primary">FDSMULTSERVICES+</strong></li>
+                            <li><small class="text-muted">Sistema de Reprografia e Serigrafia</small></li>
+                            <li><small class="text-muted">v2.0.0</small></li>
+                        </ul>
                     </div>
-                    <div class="text-center text-sm-end">
-                        <small class="text-muted">
-                            <span class="badge bg-success me-2">v2.0.0</span>
-                            <a href="http://163.192.7.41/" class="text-decoration-none me-2" target="_blank">Suporte
-                                Técnico</a>
-                            <a href="#" class="text-decoration-none" onclick="showHelp()">Manual do Usuário</a>
-                        </small>
+
+                    <!-- Seção 2: Links Rápidos -->
+                    <div class="footer-section">
+                        <h6><i class="fas fa-link"></i> Links Rápidos</h6>
+                        <ul>
+                            @if(userCan('view_dashboard'))
+                            <li><a href="{{ route('dashboard.index') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                            @endif
+                            @if(userCan('view_sales'))
+                            <li><a href="{{ route('sales.index') }}"><i class="fas fa-receipt"></i> Vendas</a></li>
+                            @endif
+                            @if(userCan('view_products'))
+                            <li><a href="{{ route('products.index') }}"><i class="fas fa-cube"></i> Produtos</a></li>
+                            @endif
+                            @if(userCan('view_reports'))
+                            <li><a href="{{ route('reports.index') }}"><i class="fas fa-chart-bar"></i> Relatórios</a></li>
+                            @endif
+                        </ul>
+                    </div>
+
+                    <!-- Seção 3: Suporte -->
+                    <div class="footer-section">
+                        <h6><i class="fas fa-headset"></i> Suporte</h6>
+                        <ul>
+                            <li><a href="http://163.192.7.41/" target="_blank"><i class="fas fa-external-link-alt"></i> Suporte Técnico</a></li>
+                            <li><a href="#" onclick="showHelp()"><i class="fas fa-book"></i> Manual do Usuário</a></li>
+                            <li><a href="#" onclick="showAbout()"><i class="fas fa-question-circle"></i> Sobre o Sistema</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Seção 4: Status -->
+                    <div class="footer-section">
+                        <h6><i class="fas fa-server"></i> Status</h6>
+                        <ul>
+                            <li><span class="badge bg-success"><i class="fas fa-check-circle"></i> Sistema Online</span></li>
+                            <li><small class="text-muted">Última verificação: <span id="last-check-time">agora</span></small></li>
+                            <li><a href="#" onclick="checkSystemStatus()"><i class="fas fa-sync"></i> Verificar Status</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Footer Bottom -->
+                <div class="footer-bottom">
+                    <div class="footer-branding">
+                        <span><i class="fas fa-code"></i> Desenvolvido por <strong>Eng. Filipe dos Santos</strong></span>
+                    </div>
+                    <div class="footer-status">
+                        <span class="badge bg-info">© {{ date('Y') }} FDSMULTSERVICES+</span>
+                        <span class="text-muted">|</span>
+                        <span id="server-time">{{ now()->format('H:i:s') }}</span>
+                    </div>
+                    <div class="footer-social">
+                        <a href="#" title="WhatsApp Suporte" onclick="return false;"><i class="fab fa-whatsapp"></i></a>
+                        <a href="#" title="Email Suporte" onclick="return false;"><i class="fas fa-envelope"></i></a>
+                        <a href="#" title="Documentação" onclick="return false;"><i class="fas fa-file-pdf"></i></a>
                     </div>
                 </div>
             </div>
@@ -1727,8 +1916,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.3.0/chart.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // ===== VARIÁVEIS GLOBAIS =====
         let sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
@@ -2524,6 +2712,76 @@
             showSettings,
             version: '2.0.0'
         };
+
+        // ===== FOOTER UTILITIES =====
+        function updateServerTime() {
+            const serverTimeElement = document.getElementById('server-time');
+            if (!serverTimeElement) return;
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('pt-PT', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            serverTimeElement.textContent = timeString;
+        }
+
+        function updateLastCheckTime() {
+            const lastCheckElement = document.getElementById('last-check-time');
+            if (!lastCheckElement) return;
+            lastCheckElement.textContent = 'agora';
+        }
+
+        function checkSystemStatus() {
+            fetch('{{-- route("api.system-status", [], false) ?? "#" --}}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (window.FDSMULTSERVICES?.Toast) {
+                    window.FDSMULTSERVICES.Toast.show('✅ Sistema verificado - Tudo em ordem!', 'success');
+                }
+                updateLastCheckTime();
+            })
+            .catch(error => {
+                if (window.FDSMULTSERVICES?.Toast) {
+                    window.FDSMULTSERVICES.Toast.show('⚠️ Erro ao verificar status do sistema', 'warning');
+                }
+            });
+        }
+
+        function showHelp() {
+            if (window.FDSMULTSERVICES?.Toast) {
+                window.FDSMULTSERVICES.Toast.show('📖 Manual do usuário - Em desenvolvimento', 'info');
+            }
+        }
+
+        function showAbout() {
+            const aboutMessage = `
+                FDSMULTSERVICES+ v2.0.0
+                Sistema de Reprografia e Serigrafia
+                
+                © 2024 - Desenvolvido por Eng. Filipe dos Santos
+                
+                Para suporte técnico, visite: http://163.192.7.41/
+            `;
+            
+            if (confirm(aboutMessage)) {
+                // Pode abrir um modal ou página de informações
+            }
+        }
+
+        // Atualizar relógio a cada segundo
+        setInterval(updateServerTime, 1000);
+        updateServerTime();
+
+        // Verificar status do sistema a cada 5 minutos
+        setInterval(checkSystemStatus, 5 * 60 * 1000);
     </script>
     @stack('scripts')
 </body>
