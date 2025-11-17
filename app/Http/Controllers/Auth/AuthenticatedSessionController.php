@@ -48,7 +48,7 @@ class AuthenticatedSessionController extends Controller
                 ->with('warning', 'OBRIGATÓRIO: Você deve alterar sua senha temporária antes de continuar.');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('dashboard.index', absolute: false));
     }
 
     /**

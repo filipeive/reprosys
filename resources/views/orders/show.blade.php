@@ -151,7 +151,12 @@
                     <div class="text-center mb-4">
                         <span class="badge {{ $order->status_badge }} fs-6 px-3 py-2 mb-2 d-inline-block">
                             {{ $order->status_text }}
+                            {{-- dia de entrega/data de entrega --}}
                         </span>
+                        @if ($order->delivery_date)
+                            <br>
+                            No dia: &nbsp; <small>{{ $order->delivery_date->format('d/m/Y') }}</small>
+                        @endif
                         <p class="text-muted small mb-0">Status atual do pedido</p>
                     </div>
 
@@ -332,7 +337,7 @@
                     <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i> Criar Dívida</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-               <form action="{{ route('orders.create-debt', $order) }}" method="POST" onsubmit="createDebt(event)">
+                <form action="{{ route('orders.create-debt', $order) }}" method="POST" onsubmit="createDebt(event)">
                     @csrf
                     <div class="modal-body">
                         <p>Valor restante a transformar em dívida: <strong class="text-warning">MT
@@ -368,7 +373,8 @@
                     <h5 class="modal-title"><i class="fas fa-exchange-alt me-2"></i> Converter para Venda</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="{{ route('orders.convert-to-sale', $order) }}" method="POST" onsubmit="convertToSale(event)">
+                <form action="{{ route('orders.convert-to-sale', $order) }}" method="POST"
+                    onsubmit="convertToSale(event)">
                     @csrf
                     <div class="modal-body">
                         <p>Este pedido será convertido numa venda completa. Confirme os dados abaixo:</p>
@@ -402,148 +408,148 @@
 
 
 @push('scripts')
-<script>
-    // Função para mudar status usando formulário tradicional
-    function changeOrderStatus(status) {
-        const statusText = {
-            'completed': 'concluído',
-            'delivered': 'entregue',
-            'cancelled': 'cancelado'
-        }[status] || status;
+    <script>
+        // Função para mudar status usando formulário tradicional
+        function changeOrderStatus(status) {
+            const statusText = {
+                'completed': 'concluído',
+                'delivered': 'entregue',
+                'cancelled': 'cancelado'
+            } [status] || status;
 
-        if (confirm(`Deseja marcar este pedido como ${statusText}?`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `{{ route('orders.update-status', $order) }}`;
+            if (confirm(`Deseja marcar este pedido como ${statusText}?`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `{{ route('orders.update-status', $order) }}`;
 
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = '{{ csrf_token() }}';
-            form.appendChild(csrfToken);
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                form.appendChild(csrfToken);
 
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'PATCH';
-            form.appendChild(methodField);
+                const methodField = document.createElement('input');
+                methodField.type = 'hidden';
+                methodField.name = '_method';
+                methodField.value = 'PATCH';
+                form.appendChild(methodField);
 
-            const statusField = document.createElement('input');
-            statusField.type = 'hidden';
-            statusField.name = 'status';
-            statusField.value = status;
-            form.appendChild(statusField);
+                const statusField = document.createElement('input');
+                statusField.type = 'hidden';
+                statusField.name = 'status';
+                statusField.value = status;
+                form.appendChild(statusField);
 
-            document.body.appendChild(form);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        // Função para criar dívida - CORRIGIDA para usar formulário tradicional
+        function createDebt(event) {
+            event.preventDefault();
+            const form = event.target;
+
+            // Verificar se todos os campos obrigatórios estão preenchidos
+            const dueDate = form.querySelector('input[name="due_date"]');
+            if (!dueDate || !dueDate.value) {
+                alert('Por favor, preencha a data de vencimento');
+                return false;
+            }
+
+            // Mostrar loading no botão
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando...';
+            submitBtn.disabled = true;
+
+            // Submeter o formulário normalmente (sem AJAX)
             form.submit();
         }
-    }
 
-    // Função para criar dívida - CORRIGIDA para usar formulário tradicional
-    function createDebt(event) {
-        event.preventDefault();
-        const form = event.target;
-        
-        // Verificar se todos os campos obrigatórios estão preenchidos
-        const dueDate = form.querySelector('input[name="due_date"]');
-        if (!dueDate || !dueDate.value) {
-            alert('Por favor, preencha a data de vencimento');
-            return false;
-        }
+        // Função para converter em venda - CORRIGIDA para usar formulário tradicional
+        function convertToSale(event) {
+            event.preventDefault();
+            const form = event.target;
 
-        // Mostrar loading no botão
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Criando...';
-        submitBtn.disabled = true;
+            // Verificar se o método de pagamento foi selecionado
+            const paymentMethod = form.querySelector('select[name="payment_method"]');
+            if (!paymentMethod || !paymentMethod.value) {
+                alert('Por favor, selecione o método de pagamento');
+                return false;
+            }
 
-        // Submeter o formulário normalmente (sem AJAX)
-        form.submit();
-    }
+            // Mostrar loading no botão
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Convertendo...';
+            submitBtn.disabled = true;
 
-    // Função para converter em venda - CORRIGIDA para usar formulário tradicional
-    function convertToSale(event) {
-        event.preventDefault();
-        const form = event.target;
-        
-        // Verificar se o método de pagamento foi selecionado
-        const paymentMethod = form.querySelector('select[name="payment_method"]');
-        if (!paymentMethod || !paymentMethod.value) {
-            alert('Por favor, selecione o método de pagamento');
-            return false;
-        }
-
-        // Mostrar loading no botão
-        const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Convertendo...';
-        submitBtn.disabled = true;
-
-        // Submeter o formulário normalmente (sem AJAX)
-        form.submit();
-    }
-
-    // Função para cancelar pedido
-    function confirmCancel() {
-        if (confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '{{ route('orders.destroy', $order) }}';
-
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = '{{ csrf_token() }}';
-            form.appendChild(csrfToken);
-
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'DELETE';
-            form.appendChild(methodField);
-
-            document.body.appendChild(form);
+            // Submeter o formulário normalmente (sem AJAX)
             form.submit();
         }
-    }
 
-    // Inicialização quando o documento carregar
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Orders Show - Scripts carregados');
+        // Função para cancelar pedido
+        function confirmCancel() {
+            if (confirm('Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('orders.destroy', $order) }}';
 
-        // Adicionar event listeners aos formulários dos modais
-        const createDebtForm = document.querySelector('#createDebtModal form');
-        const convertToSaleForm = document.querySelector('#convertToSaleModal form');
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                form.appendChild(csrfToken);
 
-        if (createDebtForm) {
-            createDebtForm.addEventListener('submit', createDebt);
-            console.log('Event listener adicionado ao formulário de criar dívida');
+                const methodField = document.createElement('input');
+                methodField.type = 'hidden';
+                methodField.name = '_method';
+                methodField.value = 'DELETE';
+                form.appendChild(methodField);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
 
-        if (convertToSaleForm) {
-            convertToSaleForm.addEventListener('submit', convertToSale);
-            console.log('Event listener adicionado ao formulário de converter em venda');
-        }
+        // Inicialização quando o documento carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Orders Show - Scripts carregados');
 
-        // Auto-focus nos modais quando abrirem
-        const createDebtModal = document.getElementById('createDebtModal');
-        const convertToSaleModal = document.getElementById('convertToSaleModal');
+            // Adicionar event listeners aos formulários dos modais
+            const createDebtForm = document.querySelector('#createDebtModal form');
+            const convertToSaleForm = document.querySelector('#convertToSaleModal form');
 
-        if (createDebtModal) {
-            createDebtModal.addEventListener('shown.bs.modal', function () {
-                const firstInput = this.querySelector('input[type="date"]');
-                if (firstInput) firstInput.focus();
-            });
-        }
+            if (createDebtForm) {
+                createDebtForm.addEventListener('submit', createDebt);
+                console.log('Event listener adicionado ao formulário de criar dívida');
+            }
 
-        if (convertToSaleModal) {
-            convertToSaleModal.addEventListener('shown.bs.modal', function () {
-                const firstSelect = this.querySelector('select');
-                if (firstSelect) firstSelect.focus();
-            });
-        }
-    });
-</script>
+            if (convertToSaleForm) {
+                convertToSaleForm.addEventListener('submit', convertToSale);
+                console.log('Event listener adicionado ao formulário de converter em venda');
+            }
+
+            // Auto-focus nos modais quando abrirem
+            const createDebtModal = document.getElementById('createDebtModal');
+            const convertToSaleModal = document.getElementById('convertToSaleModal');
+
+            if (createDebtModal) {
+                createDebtModal.addEventListener('shown.bs.modal', function() {
+                    const firstInput = this.querySelector('input[type="date"]');
+                    if (firstInput) firstInput.focus();
+                });
+            }
+
+            if (convertToSaleModal) {
+                convertToSaleModal.addEventListener('shown.bs.modal', function() {
+                    const firstSelect = this.querySelector('select');
+                    if (firstSelect) firstSelect.focus();
+                });
+            }
+        });
+    </script>
 @endpush
 
 @push('styles')

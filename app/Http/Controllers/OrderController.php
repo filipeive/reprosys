@@ -403,7 +403,7 @@ class OrderController extends Controller
     public function edit(Order $order)
     {
         if (!$order->canBeEdited()) {
-            return redirect()->route('orders.show', $order)->with('error', 'Este pedido não pode ser editado.');
+            return redirect()->route('orders.show', $order)->with('error', 'Este pedido não pode ser editado pois ja foi Entregue.');
         }
 
         $products = Product::where('is_active', true)->orderBy('name')->get();

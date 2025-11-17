@@ -187,7 +187,7 @@
                     <tbody>
                         @forelse($orders as $order)
                             <tr>
-                                {{-- Colunas de dados do pedido... --}}
+                                {{-- Suas colunas normais --}}
                                 <td><strong class="text-primary">#{{ $order->id }}</strong></td>
                                 <td>{{ $order->customer_name }}</td>
                                 <td>{{ Str::limit($order->description, 50) }}</td>
@@ -197,25 +197,21 @@
                                 </td>
                                 <td><span class="badge {{ $order->status_badge }}">{{ $order->status_text }}</span></td>
 
-                                {{-- AÇÕES REATORADAS --}}
+                                {{-- Coluna de Ações --}}
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <!-- Ver detalhes -->
                                         <a href="{{ route('orders.show', $order) }}" class="btn btn-outline-info"
                                             title="Ver Detalhes">
                                             <i class="fas fa-eye"></i>
                                         </a>
 
-                                        {{-- NOVOS BOTÕES: Converter em Venda/Dívida quando status = completed --}}
                                         @if ($order->status === 'completed')
-                                            <!-- Converter em Venda -->
                                             <button type="button" class="btn btn-outline-primary" title="Criar Venda"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#convertToSaleModal{{ $order->id }}">
                                                 <i class="fas fa-cash-register"></i>
                                             </button>
 
-                                            <!-- Converter em Dívida -->
                                             <button type="button" class="btn btn-outline-secondary" title="Criar Dívida"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#convertToDebtModal{{ $order->id }}">
@@ -223,7 +219,6 @@
                                             </button>
                                         @endif
 
-                                        <!-- Editar -->
                                         @if ($order->canBeEdited())
                                             <a href="{{ route('orders.edit', $order) }}" class="btn btn-outline-warning"
                                                 title="Editar">
@@ -231,7 +226,6 @@
                                             </a>
                                         @endif
 
-                                        <!-- Concluir -->
                                         @if ($order->canBeCompleted())
                                             <form action="{{ route('orders.update-status', $order) }}" method="POST"
                                                 class="d-inline">
@@ -246,7 +240,6 @@
                                             </form>
                                         @endif
 
-                                        <!-- Cancelar -->
                                         @if ($order->canBeCancelled())
                                             <form action="{{ route('orders.destroy', $order) }}" method="POST"
                                                 class="d-inline"
@@ -261,9 +254,160 @@
                                     </div>
                                 </td>
                             </tr>
+
+                            {{-- 🎯 SOLUÇÃO: MODAIS AQUI, LOGO APÓS CADA <tr> --}}
+                            {{-- Isso garante que cada modal é único para cada pedido --}}
+                            @if ($order->status === 'completed')
+                                {{-- Modal: Converter em Venda --}}
+                                <div class="modal fade" id="convertToSaleModal{{ $order->id }}" tabindex="-1"
+                                    aria-labelledby="convertToSaleLabel{{ $order->id }}" aria-hidden="true"
+                                    data-bs-backdrop="static">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title" id="convertToSaleLabel{{ $order->id }}">
+                                                    <i class="fas fa-exchange-alt me-2"></i>
+                                                    Converter Pedido #{{ $order->id }} em Venda
+                                                </h5>
+                                                <button type="button" class="btn-close btn-close-white"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ route('orders.convert-to-sale', $order) }}" method="POST"
+                                                id="formConvertSale{{ $order->id }}">
+                                                @csrf
+                                                <div class="modal-body">
+                                                    <div class="alert alert-info mb-3">
+                                                        <strong>Cliente:</strong> {{ $order->customer_name }}
+                                                        <br>
+                                                        <strong>Pedido:</strong> #{{ $order->id }}
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Método de Pagamento *</label>
+                                                        <select class="form-select" name="payment_method" required>
+                                                            <option value="">Selecione...</option>
+                                                            <option value="cash">Dinheiro</option>
+                                                            <option value="card">Cartão</option>
+                                                            <option value="transfer">Transferência</option>
+                                                            <option value="mpesa">M-Pesa</option>
+                                                            <option value="emola">Emola</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="alert alert-success mb-0">
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        <strong>Total da Venda:</strong> MT
+                                                        {{ number_format($order->estimated_amount, 2, ',', '.') }}
+                                                        <br>
+                                                        <small>{{ $order->items->count() }} item(ns)</small>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">
+                                                        <i class="fas fa-times me-1"></i> Cancelar
+                                                    </button>
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="fas fa-check me-1"></i> Converter para Venda
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Modal: Converter em Dívida --}}
+                                <div class="modal fade" id="convertToDebtModal{{ $order->id }}" tabindex="-1"
+                                    aria-labelledby="convertToDebtLabel{{ $order->id }}" aria-hidden="true"
+                                    data-bs-backdrop="static">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-warning text-dark">
+                                                <h5 class="modal-title" id="convertToDebtLabel{{ $order->id }}">
+                                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                                    Criar Dívida - Pedido #{{ $order->id }}
+                                                </h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ route('orders.create-debt', $order) }}" method="POST"
+                                                id="formConvertDebt{{ $order->id }}">
+                                                @csrf
+                                                <div class="modal-body">
+                                                    <div class="alert alert-warning mb-3">
+                                                        <strong>Cliente:</strong> {{ $order->customer_name }}
+                                                        <br>
+                                                        <strong>Pedido:</strong> #{{ $order->id }}
+                                                        @if ($order->customer_phone)
+                                                            <br><strong>Telefone:</strong> {{ $order->customer_phone }}
+                                                        @endif
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <div class="row">
+                                                            <div class="col-6">
+                                                                <small class="text-muted">Valor Total</small>
+                                                                <div class="fw-bold">MT
+                                                                    {{ number_format($order->estimated_amount, 2, ',', '.') }}
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-6">
+                                                                <small class="text-muted">Sinal Recebido</small>
+                                                                <div class="fw-bold text-success">MT
+                                                                    {{ number_format($order->advance_payment, 2, ',', '.') }}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <hr class="my-2">
+                                                        <div class="text-center">
+                                                            <small class="text-muted">Valor Restante</small>
+                                                            <div class="fs-4 fw-bold text-warning">
+                                                                MT
+                                                                {{ number_format($order->estimated_amount - $order->advance_payment, 2, ',', '.') }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Data de Vencimento *</label>
+                                                        <input type="date" class="form-control" name="due_date"
+                                                            value="{{ now()->addDays(30)->format('Y-m-d') }}"
+                                                            min="{{ now()->format('Y-m-d') }}" required>
+                                                        <small class="text-muted">Padrão: 30 dias a partir de hoje</small>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Descrição (Opcional)</label>
+                                                        <textarea class="form-control" name="description" rows="2">Valor restante do Pedido #{{ $order->id }} - {{ $order->description }}</textarea>
+                                                    </div>
+
+                                                    <div class="alert alert-info mb-0">
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        <small>
+                                                            Esta dívida incluirá {{ $order->items->count() }} item(ns).
+                                                            O stock será automaticamente movimentado.
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                        data-bs-dismiss="modal">
+                                                        <i class="fas fa-times me-1"></i> Cancelar
+                                                    </button>
+                                                    <button type="submit" class="btn btn-warning text-dark">
+                                                        <i class="fas fa-check me-1"></i> Criar Dívida
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                            {{-- FIM DOS MODAIS PARA ESTE PEDIDO --}}
                         @empty
                             <tr>
                                 <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
                                     <p>Nenhum pedido encontrado.</p>
                                     <a href="{{ route('orders.create') }}" class="btn btn-primary">
                                         <i class="fas fa-plus me-2"></i> Criar Primeiro Pedido
@@ -281,133 +425,6 @@
             @endif
         </div>
     </div>
-    @foreach($orders as $order)
-    @if ($order->status === 'completed')
-        {{-- Modal: Converter em Venda --}}
-        <div class="modal fade" id="convertToSaleModal{{ $order->id }}" tabindex="-1" aria-labelledby="convertToSaleLabel{{ $order->id }}" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="convertToSaleLabel{{ $order->id }}">
-                            <i class="fas fa-exchange-alt me-2"></i>
-                            Converter Pedido #{{ $order->id }} em Venda
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <form action="{{ route('orders.convert-to-sale', $order) }}" method="POST">
-                        @csrf
-                        <div class="modal-body">
-                            <p class="mb-3">Este pedido será convertido numa venda completa. Confirme os dados abaixo:</p>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Cliente</label>
-                                <input type="text" class="form-control" value="{{ $order->customer_name }}" readonly>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Método de Pagamento *</label>
-                                <select class="form-select" name="payment_method" required>
-                                    <option value="">Selecione...</option>
-                                    <option value="cash">Dinheiro</option>
-                                    <option value="card">Cartão</option>
-                                    <option value="transfer">Transferência</option>
-                                    <option value="mpesa">M-Pesa</option>
-                                    <option value="emola">Emola</option>
-                                </select>
-                            </div>
-
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <strong>Total da Venda:</strong> MT {{ number_format($order->estimated_amount, 2, ',', '.') }}
-                                <br>
-                                <small class="text-muted">{{ $order->items->count() }} item(ns)</small>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                <i class="fas fa-times me-1"></i> Cancelar
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-check me-1"></i> Converter para Venda
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        {{-- Modal: Converter em Dívida --}}
-        <div class="modal fade" id="convertToDebtModal{{ $order->id }}" tabindex="-1" aria-labelledby="convertToDebtLabel{{ $order->id }}" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title" id="convertToDebtLabel{{ $order->id }}">
-                            <i class="fas fa-money-bill-wave me-2"></i>
-                            Criar Dívida do Pedido #{{ $order->id }}
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <form action="{{ route('orders.create-debt', $order) }}" method="POST">
-                        @csrf
-                        <div class="modal-body">
-                            <div class="alert alert-warning mb-3">
-                                <strong>Cliente:</strong> {{ $order->customer_name }}
-                                @if($order->customer_phone)
-                                    <br><strong>Telefone:</strong> {{ $order->customer_phone }}
-                                @endif
-                            </div>
-
-                            <p class="mb-3">
-                                <strong>Valor Total:</strong> MT {{ number_format($order->estimated_amount, 2, ',', '.') }}
-                                <br>
-                                <strong>Sinal Recebido:</strong> MT {{ number_format($order->advance_payment, 2, ',', '.') }}
-                                <br>
-                                <strong class="text-warning">Valor Restante:</strong> 
-                                <span class="fs-5">MT {{ number_format($order->estimated_amount - $order->advance_payment, 2, ',', '.') }}</span>
-                            </p>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Data de Vencimento *</label>
-                                <input type="date" 
-                                       class="form-control" 
-                                       name="due_date"
-                                       value="{{ now()->addDays(30)->format('Y-m-d') }}" 
-                                       min="{{ now()->format('Y-m-d') }}"
-                                       required>
-                                <small class="text-muted">Padrão: 30 dias a partir de hoje</small>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Descrição (Opcional)</label>
-                                <textarea class="form-control" 
-                                          name="description" 
-                                          rows="3" 
-                                          placeholder="Observações sobre a dívida...">Valor restante do Pedido #{{ $order->id }} - {{ $order->description }}</textarea>
-                            </div>
-
-                            <div class="alert alert-info mb-0">
-                                <i class="fas fa-info-circle me-2"></i>
-                                <small>
-                                    Esta dívida incluirá todos os {{ $order->items->count() }} itens do pedido.
-                                    O stock será automaticamente movimentado.
-                                </small>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                <i class="fas fa-times me-1"></i> Cancelar
-                            </button>
-                            <button type="submit" class="btn btn-warning text-dark">
-                                <i class="fas fa-check me-1"></i> Criar Dívida
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    @endif
-@endforeach
-
 @endsection
 
 @push('styles')
