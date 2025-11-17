@@ -24,6 +24,10 @@
             <button class="btn btn-primary" onclick="openCreateCategoryOffcanvas()">
                 <i class="fas fa-folder-plus me-2"></i> Nova Categoria
             </button>
+            {{-- Gerir Categorias --}}
+            <a href="{{ route('expense-categories.index') }}" class="btn btn-secondary">
+                <i class="fas fa-tags me-2"></i> Gerir Categorias
+            </a>
         </div>
     </div>
         <!-- Offcanvas para Criar Categoria -->

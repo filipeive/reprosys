@@ -300,8 +300,10 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::post('/{debt}/create-manual-sale', [DebtController::class, 'createManualSale'])->name('create-manual-sale');
     });
 
-    //expense category
-    Route::resource('expense-categories', ExpenseCategoryController::class)->only(['store']);
+    // ===== CATEGORIAS DE DESPESAS =====
+    Route::resource('expense-categories', ExpenseCategoryController::class);
+
+
     // ===== DESPESAS =====
     Route::prefix('expenses')->name('expenses.')->group(function () {
         // Visualizar despesas - todos podem
