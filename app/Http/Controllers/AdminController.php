@@ -20,10 +20,15 @@ class AdminController extends Controller
             $settings = [
                 'company_name' => 'FDSMULTSERVICES+',
                 'company_address' => 'Maputo, Moçambique',
-                'company_phone' => '',
+                'company_phone' => '+258 80 000 0000',
+                'company_email' => 'geral@fds.co.mz',
+                'company_nuit' => '400000000',
                 'enable_notifications' => true,
                 'enable_auto_backup' => false,
-                'default_currency' => 'MZN'
+                'default_currency' => 'MT',
+                'tax_rate' => '16',
+                'receipt_footer' => 'Obrigado pela sua preferência!',
+                'stock_alert_threshold' => '5'
             ];
         }
 
@@ -38,12 +43,15 @@ class AdminController extends Controller
         try {
             $settings = $request->all();
             
-            foreach ($settings as $key => $value) {
-                // Determine group if needed, here just general
-                Setting::set($key, $value);
-            }
-
-            return response()->json(['message' => 'Configurações salvas com sucesso!']);
+            foreach ($request->all() as $key => $value) {
+                // Filtra campos que não são configurações
+                if (in_array($key, ['_token', 'api_token'])) continue;
+                
+                Setting::updateOrCreate(
+                    ['key' => $key],
+                    ['value' => is_bool($value) ? ($value ? '1' : '0') : $value]
+                );
+            }return response()->json(['message' => 'Configurações salvas com sucesso!']);
         } catch (\Exception $e) {
             Log::error('Erro ao salvar configurações: ' . $e->getMessage());
             return response()->json(['message' => 'Erro ao salvar configurações', 'error' => $e->getMessage()], 500);

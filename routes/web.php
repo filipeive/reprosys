@@ -442,8 +442,8 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
 
     // ===== ADMINISTRAÇÃO - Permissões específicas =====
     Route::middleware('permissions:manage_settings')->group(function () {
-        Route::get('/api/admin/settings', [AdminController::class, 'getSettings']);
-        Route::post('/admin/settings', [AdminController::class, 'saveSettings']);
+        Route::get('/api/admin/settings', [AdminController::class, 'getSettings'])->name('admin.settings.get');
+        Route::post('/admin/settings', [AdminController::class, 'saveSettings'])->name('admin.settings.save');
     });
 
     Route::middleware('permissions:backup_system')->group(function () {

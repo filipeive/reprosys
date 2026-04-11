@@ -2305,138 +2305,166 @@
         // ===== PROFESSIONAL ADMIN FUNCTIONS =====
         async function showSettings() {
             try {
-                // Mostrar um loader ou indicador de carregamento
+                const getSettingsUrl = "{{ route('admin.settings.get') }}";
                 ProfessionalToast.show('Carregando configurações...', 'info');
                 
-                const response = await fetch('/api/admin/settings');
+                const response = await fetch(getSettingsUrl);
+                if (!response.ok) throw new Error('Falha ao carregar');
                 const settings = await response.json();
                 
                 const modalHtml = `
             <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="settingsModalLabel">
-                                <i class="fas fa-cog me-2"></i>Configurações do Sistema
+                    <div class="modal-content shadow-lg border-0">
+                        <div class="modal-header bg-dark text-white p-4">
+                            <h5 class="modal-title d-flex align-items-center" id="settingsModalLabel">
+                                <span class="badge bg-primary me-2 p-2"><i class="fas fa-cog fa-lg"></i></span>
+                                Configurações do Sistema
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0"><i class="fas fa-store me-2"></i>Configurações da Empresa</h6>
+                        <div class="modal-body p-0">
+                            <div class="d-flex align-items-start">
+                                <div class="nav flex-column nav-pills me-3 p-3 bg-light" style="width: 200px; min-height: 400px;" id="settingsTabs" role="tablist">
+                                    <button class="nav-link active text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-geral" type="button"><i class="fas fa-building me-2"></i>Empresa</button>
+                                    <button class="nav-link text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-financas" type="button"><i class="fas fa-money-bill-wave me-2"></i>Finanças</button>
+                                    <button class="nav-link text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-sistema" type="button"><i class="fas fa-microchip me-2"></i>Sistema</button>
+                                </div>
+                                <div class="tab-content flex-grow-1 p-4" id="settingsTabsContent">
+                                    <!-- TAB GERAL -->
+                                    <div class="tab-pane fade show active" id="tab-geral" role="tabpanel">
+                                        <h6 class="border-bottom pb-2 mb-3 text-primary uppercase small fw-bold">IDENTIFICAÇÃO DA EMPRESA</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Nome da Empresa</label>
+                                            <input type="text" id="set_company_name" class="form-control" value="${settings.company_name || ''}">
                                         </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Nome da Empresa</label>
-                                                <input type="text" class="form-control" value="${settings.company_name || 'FDSMULTSERVICES+'}" id="company_name">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold small">NUIT</label>
+                                                <input type="text" id="set_company_nuit" class="form-control" value="${settings.company_nuit || ''}">
                                             </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Endereço</label>
-                                                <textarea class="form-control" rows="2" id="company_address">${settings.company_address || ''}</textarea>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold small">Telefone</label>
+                                                <input type="text" id="set_company_phone" class="form-control" value="${settings.company_phone || ''}">
                                             </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Telefone</label>
-                                                <input type="text" class="form-control" value="${settings.company_phone || ''}" id="company_phone">
-                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Email Corporativo</label>
+                                            <input type="email" id="set_company_email" class="form-control" value="${settings.company_email || ''}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Endereço Físico</label>
+                                            <textarea id="set_company_address" class="form-control" rows="2">${settings.company_address || ''}</textarea>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card mb-3">
-                                        <div class="card-header">
-                                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Preferências</h6>
+
+                                    <!-- TAB FINANÇAS -->
+                                    <div class="tab-pane fade" id="tab-financas" role="tabpanel">
+                                        <h6 class="border-bottom pb-2 mb-3 text-primary uppercase small fw-bold">CONFIGURAÇÕES FINANCEIRAS</h6>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold small">Moeda Principal</label>
+                                                <input type="text" id="set_default_currency" class="form-control" value="${settings.default_currency || 'MT'}">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label class="form-label fw-bold small">Taxa IVA (%)</label>
+                                                <input type="number" id="set_tax_rate" class="form-control" value="${settings.tax_rate || '0'}">
+                                            </div>
                                         </div>
-                                        <div class="card-body">
-                                            <div class="mb-3">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="enable_notifications" ${settings.enable_notifications == '1' || settings.enable_notifications === true ? 'checked' : ''}>
-                                                    <label class="form-check-label" for="enable_notifications">
-                                                        Notificações em Tempo Real
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input" type="checkbox" id="enable_auto_backup" ${settings.enable_auto_backup == '1' || settings.enable_auto_backup === true ? 'checked' : ''}>
-                                                    <label class="form-check-label" for="enable_auto_backup">
-                                                        Backup Automático Diário
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Moeda Padrão</label>
-                                                <select class="form-select" id="default_currency">
-                                                    <option value="MZN" ${settings.default_currency === 'MZN' ? 'selected' : ''}>Metical (MZN)</option>
-                                                    <option value="USD" ${settings.default_currency === 'USD' ? 'selected' : ''}>Dólar Americano (USD)</option>
-                                                    <option value="EUR" ${settings.default_currency === 'EUR' ? 'selected' : ''}>Euro (EUR)</option>
-                                                </select>
-                                            </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Rodapé do Recibo</label>
+                                            <textarea id="set_receipt_footer" class="form-control" rows="3">${settings.receipt_footer || ''}</textarea>
+                                            <div class="form-text small">Mensagem que aparecerá no final dos recibos emitidos.</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- TAB SISTEMA -->
+                                    <div class="tab-pane fade" id="tab-sistema" role="tabpanel">
+                                        <h6 class="border-bottom pb-2 mb-3 text-primary uppercase small fw-bold">FUNCIONAMENTO DO SISTEMA</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small">Alerta de Stock Baixo (unidades)</label>
+                                            <input type="number" id="set_stock_alert_threshold" class="form-control" value="${settings.stock_alert_threshold || '5'}">
+                                        </div>
+                                        <hr>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="set_enable_notifications" ${settings.enable_notifications == '1' ? 'checked' : ''}>
+                                            <label class="form-check-label fw-bold small">Ativar Notificações do Sistema</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="set_enable_auto_backup" ${settings.enable_auto_backup == '1' ? 'checked' : ''}>
+                                            <label class="form-check-label fw-bold small">Backup Automático Diário</label>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-primary" onclick="saveSettings()">
-                                <i class="fas fa-save me-2"></i>Salvar Configurações
+                        <div class="modal-footer bg-light p-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary px-4 btn-sm" onclick="saveSettings()">
+                                <i class="fas fa-save me-2"></i>Salvar Tudo
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
-
-                const existingModal = document.getElementById('settingsModal');
-                if (existingModal) existingModal.remove();
+            </div>`;
+                
+                // Remover modal antigo se existir
+                const oldModal = document.getElementById('settingsModal');
+                if (oldModal) {
+                    const bsOldModal = bootstrap.Modal.getInstance(oldModal);
+                    if (bsOldModal) bsOldModal.dispose();
+                    oldModal.remove();
+                }
 
                 document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-                if (window.bootstrap) {
-                    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
-                    modal.show();
-                }
+                const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+                modal.show();
             } catch (error) {
-                console.error('Erro ao carregar configurações:', error);
+                console.error(error);
                 ProfessionalToast.show('Erro ao carregar configurações do servidor', 'error');
             }
         }
 
-        function saveSettings() {
-            const settings = {
-                company_name: document.getElementById('company_name')?.value,
-                company_address: document.getElementById('company_address')?.value,
-                company_phone: document.getElementById('company_phone')?.value,
-                enable_notifications: document.getElementById('enable_notifications')?.checked,
-                enable_auto_backup: document.getElementById('enable_auto_backup')?.checked,
-                default_currency: document.getElementById('default_currency')?.value
-            };
+        async function saveSettings() {
+            try {
+                const saveSettingsUrl = "{{ route('admin.settings.save') }}";
+                const data = {
+                    company_name: document.getElementById('set_company_name').value,
+                    company_address: document.getElementById('set_company_address').value,
+                    company_phone: document.getElementById('set_company_phone').value,
+                    company_email: document.getElementById('set_company_email').value,
+                    company_nuit: document.getElementById('set_company_nuit').value,
+                    default_currency: document.getElementById('set_default_currency').value,
+                    tax_rate: document.getElementById('set_tax_rate').value,
+                    receipt_footer: document.getElementById('set_receipt_footer').value,
+                    stock_alert_threshold: document.getElementById('set_stock_alert_threshold').value,
+                    enable_notifications: document.getElementById('set_enable_notifications').checked,
+                    enable_auto_backup: document.getElementById('set_enable_auto_backup').checked,
+                    _token: "{{ csrf_token() }}"
+                };
 
-            fetch('/admin/settings', {
+                const response = await fetch(saveSettingsUrl, {
                     method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(settings)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    ProfessionalToast.show(data.message || 'Configurações salvas com sucesso!', 'success');
-                    const modalElement = document.getElementById('settingsModal');
-                    if (modalElement && window.bootstrap) {
-                        const modal = bootstrap.Modal.getInstance(modalElement);
-                        if (modal) modal.hide();
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao salvar configurações:', error);
-                    ProfessionalToast.show('Erro ao salvar configurações', 'error');
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
                 });
+
+                const result = await response.json();
+                if (response.ok) {
+                    ProfessionalToast.show(result.message || 'Configurações salvas com sucesso!', 'success');
+                    const modalElement = document.getElementById('settingsModal');
+                    if (modalElement) {
+                        const bsModal = bootstrap.Modal.getInstance(modalElement);
+                        if (bsModal) bsModal.hide();
+                    }
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    throw new Error(result.message || 'Falha ao salvar');
+                }
+            } catch (error) {
+                console.error(error);
+                ProfessionalToast.show('Erro ao salvar configurações', 'error');
+            }
         }
 
         // ===== UTILITY FUNCTIONS =====
