@@ -2303,108 +2303,118 @@
         }
 
         // ===== PROFESSIONAL ADMIN FUNCTIONS =====
-        function showSettings() {
-            const modalHtml = `
-        <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="settingsModalLabel">
-                            <i class="fas fa-cog me-2"></i>Configurações do Sistema
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="fas fa-store me-2"></i>Configurações da Loja</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">Nome da Empresa</label>
-                                            <input type="text" class="form-control" value="FDSMULTSERVICES+" id="companyName">
+        async function showSettings() {
+            try {
+                // Mostrar um loader ou indicador de carregamento
+                ProfessionalToast.show('Carregando configurações...', 'info');
+                
+                const response = await fetch('/api/admin/settings');
+                const settings = await response.json();
+                
+                const modalHtml = `
+            <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="settingsModalLabel">
+                                <i class="fas fa-cog me-2"></i>Configurações do Sistema
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-store me-2"></i>Configurações da Empresa</h6>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Endereço</label>
-                                            <textarea class="form-control" rows="2" id="companyAddress">Maputo, Moçambique</textarea>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Telefone</label>
-                                            <input type="text" class="form-control" placeholder="(+258) 84 123 4567" id="companyPhone">
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Nome da Empresa</label>
+                                                <input type="text" class="form-control" value="${settings.company_name || 'FDSMULTSERVICES+'}" id="company_name">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Endereço</label>
+                                                <textarea class="form-control" rows="2" id="company_address">${settings.company_address || ''}</textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Telefone</label>
+                                                <input type="text" class="form-control" value="${settings.company_phone || ''}" id="company_phone">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Configurações do Sistema</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" id="enableNotifications" checked>
-                                                <label class="form-check-label" for="enableNotifications">
-                                                    Notificações em Tempo Real
-                                                </label>
-                                            </div>
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>Preferências</h6>
                                         </div>
-                                        <div class="mb-3">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" id="enableAutoBackup">
-                                                <label class="form-check-label" for="enableAutoBackup">
-                                                    Backup Automático Diário
-                                                </label>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="enable_notifications" ${settings.enable_notifications == '1' || settings.enable_notifications === true ? 'checked' : ''}>
+                                                    <label class="form-check-label" for="enable_notifications">
+                                                        Notificações em Tempo Real
+                                                    </label>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">Moeda Padrão</label>
-                                            <select class="form-select" id="defaultCurrency">
-                                                <option value="MZN" selected>Metical (MZN)</option>
-                                                <option value="USD">Dólar Americano (USD)</option>
-                                                <option value="EUR">Euro (EUR)</option>
-                                            </select>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="enable_auto_backup" ${settings.enable_auto_backup == '1' || settings.enable_auto_backup === true ? 'checked' : ''}>
+                                                    <label class="form-check-label" for="enable_auto_backup">
+                                                        Backup Automático Diário
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Moeda Padrão</label>
+                                                <select class="form-select" id="default_currency">
+                                                    <option value="MZN" ${settings.default_currency === 'MZN' ? 'selected' : ''}>Metical (MZN)</option>
+                                                    <option value="USD" ${settings.default_currency === 'USD' ? 'selected' : ''}>Dólar Americano (USD)</option>
+                                                    <option value="EUR" ${settings.default_currency === 'EUR' ? 'selected' : ''}>Euro (EUR)</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" onclick="saveSettings()">
-                            <i class="fas fa-save me-2"></i>Salvar Configurações
-                        </button>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                                <i class="fas fa-save me-2"></i>Salvar Configurações
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-            const existingModal = document.getElementById('settingsModal');
-            if (existingModal) existingModal.remove();
+                const existingModal = document.getElementById('settingsModal');
+                if (existingModal) existingModal.remove();
 
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-            if (window.bootstrap) {
-                const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
-                modal.show();
+                if (window.bootstrap) {
+                    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+                    modal.show();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar configurações:', error);
+                ProfessionalToast.show('Erro ao carregar configurações do servidor', 'error');
             }
         }
 
         function saveSettings() {
             const settings = {
-                companyName: document.getElementById('companyName')?.value,
-                companyAddress: document.getElementById('companyAddress')?.value,
-                companyPhone: document.getElementById('companyPhone')?.value,
-                enableNotifications: document.getElementById('enableNotifications')?.checked,
-                enableAutoBackup: document.getElementById('enableAutoBackup')?.checked,
-                defaultCurrency: document.getElementById('defaultCurrency')?.value
+                company_name: document.getElementById('company_name')?.value,
+                company_address: document.getElementById('company_address')?.value,
+                company_phone: document.getElementById('company_phone')?.value,
+                enable_notifications: document.getElementById('enable_notifications')?.checked,
+                enable_auto_backup: document.getElementById('enable_auto_backup')?.checked,
+                default_currency: document.getElementById('default_currency')?.value
             };
 
-            // Para Laravel, adapte a rota conforme necessário
             fetch('/admin/settings', {
                     method: 'POST',
                     headers: {
@@ -2416,9 +2426,12 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    ProfessionalToast.show('Configurações salvas com sucesso!', 'success');
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
-                    if (modal) modal.hide();
+                    ProfessionalToast.show(data.message || 'Configurações salvas com sucesso!', 'success');
+                    const modalElement = document.getElementById('settingsModal');
+                    if (modalElement && window.bootstrap) {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) modal.hide();
+                    }
                 })
                 .catch(error => {
                     console.error('Erro ao salvar configurações:', error);

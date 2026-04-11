@@ -3,62 +3,66 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Log;
 
 class AdminController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all settings as a key-value pair.
      */
-    public function index()
+    public function getSettings()
     {
-        //
+        $settings = Setting::all()->pluck('value', 'key');
+        
+        // Default values if empty
+        if ($settings->isEmpty()) {
+            $settings = [
+                'company_name' => 'FDSMULTSERVICES+',
+                'company_address' => 'Maputo, Moçambique',
+                'company_phone' => '',
+                'enable_notifications' => true,
+                'enable_auto_backup' => false,
+                'default_currency' => 'MZN'
+            ];
+        }
+
+        return response()->json($settings);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Save settings.
      */
-    public function create()
+    public function saveSettings(Request $request)
     {
-        //
+        try {
+            $settings = $request->all();
+            
+            foreach ($settings as $key => $value) {
+                // Determine group if needed, here just general
+                Setting::set($key, $value);
+            }
+
+            return response()->json(['message' => 'Configurações salvas com sucesso!']);
+        } catch (\Exception $e) {
+            Log::error('Erro ao salvar configurações: ' . $e->getMessage());
+            return response()->json(['message' => 'Erro ao salvar configurações', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Create system backup (Placeholder)
      */
-    public function store(Request $request)
+    public function createBackup()
     {
-        //
+        return response()->json(['message' => 'Funcionalidade de backup em desenvolvimento.']);
     }
 
     /**
-     * Display the specified resource.
+     * Get system logs (Placeholder)
      */
-    public function show(string $id)
+    public function getLogs()
     {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(['logs' => 'Histórico de logs indisponível no momento.']);
     }
 }
