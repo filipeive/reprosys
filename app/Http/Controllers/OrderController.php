@@ -260,26 +260,15 @@ class OrderController extends Controller
                     'total_price' => $orderItem->total_price
                 ]);
 
-                // Movimentar stock se for produto físico
-                if ($orderItem->product && $orderItem->product->type === 'product') {
-                    // Verificar se há stock suficiente
-                    if ($orderItem->product->stock_quantity < $orderItem->quantity) {
-                        throw new \Exception("Stock insuficiente para {$orderItem->product->name}");
-                    }
-
-                    // Decrementar stock
-                    $orderItem->product->decrement('stock_quantity', $orderItem->quantity);
-
-                    // Registrar movimentação
-                    StockMovement::create([
-                        'product_id' => $orderItem->product_id,
-                        'user_id' => auth()->id(),
-                        'movement_type' => 'out',
-                        'quantity' => $orderItem->quantity,
-                        'reason' => "Dívida #$debt->id do Pedido #$order->id",
-                        'reference_id' => $debt->id,
-                        'movement_date' => now()->toDateString()
-                    ]);
+                // Movimentar stock usando o método centralizado (lida com produtos vinculados)
+                if ($orderItem->product) {
+                    $orderItem->product->updateStock(
+                        $orderItem->quantity, 
+                        'out', 
+                        auth()->id(), 
+                        "Dívida #$debt->id do Pedido #$order->id", 
+                        $debt->id
+                    );
                 }
             }
 
@@ -357,9 +346,9 @@ class OrderController extends Controller
                         'description' => $item->description,
                     ]);
 
-                    // Atualizar stock se necessário
+                    // Atualizar stock usando o método centralizado
                     if ($item->product) {
-                        $item->product->decrement('stock_quantity', $item->quantity);
+                        $item->product->updateStock($item->quantity, 'out', auth()->id(), "Venda gerada do Pedido #{$order->id}", $sale->id);
                     }
                 }
 

@@ -65,7 +65,9 @@ class ProductController extends AppBaseController
     public function create(Request $request)
     {
         $categories = Category::where('status', 'active')->orderBy('name')->get();
-        return view('products.create', compact('categories'));
+        // Produtos físicos que podem ser vinculados a serviços (ex: Papel A4)
+        $physicalProducts = Product::where('type', 'product')->where('is_active', true)->orderBy('name')->get();
+        return view('products.create', compact('categories', 'physicalProducts'));
     }
 
     /**
@@ -77,6 +79,7 @@ class ProductController extends AppBaseController
             $validationRules = [
                 'name' => 'required|string|max:150',
                 'category_id' => 'required|exists:categories,id',
+                'linked_product_id' => 'nullable|exists:products,id',
                 'type' => 'required|in:product,service',
                 'selling_price' => 'required|numeric|min:0',
                 'purchase_price' => 'nullable|numeric|min:0',
@@ -96,7 +99,7 @@ class ProductController extends AppBaseController
             DB::beginTransaction();
 
             $data = collect($validated)->only([
-                'name', 'category_id', 'type', 'selling_price',
+                'name', 'category_id', 'linked_product_id', 'type', 'selling_price',
                 'purchase_price', 'unit', 'description'
             ])->toArray();
 
@@ -156,7 +159,13 @@ class ProductController extends AppBaseController
     public function edit(Product $product)
     {
         $categories = Category::where('status', 'active')->orderBy('name')->get();
-        return view('products.edit', compact('product', 'categories'));
+        // Produtos físicos que podem ser vinculados (exceto o próprio para evitar loops)
+        $physicalProducts = Product::where('type', 'product')
+                                   ->where('is_active', true)
+                                   ->where('id', '!=', $product->id)
+                                   ->orderBy('name')
+                                   ->get();
+        return view('products.edit', compact('product', 'categories', 'physicalProducts'));
     }
 
     /**
@@ -179,6 +188,7 @@ class ProductController extends AppBaseController
             $validationRules = [
                 'name' => 'required|string|max:150',
                 'category_id' => 'required|exists:categories,id',
+                'linked_product_id' => 'nullable|exists:products,id',
                 'selling_price' => 'required|numeric|min:0',
                 'purchase_price' => 'nullable|numeric|min:0',
                 'unit' => 'nullable|string|max:20',
@@ -193,7 +203,7 @@ class ProductController extends AppBaseController
             $validated = $request->validate($validationRules);
 
             $data = collect($validated)->only([
-                'name', 'category_id', 'selling_price',
+                'name', 'category_id', 'linked_product_id', 'selling_price',
                 'purchase_price', 'unit', 'description'
             ])->toArray();
 

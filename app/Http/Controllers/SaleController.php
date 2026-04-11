@@ -190,15 +190,8 @@ class SaleController extends Controller
                         'discount_reason' => $itemDiscountAmount > 0 ? 'Desconto aplicado no item' : null,
                     ]);
 
-                    if ($product->type === 'product') {
-                        $product->decrement('stock_quantity', $quantity);
-                        StockMovement::create([
-                            'product_id' => $product->id, 'user_id' => $userId,
-                            'movement_type' => 'out', 'quantity' => $quantity,
-                            'reason' => 'Venda', 'reference_id' => $sale->id,
-                            'movement_date' => $saleDate->toDateString(),
-                        ]);
-                    }
+                    // Atualizar stock usando o método centralizado (lida com produtos vinculados)
+                    $product->updateStock($quantity, 'out', $userId, 'Venda', $sale->id);
                     
                     $subtotal += $originalUnitPrice * $quantity; // Subtotal é sempre baseado no preço original
                     $totalItemDiscount += max(0, $itemDiscountAmount);
@@ -418,20 +411,8 @@ class SaleController extends Controller
             DB::transaction(function () use ($sale) {
                 // Reverter movimentações de stock
                 foreach ($sale->items as $item) {
-                    if ($item->product->type === 'product') {
-                        $item->product->increment('stock_quantity', $item->quantity);
-                        
-                        // Registrar movimento de reversão
-                        StockMovement::create([
-                            'product_id' => $item->product_id,
-                            'user_id' => auth()->id(),
-                            'movement_type' => 'in',
-                            'quantity' => $item->quantity,
-                            'reason' => 'Reversão de venda cancelada',
-                            'reference_id' => $sale->id,
-                            'movement_date' => now()->toDateString(),
-                        ]);
-                    }
+                    // Reverter stock usando o método centralizado
+                    $item->product->updateStock($item->quantity, 'in', auth()->id(), 'Reversão de venda cancelada', $sale->id);
                 }
                 
                 // Deletar itens da venda

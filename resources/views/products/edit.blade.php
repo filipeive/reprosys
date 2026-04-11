@@ -176,6 +176,32 @@
                             </div>
                         @endif
 
+                        <!-- Consumo de Stock (Vincular a outro produto) -->
+                        <div class="card mb-3 bg-light border-0">
+                            <div class="card-body">
+                                <label for="linked_product_id" class="form-label fw-semibold">
+                                    <i class="fas fa-link me-2 text-primary"></i>Vincular Consumo de Stock
+                                </label>
+                                <select class="form-select @error('linked_product_id') is-invalid @enderror" 
+                                        id="linked_product_id" name="linked_product_id">
+                                    <option value="">Nenhum (Reduz o próprio stock ou nenhum)</option>
+                                    @foreach ($physicalProducts as $p)
+                                        <option value="{{ $p->id }}" {{ old('linked_product_id', $product->linked_product_id) == $p->id ? 'selected' : '' }}>
+                                            {{ $p->name }} (Disponível: {{ $p->stock_quantity }} {{ $p->unit }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Se selecionar um produto aqui, sempre que vender este item, o stock será reduzido do <strong>produto vinculado</strong>. 
+                                    (Ex: Vincule "Cópia A4" ao produto "Papel A4").
+                                </div>
+                                @error('linked_product_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
                         <!-- Descrição -->
                         <div class="mb-3">
                             <label for="description" class="form-label fw-semibold">Descrição</label>
