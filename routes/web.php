@@ -21,6 +21,8 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\PasswordChangeController;
+use App\Http\Controllers\LandingController;
+
 
 
 
