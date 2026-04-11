@@ -58,19 +58,80 @@ class AdminController extends Controller
         }
     }
 
-    /**
-     * Create system backup (Placeholder)
-     */
     public function createBackup()
     {
-        return response()->json(['message' => 'Funcionalidade de backup em desenvolvimento.']);
+        try {
+            $dbName = env('DB_DATABASE');
+            $dbUser = env('DB_USERNAME');
+            $dbPass = env('DB_PASSWORD');
+            $dbHost = env('DB_HOST', '127.0.0.1');
+            
+            $fileName = "backup_" . date('Y-m-d_H-i-s') . ".sql";
+            $storagePath = storage_path("app/backups");
+            
+            if (!file_exists($storagePath)) {
+                mkdir($storagePath, 0755, true);
+            }
+            
+            $filePath = $storagePath . "/" . $fileName;
+            
+            // Comando mysqldump
+            $command = "mysqldump --user={$dbUser} --password='{$dbPass}' --host={$dbHost} {$dbName} > {$filePath}";
+            
+            $result = null;
+            $output = [];
+            exec($command, $output, $result);
+            
+            if ($result === 0) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Backup criado com sucesso!',
+                    'file' => $fileName,
+                    'path' => $filePath
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erro ao executar mysqldump. Verifique as permissões.',
+                    'error_code' => $result
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro no Backup: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Erro ao processar backup', 'error' => $e->getMessage()], 500);
+        }
     }
 
-    /**
-     * Get system logs (Placeholder)
-     */
     public function getLogs()
     {
-        return response()->json(['logs' => 'Histórico de logs indisponível no momento.']);
+        try {
+            $logPath = storage_path('logs/laravel.log');
+            if (!file_exists($logPath)) {
+                return response()->json(['success' => false, 'message' => 'Arquivo de log não encontrado.']);
+            }
+            
+            // Ler as últimas 100 linhas
+            $file = file($logPath);
+            $lines = array_slice($file, -100);
+            $logs = implode("", $lines);
+            
+            return response()->json([
+                'success' => true,
+                'logs' => $logs
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erro ao ler logs: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function clearLogs()
+    {
+        try {
+            $logPath = storage_path('logs/laravel.log');
+            file_put_contents($logPath, "");
+            return response()->json(['success' => true, 'message' => 'Logs limpos com sucesso!']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Erro ao limpar logs'], 500);
+        }
     }
 }

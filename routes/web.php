@@ -24,9 +24,7 @@ use App\Http\Controllers\PasswordChangeController;
 
 
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::get('/', [LandingController::class, 'index'])->name('welcome');
 
 // Registro protegido com senha administrativa
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');

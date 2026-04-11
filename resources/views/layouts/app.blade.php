@@ -2329,6 +2329,7 @@
                                     <button class="nav-link active text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-geral" type="button"><i class="fas fa-building me-2"></i>Empresa</button>
                                     <button class="nav-link text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-financas" type="button"><i class="fas fa-money-bill-wave me-2"></i>Finanças</button>
                                     <button class="nav-link text-start mb-2" data-bs-toggle="pill" data-bs-target="#tab-sistema" type="button"><i class="fas fa-microchip me-2"></i>Sistema</button>
+                                    <button class="nav-link text-start mb-2 text-danger" data-bs-toggle="pill" data-bs-target="#tab-manutencao" type="button"><i class="fas fa-tools me-2"></i>Manutenção</button>
                                 </div>
                                 <div class="tab-content flex-grow-1 p-4" id="settingsTabsContent">
                                     <!-- TAB GERAL -->
@@ -2393,6 +2394,45 @@
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input" type="checkbox" id="set_enable_auto_backup" ${settings.enable_auto_backup == '1' ? 'checked' : ''}>
                                             <label class="form-check-label fw-bold small">Backup Automático Diário</label>
+                                        </div>
+                                    </div>
+
+                                    <!-- TAB MANUTENÇÃO -->
+                                    <div class="tab-pane fade" id="tab-manutencao" role="tabpanel">
+                                        <h6 class="border-bottom pb-2 mb-3 text-danger uppercase small fw-bold">ADMINISTRAÇÃO TÉCNICA</h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="card bg-light border-0">
+                                                    <div class="card-body">
+                                                        <h6 class="fw-bold"><i class="fas fa-database me-2"></i>Base de Dados</h6>
+                                                        <p class="small text-muted">Crie uma cópia de segurança completa de todos os seus dados agora.</p>
+                                                        <button type="button" class="btn btn-dark btn-sm w-100" onclick="triggerBackup()">
+                                                            <i class="fas fa-download me-2"></i>Criar Backup SQL
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="card bg-light border-0">
+                                                    <div class="card-body">
+                                                        <h6 class="fw-bold"><i class="fas fa-terminal me-2"></i>Erros e Logs</h6>
+                                                        <p class="small text-muted">Visualize os últimos logs do sistema para diagnóstico técnico.</p>
+                                                        <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="viewLogs()">
+                                                            <i class="fas fa-eye me-2"></i>Ver Logs Recentes
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="log-display-container" class="mt-4 d-none">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="fw-bold mb-0">Logs Recentes:</h6>
+                                                <div>
+                                                    <button type="button" class="btn btn-link btn-xs text-danger" onclick="clearLogs()">Limpar Logs</button>
+                                                </div>
+                                            </div>
+                                            <pre id="log-content" class="bg-dark text-success p-3 rounded small" style="max-height: 200px; overflow-y: auto; font-family: monospace;"></pre>
                                         </div>
                                     </div>
                                 </div>
@@ -2464,6 +2504,63 @@
             } catch (error) {
                 console.error(error);
                 ProfessionalToast.show('Erro ao salvar configurações', 'error');
+            }
+        }
+
+        async function triggerBackup() {
+            try {
+                ProfessionalToast.show('Iniciando backup da base de dados...', 'info');
+                const response = await fetch("{{ url('/admin/backup') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    ProfessionalToast.show(data.message, 'success');
+                } else {
+                    ProfessionalToast.show(data.message || 'Erro ao criar backup', 'error');
+                }
+            } catch (error) {
+                ProfessionalToast.show('Erro na requisição de backup', 'error');
+            }
+        }
+
+        async function viewLogs() {
+            try {
+                const response = await fetch("{{ url('/admin/logs') }}");
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('log-display-container').classList.remove('d-none');
+                    document.getElementById('log-content').textContent = data.logs;
+                    ProfessionalToast.show('Logs carregados', 'success');
+                } else {
+                    ProfessionalToast.show(data.message, 'error');
+                }
+            } catch (error) {
+                ProfessionalToast.show('Erro ao carregar logs', 'error');
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('Tem certeza que deseja apagar todo o histórico de logs?')) return;
+            try {
+                const response = await fetch("{{ url('/admin/logs/clear') }}", {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': "{{ csrf_token() }}",
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('log-content').textContent = '';
+                    ProfessionalToast.show(data.message, 'success');
+                }
+            } catch (error) {
+                ProfessionalToast.show('Erro ao limpar logs', 'error');
             }
         }
 
