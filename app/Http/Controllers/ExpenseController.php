@@ -14,8 +14,12 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Expense::with(['user', 'category'])
-            ->where('user_id', auth()->id());
+        $query = Expense::with(['user', 'category']);
+
+        // Se não for admin, vê apenas as suas próprias despesas
+        if (!auth()->user()->userCan('admin') && !auth()->user()->userCan('view_all_expenses')) {
+            $query->where('user_id', auth()->id());
+        }
 
         if ($request->filled('search')) {
             $query->where('description', 'like', '%' . $request->search . '%');

@@ -26,7 +26,7 @@ use App\Http\Controllers\LandingController;
 
 
 
-Route::get('/', [LandingController::class, 'index'])->name('welcome');
+// Rota raiz movida para baixo para evitar conflitos
 
 // Registro protegido com senha administrativa
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
@@ -438,6 +438,10 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
+    // ... outras rotas ...
 });
+
+// Rota raiz pública (fora de middleware de autenticação)
+Route::match(['get', 'head'], '/', [LandingController::class, 'index'])->name('welcome');
 
 require __DIR__ . '/auth.php';

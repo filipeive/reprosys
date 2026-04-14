@@ -4,331 +4,473 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReproSys Pro | Gestão Inteligente para Reprografia</title>
+    
+    <!-- SEO -->
+    <meta name="description" content="A solução definitiva para gestão de reprografia. Controle stock, produção e vendas em tempo real com o ReproSys Pro.">
+    
+    <!-- Fonts & CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+
     <style>
         :root {
             --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #ec4899;
+            --primary-dark: #4338ca;
+            --secondary: #f43f5e;
+            --accent: #10b981;
             --dark: #0f172a;
-            --glass: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --dark-lighter: #1e293b;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
             background-color: var(--dark);
             color: #f8fafc;
             overflow-x: hidden;
         }
 
-        .navbar {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 1.5rem 0;
+        h1, h2, h3, h4, .font-heading {
+            font-family: 'Outfit', sans-serif;
         }
 
+        /* Navbar Modern */
+        .navbar {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .navbar.scrolled {
+            padding: 0.6rem 0;
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .navbar-brand {
+            font-size: 1.8rem;
+            letter-spacing: -1px;
+        }
+
+        /* Hero Section */
         .hero-section {
-            padding: 180px 0 100px;
-            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent),
-                        radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.1), transparent);
+            min-height: 100vh;
+            padding: 160px 0 100px;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(244, 63, 94, 0.1) 0%, transparent 40%),
+                var(--dark);
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .hero-title {
-            font-size: 4rem;
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
             font-weight: 800;
             line-height: 1.1;
             margin-bottom: 1.5rem;
-            background: linear-gradient(to right, #fff, var(--primary));
+            background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
+        .hero-description {
+            font-size: 1.25rem;
+            color: #94a3b8;
+            max-width: 600px;
+            margin-bottom: 2.5rem;
+        }
+
         .btn-premium {
-            padding: 1rem 2.5rem;
-            border-radius: 50px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .btn-primary-gradient {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 0.8rem 2.2rem;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
             border: none;
-            color: white;
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
         }
 
-        .btn-primary-gradient:hover {
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-glow:hover {
             transform: translateY(-3px);
-            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.6);
             color: white;
         }
 
+        .btn-outline-glass {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn-outline-glass:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            color: white;
+            transform: translateY(-3px);
+        }
+
+        /* Hero Image Container */
+        .hero-canvas {
+            position: relative;
+            z-index: 1;
+        }
+
+        .image-wrapper {
+            position: relative;
+            border-radius: 30px;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), transparent);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .image-wrapper img {
+            border-radius: 20px;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+
+        /* Features */
         .feature-card {
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 2.5rem;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             height: 100%;
-            backdrop-filter: blur(5px);
-        }
-
-        .feature-card:hover {
-            transform: scale(1.05);
-            background: rgba(255, 255, 255, 0.15);
-            border-color: var(--primary);
-        }
-
-        .feature-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-
-        .pricing-card {
-            background: #1e293b;
-            border-radius: 30px;
-            padding: 3rem;
-            border: 1px solid var(--glass-border);
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
 
-        .pricing-card.popular {
-            border: 2px solid var(--primary);
-            transform: scale(1.05);
-            z-index: 2;
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
         }
 
-        .popular-badge {
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .feature-card:hover::before {
+            opacity: 0.05;
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        /* Stats Section */
+        .stats-section {
+            background: linear-gradient(180deg, var(--dark) 0%, var(--dark-lighter) 100%);
+            padding: 80px 0;
+            border-radius: 50px 50px 0 0;
+        }
+
+        .stat-item h2 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        /* Pricing */
+        .pricing-card {
+            background: var(--dark-lighter);
+            border-radius: 32px;
+            padding: 3rem;
+            border: 1px solid var(--glass-border);
+            height: 100%;
+            position: relative;
+        }
+
+        .pricing-card.popular {
+            background: linear-gradient(180deg, #1e1b4b 0%, var(--dark-lighter) 100%);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .badge-popular {
             position: absolute;
-            top: 20px;
-            right: -35px;
+            top: 24px;
+            right: 24px;
+            background: var(--primary);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Footer */
+        footer {
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .social-link {
+            width: 44px;
+            height: 44px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .social-link:hover {
             background: var(--primary);
             color: white;
-            padding: 5px 40px;
-            transform: rotate(45deg);
-            font-size: 0.8rem;
-            font-weight: bold;
+            transform: rotate(360deg);
         }
 
-        .hero-img-container {
-            position: relative;
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-
-        .blob {
+        /* Custom Shapes */
+        .shape-blob {
             position: absolute;
-            width: 500px;
-            height: 500px;
             background: var(--primary);
-            filter: blur(150px);
-            opacity: 0.2;
+            filter: blur(120px);
+            opacity: 0.15;
             z-index: -1;
             border-radius: 50%;
         }
 
-        .section-title {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 3rem;
-            text-align: center;
-        }
-
-        footer {
-            padding: 50px 0;
-            border-top: 1px solid var(--glass-border);
-            margin-top: 100px;
-        }
-
-        .text-gradient {
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        /* Responsive */
+        @media (max-width: 991px) {
+            .hero-title { font-size: 3rem; }
+            .hero-section { text-align: center; padding-top: 120px; }
+            .hero-description { margin: 0 auto 2.5rem; }
+            .btn-group { justify-content: center; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg fixed-top navbar-dark">
-        <div class="container uppercase">
-            <a class="navbar-brand fw-bold fs-3" href="#">
-                <span class="text-primary">Repro</span>Sys <small class="fs-6 text-muted">Pro</small>
+    <nav class="navbar navbar-expand-lg fixed-top navbar-dark" id="mainNav">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <span class="text-primary font-heading">Repro</span>Sys<span class="text-secondary">.</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <i class="fas fa-bars"></i>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
+                <ul class="navbar-nav ms-auto align-items-center gap-2">
                     <li class="nav-item"><a class="nav-link px-3" href="#features">Funcionalidades</a></li>
                     <li class="nav-item"><a class="nav-link px-3" href="#pricing">Planos</a></li>
-                    <li class="nav-item ms-lg-3">
-                        <a href="{{ route('login') }}" class="btn btn-outline-light btn-premium btn-sm px-4">Entrar</a>
+                    <li class="nav-item ms-lg-4">
+                        <a href="{{ route('login') }}" class="btn btn-outline-glass btn-premium px-4">Entrar</a>
                     </li>
-                    <li class="nav-item ms-2">
-                        <a href="{{ route('register') }}" class="btn btn-primary-gradient btn-premium btn-sm px-4">Começar Agora</a>
+                    <li class="nav-item">
+                        <a href="{{ route('register') }}" class="btn btn-glow btn-premium px-4">Experimentar já</a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Hero -->
     <header class="hero-section">
-        <div class="blob" style="top: -100px; right: -100px;"></div>
+        <div class="shape-blob" style="top: 10%; left: 0; width: 400px; height: 400px;"></div>
+        <div class="shape-blob" style="bottom: 10%; right: 0; width: 500px; height: 500px; background: var(--secondary); opacity: 0.1;"></div>
+        
         <div class="container">
             <div class="row align-items-center">
-                <div class="col-lg-6">
-                    <span class="badge bg-primary bg-opacity-10 text-primary p-2 px-3 mb-3 border border-primary border-opacity-25 rounded-pill">
-                        VERSÃO 2025 DISPONÍVEL
-                    </span>
-                    <h1 class="hero-title">Domine a Sua Reprografia com Inteligência.</h1>
-                    <p class="lead text-muted mb-5 fs-4">
-                        A solução definitiva para gestão de stock, vendas, dívidas e produção em tempo real. Poupamos-lhe horas de trabalho manual para que se foque no que importa: <strong>Crescer.</strong>
+                <div class="col-lg-6" data-aos="fade-right">
+                    <div class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-20 px-3 py-2 rounded-pill mb-4">
+                        🚀 ReproSys v2.0 - A nova era da gestão
+                    </div>
+                    <h1 class="hero-title">Gestão Premium para a sua <span class="text-primary">Reprografia.</span></h1>
+                    <p class="hero-description">
+                        Transforme o caos operacional em lucro real. A plataforma tudo-em-um para gerir stock, vendas, dívidas e produção com precisão milimétrica.
                     </p>
-                    <div class="d-flex gap-3">
-                        <a href="#pricing" class="btn btn-primary-gradient btn-premium shadow-lg">Ver Planos</a>
-                        <a href="javascript:void(0)" onclick="demoLogin()" class="btn btn-outline-light btn-premium border-2">
-                            <i class="fas fa-play me-2"></i>Testar Demo
+                    <div class="d-flex gap-3 btn-group">
+                        <a href="#features" class="btn btn-glow btn-premium">Explorar agora</a>
+                        <a href="{{ route('login') }}" class="btn btn-outline-glass btn-premium">
+                            <i class="fas fa-play me-2 fs-7"></i>Ver Demo
                         </a>
                     </div>
                 </div>
-                <div class="col-lg-6 mt-5 mt-lg-0">
-                    <div class="hero-img-container">
-                        <img src="/home/fdev-ms/.gemini/antigravity/brain/66137161-0844-4ed0-aea6-c79d909a8116/reprosys_hero_banner_1775904516739.png" alt="ReproSys Portal" class="img-fluid rounded-4 shadow-2xl border border-secondary border-opacity-25">
+                <div class="col-lg-6 mt-5 mt-lg-0 hero-canvas" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="image-wrapper">
+                        <!-- Imagem gerada pelo AI -->
+                        <img src="{{ asset('images/reprosys_hero_2025.png') }}" 
+                             onerror="this.src='https://cdn.pixabay.com/photo/2021/08/04/13/06/software-6521720_1280.jpg'"
+                             alt="ReproSys Analytics Dashboard">
                     </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Features -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="row g-4 text-center">
+                <div class="col-md-4" data-aos="fade-up">
+                    <div class="stat-item">
+                        <h2 class="font-heading">+100</h2>
+                        <p class="text-muted text-uppercase fw-bold ls-1">Clientes Felizes</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-item">
+                        <h2 class="font-heading">24/7</h2>
+                        <p class="text-muted text-uppercase fw-bold ls-1">Monitorização Real</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-item">
+                        <h2 class="font-heading">35%</h2>
+                        <p class="text-muted text-uppercase fw-bold ls-1">Aumento de Lucro</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="features" class="py-5 mt-5">
-        <div class="container">
-            <h2 class="section-title">Porquê escolher o <span class="text-gradient">ReproSys?</span></h2>
-            <div class="row g-4">
-                <div class="col-md-4">
+        <div class="container py-5 text-center">
+            <h2 class="font-heading mb-2 fs-1">Funcionalidades Inteligentes</h2>
+            <p class="text-muted mb-5">Tudo o que precisa para gerir o seu negócio num só lugar.</p>
+            
+            <div class="row g-4 mt-2">
+                <div class="col-md-4" data-aos="fade-up">
                     <div class="feature-card">
-                        <div class="feature-icon"><i class="fas fa-cubes"></i></div>
-                        <h4>Gestão de Produção</h4>
-                        <p class="text-muted">Controle automático de insumos. Venda uma cópia e o sistema reduz o stock de papel automaticamente.</p>
+                        <div class="feature-icon"><i class="fas fa-microchip"></i></div>
+                        <h4 class="fw-bold">Produção Automatizada</h4>
+                        <p class="text-muted">Descontos automáticos de stock de papel, toner e insumos conforme as vendas são efetuadas.</p>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
                     <div class="feature-card">
-                        <div class="feature-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                        <h4>Controle de Dívidas</h4>
-                        <p class="text-muted">Nunca mais perca dinheiro. Registe dívidas de clientes, envie lembretes e gira pagamentos parciais.</p>
+                        <div class="feature-icon"><i class="fas fa-wallet"></i></div>
+                        <h4 class="fw-bold">Gestão de Crédito</h4>
+                        <p class="text-muted">Acompanhe dívidas, pagamentos parciais e históricos de clientes de forma simplificada.</p>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
                     <div class="feature-card">
-                        <div class="feature-icon"><i class="fas fa-chart-pie"></i></div>
-                        <h4>Relatórios Pro</h4>
-                        <p class="text-muted">Gráficos de lucro e perda, fluxo de caixa e curva ABC de produtos em segundos.</p>
+                        <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                        <h4 class="fw-bold">Inteligência de Vendas</h4>
+                        <p class="text-muted">Relatórios gráficos detalhados sobre o desempenho dos seus colaboradores e lucros diários.</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Pricing -->
-    <section id="pricing" class="py-5 mt-5 bg-black bg-opacity-25">
-        <div class="container">
-            <h2 class="section-title">Pacotes Disponíveis</h2>
-            <div class="row g-4 align-items-center justify-content-center">
-                <!-- Plano Starter -->
-                <div class="col-lg-4">
+    <section id="pricing" class="py-5 mt-5">
+        <div class="container py-5">
+            <h2 class="text-center font-heading fs-1 mb-5">Planos Flexíveis</h2>
+            <div class="row g-4 justify-content-center">
+                <div class="col-lg-4" data-aos="fade-right">
                     <div class="pricing-card">
-                        <h3>Starter</h3>
-                        <div class="display-4 fw-bold mb-4">500 <small class="fs-5">MT/mês</small></div>
-                        <ul class="list-unstyled mb-5 text-muted">
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Até 100 Vendas/mês</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Gestão de Stock</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>1 Utilizador</li>
-                            <li class="mb-2 text-decoration-line-through"><i class="fas fa-times me-2"></i>Relatórios Avançados</li>
-                        </ul>
-                        <a href="#" class="btn btn-outline-light w-100 btn-premium py-2">Selecionar</a>
-                    </div>
-                </div>
-                <!-- Plano Business -->
-                <div class="col-lg-4">
-                    <div class="pricing-card popular">
-                        <div class="popular-badge">RECOMENDADO</div>
-                        <h3 class="text-primary">Business</h3>
-                        <div class="display-4 fw-bold mb-4">1,500 <small class="fs-5">MT/mês</small></div>
+                        <h3 class="fw-bold">Starter</h3>
+                        <p class="text-muted">Para pequenos negócios</p>
+                        <div class="my-4">
+                            <span class="display-5 fw-bold font-heading">500</span>
+                            <span class="text-muted">MT/mês</span>
+                        </div>
                         <ul class="list-unstyled mb-5">
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Vendas Ilimitadas</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Stock e Consumíveis</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Até 3 Utilizadores</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Gestão de Dívidas</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Relatórios Pro</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Gestão de Stock Base</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Registro de Vendas</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Relatórios Diários</li>
+                            <li class="mb-3 opacity-50"><i class="fas fa-times-circle me-2"></i> Suporte Prioritário</li>
                         </ul>
-                        <a href="#" class="btn btn-primary-gradient w-100 btn-premium py-2">Comprar Agora</a>
+                        <button class="btn btn-outline-glass w-100 btn-premium py-3">Começar agora</button>
                     </div>
                 </div>
-                <!-- Plano Enterprise -->
-                <div class="col-lg-4">
-                    <div class="pricing-card">
-                        <h3>Enterprise</h3>
-                        <div class="display-4 fw-bold mb-4">Custom</div>
-                        <ul class="list-unstyled mb-5 text-muted">
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Múltiplas Lojas</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Backups Automáticos</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Suporte 24/7</li>
-                            <li class="mb-2"><i class="fas fa-check text-primary me-2"></i>Customização Total</li>
+                <div class="col-lg-4" data-aos="fade-up">
+                    <div class="pricing-card popular text-white bg-dark">
+                        <div class="badge-popular">Mais Popular</div>
+                        <h3 class="fw-bold">Pro</h3>
+                        <p class="text-indigo-300 opacity-75">Para negócios em crescimento</p>
+                        <div class="my-4">
+                            <span class="display-5 fw-bold font-heading">1.500</span>
+                            <span class="text-indigo-300">MT/mês</span>
+                        </div>
+                        <ul class="list-unstyled mb-5">
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Tudo no Plano Starter</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Gestão de Dívidas Completa</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Multi-utilizadores</li>
+                            <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> API de Integrações</li>
                         </ul>
-                        <a href="mailto:geral@fds.co.mz" class="btn btn-outline-light w-100 btn-premium py-2">Contactar Vendas</a>
+                        <button class="btn btn-glow w-100 btn-premium py-3">Escolher Pro</button>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
     <footer class="container text-center">
-        <p class="text-muted small">&copy; 2025 FDS MULTISERVICES+. Todos os direitos reservados.</p>
-        <div class="d-flex justify-content-center gap-4 mt-3">
-            <a href="#" class="text-muted"><i class="fab fa-facebook-f"></i></a>
-            <a href="#" class="text-muted"><i class="fab fa-instagram"></i></a>
-            <a href="#" class="text-muted"><i class="fab fa-linkedin-in"></i></a>
+        <div class="mb-5">
+            <a href="#" class="navbar-brand fw-bold mb-4 d-block">
+                <span class="text-primary font-heading">Repro</span>Sys<span class="text-secondary">.</span>
+            </a>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+            </div>
         </div>
+        <p class="text-muted small">&copy; 2025 FDS MULTISERVICES+. Todos os direitos reservados.</p>
     </footer>
 
-    <form id="demo-form" action="{{ route('login') }}" method="POST" style="display:none;">
-        @csrf
-        <input type="hidden" name="email" value="demo@reprosys.com">
-        <input type="hidden" name="password" value="demo123">
-    </form>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
     <script>
-        function demoLogin() {
-            // No futuro, isto pode fazer um POST automático para uma conta demo
-            alert('A conta demo está a ser preparada. Utilize o login: demo@reprosys.com / senha: demo123');
-            window.location.href = "{{ route('login') }}";
-        }
+        AOS.init({
+            duration: 1000,
+            once: true,
+            easing: 'ease-out-cubic'
+        });
+
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 50) {
+                document.getElementById('mainNav').classList.add('scrolled');
+            } else {
+                document.getElementById('mainNav').classList.remove('scrolled');
+            }
+        });
     </script>
 </body>
 </html>
