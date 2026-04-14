@@ -62,8 +62,8 @@ class ExpenseController extends Controller
      */
     public function create()
     {
-        $categories = ExpenseCategory::all();
-        return view('expenses.create', compact('categories'));
+        // Redirecionar para o index que agora usa modais
+        return redirect()->route('expenses.index');
     }
 
     /**

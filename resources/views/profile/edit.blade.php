@@ -147,7 +147,7 @@
                     <h6 class="mb-0">Alterar Senha</h6>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('password.update') }}" id="passwordForm">
+                    <form method="POST" action="{{ route('profile.change-password') }}" id="passwordForm">
                         @csrf
                         @method('put')
 

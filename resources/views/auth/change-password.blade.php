@@ -58,7 +58,7 @@
                         </div>
 
                         <!-- Formulário de troca de senha -->
-                        <form method="POST" action="{{ route('password.update') }}" id="changePasswordForm">
+                        <form method="POST" action="{{ route('password.change.update') }}" id="changePasswordForm">
                             @csrf
                             
                             <!-- Senha atual (temporária) -->

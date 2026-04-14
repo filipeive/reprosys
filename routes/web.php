@@ -44,7 +44,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::get('/dashboard/metrics', [DashboardController::class, 'apiMetrics'])->name('dashboard.metrics');
     // Rotas para troca de senha temporária (apenas para usuários autenticados)
     Route::get('/password/change', [PasswordChangeController::class, 'show'])->name('password.change');
-    Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.update');
+    Route::post('/password/change', [PasswordChangeController::class, 'update'])->name('password.change.update');
     Route::post('/password/skip', [PasswordChangeController::class, 'skip'])->name('password.skip');
 
     Route::middleware(['auth', 'verified'])->group(function () {
@@ -62,7 +62,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
-        Route::patch('/password', [ProfileController::class, 'updatePassword'])->name('password.update');
+        Route::patch('/password', [ProfileController::class, 'updatePassword'])->name('change-password');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
         Route::get('/stats', [ProfileController::class, 'stats'])->name('stats');
         Route::get('/performance', [ProfileController::class, 'performance'])->name('performance');
