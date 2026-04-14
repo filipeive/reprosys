@@ -86,10 +86,10 @@ class OrderController extends Controller
             'description' => 'required|string',
             'estimated_amount' => 'required|numeric|min:0.01',
             'advance_payment' => 'nullable|numeric|min:0',
-            'delivery_date' => 'nullable|date|after:today',
+            'delivery_date' => 'nullable|date|after_or_equal:today',
             'priority' => 'required|in:low,medium,high,urgent',
             'notes' => 'nullable|string',
-            'items' => 'required|string', // JSON string dos itens
+            'items' => 'required', // Aceita string JSON ou array
             'create_debt' => 'boolean',
             'debt_due_date' => 'nullable|date|after_or_equal:delivery_date'
         ]);
@@ -97,8 +97,24 @@ class OrderController extends Controller
         Log::info('Validation passed');
 
         try {
-            // Decodificar itens
-            $items = json_decode($request->items, true);
+            // Decodificar itens - suporta tanto JSON string quanto array
+            $items = $request->items;
+            if (is_string($items)) {
+                $items = json_decode($items, true);
+            }
+
+            // Se veio como array indexado do formulário (items[0][product_id], etc.)
+            // converter para o formato esperado
+            if (is_array($items)) {
+                $items = array_map(function($item) {
+                    // Se tiver product_id mas não item_name, buscar o nome do produto
+                    if (isset($item['product_id']) && !isset($item['item_name'])) {
+                        $product = Product::find($item['product_id']);
+                        $item['item_name'] = $product ? $product->name : 'Produto desconhecido';
+                    }
+                    return $item;
+                }, $items);
+            }
 
             Log::info('Items decoded', ['items' => $items]);
 

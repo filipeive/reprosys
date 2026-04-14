@@ -12,6 +12,8 @@
 @section('content')
     <form id="order-form" action="{{ route('orders.store') }}" method="POST">
         @csrf
+        <input type="hidden" name="estimated_amount" id="estimated_amount" value="0">
+        <input type="hidden" name="items" id="items-json" value="">
         <div class="row">
             <!-- Coluna Principal (Formulário) -->
             <div class="col-lg-8">
@@ -200,6 +202,7 @@
 @push('scripts')
     <script>
         let itemIndex = 0;
+        let cartItems = []; // Array para rastrear todos os itens
 
         function addItemToCart() {
             const select = document.getElementById('product-select');
@@ -210,19 +213,27 @@
             const productName = option.dataset.name;
             const productPrice = parseFloat(option.dataset.price);
 
+            // Adicionar ao array de itens
+            cartItems.push({
+                index: itemIndex,
+                product_id: parseInt(productId),
+                item_name: productName,
+                quantity: 1,
+                unit_price: productPrice,
+                description: ''
+            });
+
             const tbody = document.getElementById('cart-items');
             const newRow = document.createElement('tr');
             newRow.id = `item-row-${itemIndex}`;
+            newRow.dataset.cartIndex = cartItems.length - 1;
             newRow.innerHTML = `
+                <td>${productName}</td>
                 <td>
-                    ${productName}
-                    <input type="hidden" name="items[${itemIndex}][product_id]" value="${productId}">
-                </td>
-                <td>
-                    <input type="number" class="form-control form-control-sm" name="items[${itemIndex}][quantity]" value="1" min="1" onchange="updateTotals()">
+                    <input type="number" class="form-control form-control-sm" data-field="quantity" value="1" min="1" onchange="updateItemAndTotals(this)">
                 </td>
                 <td class="text-end">
-                    <input type="number" step="0.01" class="form-control form-control-sm text-end" name="items[${itemIndex}][unit_price]" value="${productPrice.toFixed(2)}" onchange="updateTotals()">
+                    <input type="number" step="0.01" class="form-control form-control-sm text-end" data-field="unit_price" value="${productPrice.toFixed(2)}" onchange="updateItemAndTotals(this)">
                 </td>
                 <td class="text-end item-total">MT ${productPrice.toFixed(2)}</td>
                 <td class="text-center">
@@ -234,11 +245,28 @@
             tbody.appendChild(newRow);
             itemIndex++;
             updateTotals();
-            select.value = ''; // Reset select
+            select.value = '';
+        }
+
+        function updateItemAndTotals(input) {
+            const row = input.closest('tr');
+            const cartIdx = parseInt(row.dataset.cartIndex);
+            const field = input.dataset.field;
+            const value = parseFloat(input.value) || 0;
+
+            if (cartItems[cartIdx]) {
+                cartItems[cartIdx][field] = value;
+            }
+            updateTotals();
         }
 
         function removeItem(index) {
-            document.getElementById(`item-row-${index}`).remove();
+            const row = document.getElementById(`item-row-${index}`);
+            if (row) {
+                const cartIdx = parseInt(row.dataset.cartIndex);
+                cartItems[cartIdx] = null; // Marcar como removido
+                row.remove();
+            }
             updateTotals();
         }
 
@@ -247,8 +275,8 @@
             const rows = document.querySelectorAll('#cart-items tr');
 
             rows.forEach(row => {
-                const quantityInput = row.querySelector('input[name*="[quantity]"]');
-                const priceInput = row.querySelector('input[name*="[unit_price]"]');
+                const quantityInput = row.querySelector('input[data-field="quantity"]');
+                const priceInput = row.querySelector('input[data-field="unit_price"]');
                 const totalCell = row.querySelector('.item-total');
 
                 const quantity = parseInt(quantityInput.value) || 0;
@@ -264,36 +292,72 @@
 
             document.getElementById('estimated-amount-display').value = totalAmount.toFixed(2).replace('.', ',');
             document.getElementById('remaining-amount').textContent = `MT ${remainingAmount.toFixed(2).replace('.', ',')}`;
+
+            // Atualizar campos hidden
+            document.getElementById('estimated_amount').value = totalAmount.toFixed(2);
         }
 
         document.getElementById('advance_payment').addEventListener('input', updateTotals);
 
+        // Interceptar o submit do formulário para serializar os itens em JSON
+        document.getElementById('order-form').addEventListener('submit', function(e) {
+            // Filtrar itens removidos (null) e criar array final
+            const validItems = cartItems.filter(item => item !== null);
+
+            if (validItems.length === 0) {
+                e.preventDefault();
+                alert('Adicione pelo menos um item ao pedido.');
+                return false;
+            }
+
+            // Serializar itens como JSON no campo hidden
+            document.getElementById('items-json').value = JSON.stringify(validItems);
+        });
+
         // Se houver dados antigos (em caso de erro de validação), recriar os itens
         document.addEventListener('DOMContentLoaded', function() {
-            const oldItems = @json(old('items'));
-            if (oldItems && oldItems.length > 0) {
-                const products = @json($products->keyBy('id'));
-                oldItems.forEach(item => {
-                    const product = products[item.product_id];
-                    if (product) {
+            @if(old('items'))
+            try {
+                let oldItemsRaw = @json(old('items'));
+                let oldItems = typeof oldItemsRaw === 'string' ? JSON.parse(oldItemsRaw) : oldItemsRaw;
+
+                if (oldItems && Array.isArray(oldItems) && oldItems.length > 0) {
+                    const products = @json($products->keyBy('id'));
+                    oldItems.forEach(item => {
+                        const productId = item.product_id;
+                        const product = products[productId];
+                        const productName = item.item_name || (product ? product.name : 'Produto');
+                        const quantity = parseInt(item.quantity) || 1;
+                        const unitPrice = parseFloat(item.unit_price) || (product ? product.selling_price : 0);
+
+                        cartItems.push({
+                            index: itemIndex,
+                            product_id: parseInt(productId),
+                            item_name: productName,
+                            quantity: quantity,
+                            unit_price: unitPrice,
+                            description: item.description || ''
+                        });
+
                         const tbody = document.getElementById('cart-items');
                         const newRow = document.createElement('tr');
                         newRow.id = `item-row-${itemIndex}`;
+                        newRow.dataset.cartIndex = cartItems.length - 1;
                         newRow.innerHTML = `
-                            <td>
-                                ${product.name}
-                                <input type="hidden" name="items[${itemIndex}][product_id]" value="${item.product_id}">
-                            </td>
-                            <td><input type="number" class="form-control form-control-sm" name="items[${itemIndex}][quantity]" value="${item.quantity}" min="1" onchange="updateTotals()"></td>
-                            <td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end" name="items[${itemIndex}][unit_price]" value="${parseFloat(item.unit_price).toFixed(2)}" onchange="updateTotals()"></td>
+                            <td>${productName}</td>
+                            <td><input type="number" class="form-control form-control-sm" data-field="quantity" value="${quantity}" min="1" onchange="updateItemAndTotals(this)"></td>
+                            <td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end" data-field="unit_price" value="${unitPrice.toFixed(2)}" onchange="updateItemAndTotals(this)"></td>
                             <td class="text-end item-total">MT 0.00</td>
                             <td class="text-center"><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${itemIndex})"><i class="fas fa-trash"></i></button></td>
                         `;
                         tbody.appendChild(newRow);
                         itemIndex++;
-                    }
-                });
+                    });
+                }
+            } catch(e) {
+                console.error('Erro ao restaurar itens antigos:', e);
             }
+            @endif
             updateTotals();
         });
     </script>

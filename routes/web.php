@@ -20,7 +20,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\PasswordChangeController;
+use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\LandingController;
 
 
@@ -308,14 +308,16 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::prefix('expenses')->name('expenses.')->group(function () {
         // Visualizar despesas - todos podem
         Route::get('/', [ExpenseController::class, 'index'])->name('index');
-        Route::get('/{expense}', [ExpenseController::class, 'show'])->name('show');
-        Route::get('/{expense}/details', [ExpenseController::class, 'showData'])->name('details');
 
-        // Criar despesas - create_expenses permission
+        // Criar despesas - create_expenses permission (ANTES das rotas com {expense})
         Route::middleware('permissions:create_expenses')->group(function () {
             Route::get('/create', [ExpenseController::class, 'create'])->name('create');
             Route::post('/', [ExpenseController::class, 'store'])->name('store');
         });
+
+        // Rotas com wildcard {expense} DEPOIS das rotas estáticas
+        Route::get('/{expense}', [ExpenseController::class, 'show'])->name('show');
+        Route::get('/{expense}/details', [ExpenseController::class, 'showData'])->name('details');
 
         // Editar despesas - edit_expenses permission
         Route::middleware('permissions:edit_expenses')->group(function () {
