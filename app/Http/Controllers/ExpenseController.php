@@ -16,8 +16,8 @@ class ExpenseController extends Controller
     {
         $query = Expense::with(['user', 'category']);
 
-        // Se não for admin, vê apenas as suas próprias despesas
-        if (!auth()->user()->userCan('admin') && !auth()->user()->userCan('view_all_expenses')) {
+        // Se não for admin nem gerente, vê apenas as suas próprias despesas
+        if (!auth()->user()->isAdmin() && !auth()->user()->hasPermission('view_all_expenses')) {
             $query->where('user_id', auth()->id());
         }
 

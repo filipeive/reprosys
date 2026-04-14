@@ -26,7 +26,8 @@ use App\Http\Controllers\LandingController;
 
 
 
-// Rota raiz movida para baixo para evitar conflitos
+Route::get('/', function() { return view('welcome'); });
+Route::get('/reprosys', function() { return view('welcome'); });
 
 // Registro protegido com senha administrativa
 Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
@@ -440,8 +441,5 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::delete('/notifications/clear-all', [NotificationController::class, 'clearAll']);
     // ... outras rotas ...
 });
-
-// Rota raiz pública (fora de middleware de autenticação)
-Route::match(['get', 'head'], '/', [LandingController::class, 'index'])->name('welcome');
 
 require __DIR__ . '/auth.php';
