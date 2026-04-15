@@ -9,19 +9,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $userIdType = $this->resolveUserIdColumnType();
+        $userIdDefinition = $this->resolveUserIdColumnDefinition();
 
         if (!Schema::hasTable('salary_payments')) {
-            Schema::create('salary_payments', function (Blueprint $table) use ($userIdType) {
+            Schema::create('salary_payments', function (Blueprint $table) use ($userIdDefinition) {
                 $table->id();
 
-                if ($userIdType === 'bigint') {
-                    $table->unsignedBigInteger('user_id');
-                    $table->unsignedBigInteger('paid_by')->nullable();
-                } else {
-                    $table->unsignedInteger('user_id');
-                    $table->unsignedInteger('paid_by')->nullable();
-                }
+                $this->addUserReferenceColumns($table, $userIdDefinition);
 
                 $table->foreignId('financial_account_id')->constrained('financial_accounts')->cascadeOnDelete();
                 $table->foreignId('financial_transaction_id')->nullable()->constrained('financial_transactions')->nullOnDelete();
@@ -37,6 +31,7 @@ return new class extends Migration
             });
         }
 
+        $this->syncUserReferenceColumns('salary_payments', $userIdDefinition);
         $this->ensureForeignKey('salary_payments', 'salary_payments_user_id_foreign', 'user_id', 'users', 'id', 'cascade');
         $this->ensureForeignKey('salary_payments', 'salary_payments_paid_by_foreign', 'paid_by', 'users', 'id', 'set null');
     }
@@ -46,11 +41,34 @@ return new class extends Migration
         Schema::dropIfExists('salary_payments');
     }
 
-    private function resolveUserIdColumnType(): string
+    private function addUserReferenceColumns(Blueprint $table, array $userIdDefinition): void
     {
-        $columnType = Schema::getColumnType('users', 'id');
+        $userIdMethod = $userIdDefinition['type'] === 'bigint'
+            ? ($userIdDefinition['unsigned'] ? 'unsignedBigInteger' : 'bigInteger')
+            : ($userIdDefinition['unsigned'] ? 'unsignedInteger' : 'integer');
 
-        return str_contains($columnType, 'bigint') ? 'bigint' : 'int';
+        $table->{$userIdMethod}('user_id');
+        $table->{$userIdMethod}('paid_by')->nullable();
+    }
+
+    private function resolveUserIdColumnDefinition(): array
+    {
+        $column = DB::selectOne("SHOW COLUMNS FROM users LIKE 'id'");
+        $type = strtolower($column->Type ?? 'int');
+
+        return [
+            'type' => str_contains($type, 'bigint') ? 'bigint' : 'int',
+            'unsigned' => str_contains($type, 'unsigned'),
+        ];
+    }
+
+    private function syncUserReferenceColumns(string $table, array $userIdDefinition): void
+    {
+        $baseType = $userIdDefinition['type'] === 'bigint' ? 'BIGINT' : 'INT';
+        $signedSuffix = $userIdDefinition['unsigned'] ? ' UNSIGNED' : '';
+
+        DB::statement("ALTER TABLE {$table} MODIFY user_id {$baseType}{$signedSuffix} NOT NULL");
+        DB::statement("ALTER TABLE {$table} MODIFY paid_by {$baseType}{$signedSuffix} NULL");
     }
 
     private function ensureForeignKey(
