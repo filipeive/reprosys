@@ -1,26 +1,44 @@
 #!/bin/bash
 
-# Deploy script para o servidor de produção
-SERVER="ubuntu@146.235.224.99"
-KEY="/home/fdev-ms/.ssh/oracle-2025"
-PROJECT_DIR="/var/www/html/reprosys"
+set -euo pipefail
 
+# Deploy script para o servidor de produção.
+# Este script assume que o commit já foi enviado ao remoto.
 
-# Deploy local
-echo "Iniciando o deploy local"
-git push origin main # isso depois de comitar todas as mudancas
+SERVER="${SERVER:-ubuntu@146.235.224.99}"
+KEY="${KEY:-/home/fdev-ms/.ssh/oracle-2025}"
+PROJECT_DIR="${PROJECT_DIR:-/var/www/html/reprosys}"
+BRANCH="${BRANCH:-main}"
 
-# Deploy produção
+echo "Verificando estado do repositório local..."
+
+LOCAL_HEAD="$(git rev-parse HEAD)"
+REMOTE_HEAD="$(git ls-remote origin -h "refs/heads/$BRANCH" | awk '{print $1}')"
+
+if [[ -z "$REMOTE_HEAD" ]]; then
+    echo "Erro: não foi possível obter a branch origin/$BRANCH."
+    exit 1
+fi
+
+if [[ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]]; then
+    echo "Erro: o commit local ainda não está em origin/$BRANCH."
+    echo "Faça primeiro: git push origin $BRANCH"
+    exit 1
+fi
+
+echo "Commit confirmado em origin/$BRANCH."
 echo "🚀 Iniciando deploy para produção..."
 
-ssh -i $KEY $SERVER "cd $PROJECT_DIR && \
+ssh -i "$KEY" "$SERVER" "cd $PROJECT_DIR && \
     echo '🔧 Corrigindo permissões do git...' && \
     sudo chown -R ubuntu:ubuntu .git && \
-    echo '📥 Puxando últimas alterações...' && \
-    git pull origin main && \
+    echo '📥 Atualizando código com fast-forward only...' && \
+    git pull --ff-only origin $BRANCH && \
     echo '📦 Instalando dependências...' && \
-    composer install --optimize-autoloader --no-dev && \
-    echo '🧹 Limpando cache...' && \
+    composer install --optimize-autoloader --no-dev --no-interaction && \
+    echo '🧹 Limpando caches antigos...' && \
+    php artisan optimize:clear && \
+    echo '⚡ Regerando caches...' && \
     php artisan config:cache && \
     php artisan route:cache && \
     php artisan view:cache && \
