@@ -35,6 +35,7 @@ class UserActivity extends Model
                 'login' => 'fa-sign-in-alt',
                 'logout' => 'fa-sign-out-alt',
                 'create' => 'fa-plus',
+                'financial_transaction_create' => 'fa-wallet',
                 'update' => 'fa-edit',
                 'delete' => 'fa-trash',
                 'password_reset' => 'fa-key',
@@ -49,7 +50,7 @@ class UserActivity extends Model
     {
         return Attribute::make(
             get: fn () => match($this->action) {
-                'login', 'create', 'update' => 'success',
+                'login', 'create', 'financial_transaction_create', 'update' => 'success',
                 'logout', 'delete', 'password_reset' => 'danger',
                 'status_change' => 'warning',
                 default => 'info'

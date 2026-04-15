@@ -46,10 +46,15 @@
     </div>
 
     <div class="row g-3 mb-3">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="fas fa-university me-2 text-primary"></i>Contas Financeiras</h6>
+                    @if(userCan('manage_finances'))
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#manualTransactionModal">
+                            <i class="fas fa-plus-circle me-1"></i>Novo Lançamento
+                        </button>
+                    @endif
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -67,76 +72,22 @@
                                         MT {{ number_format($account->current_balance, 2, ',', '.') }}
                                     </div>
                                     <small class="text-muted">Saldo inicial: MT {{ number_format($account->opening_balance, 2, ',', '.') }}</small>
-                                    @if(userCan('manage_finances'))
-                                        <form method="POST" action="{{ route('finances.accounts.update', $account) }}" class="mt-3">
-                                            @csrf
-                                            @method('PATCH')
-                                            <label class="form-label small text-muted">Ajustar saldo inicial</label>
-                                            <div class="input-group input-group-sm">
-                                                <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', $account->opening_balance) }}" class="form-control">
-                                                <button type="submit" class="btn btn-outline-primary">Salvar</button>
-                                            </div>
-                                        </form>
+                                    @if(auth()->check() && auth()->user()->isAdmin())
+                                        <button
+                                            type="button"
+                                            class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#openingBalanceModal"
+                                            data-account-id="{{ $account->id }}"
+                                            data-account-name="{{ $account->name }}"
+                                            data-opening-balance="{{ $account->opening_balance }}">
+                                            Ajustar saldo inicial
+                                        </button>
                                     @endif
                                 </div>
                             </div>
                         @endforeach
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="fas fa-plus-circle me-2 text-success"></i>Lançamento Manual</h6>
-                </div>
-                <div class="card-body">
-                    @if(userCan('manage_finances'))
-                        <div class="alert alert-light border small">
-                            Pagamentos de salário são registrados no módulo de funcionários e aparecem aqui automaticamente no histórico.
-                        </div>
-                        <form method="POST" action="{{ route('finances.transactions.store') }}">
-                            @csrf
-                            <div class="mb-3">
-                                <label class="form-label">Conta</label>
-                                <select name="financial_account_id" class="form-select" required>
-                                    @foreach($accounts as $account)
-                                        <option value="{{ $account->id }}">{{ $account->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Tipo de Movimento</label>
-                                <select name="type" class="form-select" required>
-                                    @foreach($manualTransactionTypes as $key => $type)
-                                        <option value="{{ $key }}">{{ $type['label'] }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Valor</label>
-                                <input type="number" step="0.01" min="0.01" name="amount" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Data</label>
-                                <input type="date" name="transaction_date" value="{{ now()->format('Y-m-d') }}" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Descrição</label>
-                                <input type="text" name="description" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Notas</label>
-                                <textarea name="notes" rows="3" class="form-control"></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-save me-2"></i>Registrar Movimento
-                            </button>
-                        </form>
-                    @else
-                        <div class="text-muted small">Você tem acesso apenas para consulta financeira.</div>
-                    @endif
                 </div>
             </div>
         </div>
@@ -237,6 +188,7 @@
                                     <th>Tipo</th>
                                     <th>Categoria</th>
                                     <th class="text-end">Valor</th>
+                                    <th class="text-center">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -256,10 +208,19 @@
                                         <td class="text-end fw-semibold {{ $transaction->direction === 'in' ? 'text-success' : 'text-danger' }}">
                                             {{ $transaction->direction === 'in' ? '+' : '-' }}MT {{ number_format($transaction->amount, 2, ',', '.') }}
                                         </td>
+                                        <td class="text-center">
+                                            @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isManager() || (int) $transaction->user_id === (int) auth()->id()))
+                                                <a href="{{ route('finances.transactions.show', $transaction) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            @else
+                                                <span class="text-muted small">-</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-4">Nenhum movimento financeiro encontrado para os filtros aplicados.</td>
+                                        <td colspan="7" class="text-center text-muted py-4">Nenhum movimento financeiro encontrado para os filtros aplicados.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -273,6 +234,104 @@
         </div>
     </div>
 </div>
+
+@if(userCan('manage_finances'))
+<div class="modal fade" id="manualTransactionModal" tabindex="-1" aria-labelledby="manualTransactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title" id="manualTransactionModalLabel">
+                    <i class="fas fa-plus-circle me-2 text-success"></i>Lançamento Manual
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="POST" action="{{ route('finances.transactions.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-light border small">
+                        Pagamentos de salário são registrados no módulo de funcionários e aparecem aqui automaticamente no histórico.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Conta</label>
+                            <select name="financial_account_id" class="form-select" required>
+                                @foreach($accounts as $account)
+                                    <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de Movimento</label>
+                            <select name="type" class="form-select" required>
+                                @foreach($manualTransactionTypes as $key => $type)
+                                    <option value="{{ $key }}">{{ $type['label'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Valor</label>
+                            <input type="number" step="0.01" min="0.01" name="amount" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Data</label>
+                            <input type="date" name="transaction_date" value="{{ now()->format('Y-m-d') }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Descrição</label>
+                            <input type="text" name="description" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Notas</label>
+                            <textarea name="notes" rows="3" class="form-control"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Registrar Movimento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+@if(auth()->check() && auth()->user()->isAdmin())
+<div class="modal fade" id="openingBalanceModal" tabindex="-1" aria-labelledby="openingBalanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title" id="openingBalanceModalLabel">
+                    <i class="fas fa-sliders-h me-2 text-primary"></i>Saldo Inicial
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="POST" id="openingBalanceForm">
+                @csrf
+                @method('PATCH')
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Conta</label>
+                        <input type="text" id="openingBalanceAccountName" class="form-control" readonly>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Saldo inicial</label>
+                        <input type="number" step="0.01" name="opening_balance" id="openingBalanceValue" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Salvar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 @endsection
 
 @push('scripts')
@@ -321,6 +380,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         }
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const openingBalanceModal = document.getElementById('openingBalanceModal');
+    if (!openingBalanceModal) return;
+
+    openingBalanceModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+
+        const accountId = button.getAttribute('data-account-id');
+        const accountName = button.getAttribute('data-account-name');
+        const openingBalance = button.getAttribute('data-opening-balance');
+
+        document.getElementById('openingBalanceAccountName').value = accountName || '';
+        document.getElementById('openingBalanceValue').value = openingBalance || '0.00';
+        document.getElementById('openingBalanceForm').action = `{{ url('finances/accounts') }}/${accountId}`;
     });
 });
 </script>

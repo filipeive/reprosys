@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Debt;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
+use App\Models\UserActivity;
 use App\Services\FinancialService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -116,7 +117,7 @@ class FinanceController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $this->financialService->createManualTransaction([
+        $transaction = $this->financialService->createManualTransaction([
             'financial_account_id' => $validated['financial_account_id'],
             'user_id' => auth()->id(),
             'type' => $validated['type'],
@@ -127,11 +128,23 @@ class FinanceController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        UserActivity::create([
+            'user_id' => auth()->id(),
+            'action' => 'financial_transaction_create',
+            'model_type' => FinancialTransaction::class,
+            'model_id' => $transaction->id,
+            'description' => "Registrou movimento financeiro manual: {$transaction->description}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
         return redirect()->route('finances.index')->with('success', 'Movimento financeiro registrado com sucesso.');
     }
 
     public function updateAccount(Request $request, FinancialAccount $account)
     {
+        abort_unless(auth()->check() && auth()->user()->isAdmin(), 403);
+
         $validated = $request->validate([
             'opening_balance' => 'required|numeric',
         ]);
@@ -140,6 +153,28 @@ class FinanceController extends Controller
             'opening_balance' => $validated['opening_balance'],
         ]);
 
+        UserActivity::create([
+            'user_id' => auth()->id(),
+            'action' => 'financial_transaction_create',
+            'model_type' => FinancialAccount::class,
+            'model_id' => $account->id,
+            'description' => "Atualizou saldo inicial da conta {$account->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
         return redirect()->route('finances.index')->with('success', "Saldo inicial da conta {$account->name} atualizado com sucesso.");
+    }
+
+    public function show(FinancialTransaction $transaction)
+    {
+        $user = auth()->user();
+        $canViewDetails = $user && ($user->isAdmin() || $user->isManager() || (int) $transaction->user_id === (int) $user->id);
+
+        abort_unless($canViewDetails, 403);
+
+        $transaction->load(['account', 'user']);
+
+        return view('finances.show', compact('transaction'));
     }
 }

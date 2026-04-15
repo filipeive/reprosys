@@ -306,6 +306,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::prefix('finances')->name('finances.')->group(function () {
         Route::middleware('permissions:view_finances')->group(function () {
             Route::get('/', [FinanceController::class, 'index'])->name('index');
+            Route::get('/transactions/{transaction}', [FinanceController::class, 'show'])->name('transactions.show');
         });
 
         Route::middleware('permissions:manage_finances')->group(function () {
