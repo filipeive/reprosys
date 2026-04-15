@@ -36,6 +36,10 @@ ssh -i "$KEY" "$SERVER" "cd $PROJECT_DIR && \
     git pull --ff-only origin $BRANCH && \
     echo '📦 Instalando dependências...' && \
     composer install --optimize-autoloader --no-dev --no-interaction && \
+    echo '🧱 Criando tabelas de suporte legadas faltantes...' && \
+    php artisan migrate --path=database/migrations/2026_04_15_123000_create_missing_framework_support_tables.php --force && \
+    echo '🧭 Sincronizando baseline legado de migrations...' && \
+    php artisan migrations:sync-legacy --write && \
     echo '🗃️ Executando migrations...' && \
     php artisan migrate --force && \
     echo '🧹 Limpando caches antigos...' && \
