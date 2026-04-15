@@ -10,6 +10,9 @@
 @endsection
 
 @section('content')
+@php
+    $defaultRole = $defaultRole ?? request('role');
+@endphp
 <div class="row">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
@@ -54,12 +57,60 @@
                             @enderror
                         </div>
 
+                        <div class="col-md-6">
+                            <label for="employee_code" class="form-label fw-semibold">Código do Funcionário</label>
+                            <input type="text" class="form-control" id="employee_code" name="employee_code" value="{{ old('employee_code') }}">
+                            @error('employee_code')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
                         <!-- Email -->
                         <div class="col-md-6">
                             <label for="email" class="form-label fw-semibold">Email *</label>
                             <input type="email" class="form-control" id="email" name="email" 
                                    value="{{ old('email') }}" required>
                             @error('email')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label fw-semibold">Telefone</label>
+                            <input type="text" class="form-control" id="phone" name="phone" value="{{ old('phone') }}">
+                            @error('phone')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="monthly_salary" class="form-label fw-semibold">Salário Base</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="monthly_salary" name="monthly_salary" value="{{ old('monthly_salary') }}">
+                            @error('monthly_salary')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="hire_date" class="form-label fw-semibold">Data de Admissão</label>
+                            <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ old('hire_date') }}">
+                            @error('hire_date')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="job_title" class="form-label fw-semibold">Cargo</label>
+                            <input type="text" class="form-control" id="job_title" name="job_title" value="{{ old('job_title') }}">
+                            @error('job_title')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="document_number" class="form-label fw-semibold">Documento</label>
+                            <input type="text" class="form-control" id="document_number" name="document_number" value="{{ old('document_number') }}">
+                            @error('document_number')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
@@ -98,7 +149,7 @@
                             <select class="form-select" id="role_id" name="role_id" required>
                                 <option value="">Selecione uma função</option>
                                 @foreach($roles as $role)
-                                    <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>
+                                    <option value="{{ $role->id }}" {{ (string) old('role_id', optional($roles->firstWhere('name', $defaultRole))->id) === (string) $role->id ? 'selected' : '' }}>
                                         {{ ucfirst($role->name) }}
                                     </option>
                                 @endforeach

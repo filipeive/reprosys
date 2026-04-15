@@ -67,6 +67,17 @@
                                         MT {{ number_format($account->current_balance, 2, ',', '.') }}
                                     </div>
                                     <small class="text-muted">Saldo inicial: MT {{ number_format($account->opening_balance, 2, ',', '.') }}</small>
+                                    @if(userCan('manage_finances'))
+                                        <form method="POST" action="{{ route('finances.accounts.update', $account) }}" class="mt-3">
+                                            @csrf
+                                            @method('PATCH')
+                                            <label class="form-label small text-muted">Ajustar saldo inicial</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" step="0.01" name="opening_balance" value="{{ old('opening_balance', $account->opening_balance) }}" class="form-control">
+                                                <button type="submit" class="btn btn-outline-primary">Salvar</button>
+                                            </div>
+                                        </form>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -82,6 +93,9 @@
                 </div>
                 <div class="card-body">
                     @if(userCan('manage_finances'))
+                        <div class="alert alert-light border small">
+                            Pagamentos de salário são registrados no módulo de funcionários e aparecem aqui automaticamente no histórico.
+                        </div>
                         <form method="POST" action="{{ route('finances.transactions.store') }}">
                             @csrf
                             <div class="mb-3">
@@ -95,7 +109,7 @@
                             <div class="mb-3">
                                 <label class="form-label">Tipo de Movimento</label>
                                 <select name="type" class="form-select" required>
-                                    @foreach($transactionTypes as $key => $type)
+                                    @foreach($manualTransactionTypes as $key => $type)
                                         <option value="{{ $key }}">{{ $type['label'] }}</option>
                                     @endforeach
                                 </select>
@@ -152,7 +166,9 @@
                             </div>
                         </div>
                     </div>
-                    <canvas id="financeFlowChart" height="180"></canvas>
+                    <div class="finance-chart-wrap">
+                        <canvas id="financeFlowChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -160,7 +176,55 @@
         <div class="col-lg-7">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="fas fa-list me-2 text-secondary"></i>Movimentos Recentes</h6>
+                    <h6 class="mb-0"><i class="fas fa-list me-2 text-secondary"></i>Histórico de Movimentos</h6>
+                </div>
+                <div class="card-body border-bottom">
+                    <form method="GET" action="{{ route('finances.index') }}" class="row g-2">
+                        <div class="col-md-2">
+                            <label class="form-label small">De</label>
+                            <input type="date" name="date_from" value="{{ $filters['date_from'] }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Até</label>
+                            <input type="date" name="date_to" value="{{ $filters['date_to'] }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Conta</label>
+                            <select name="financial_account_id" class="form-select form-select-sm">
+                                <option value="">Todas</option>
+                                @foreach($accounts as $account)
+                                    <option value="{{ $account->id }}" @selected((string) $filters['financial_account_id'] === (string) $account->id)>{{ $account->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Direção</label>
+                            <select name="direction" class="form-select form-select-sm">
+                                <option value="">Todas</option>
+                                <option value="in" @selected($filters['direction'] === 'in')>Entradas</option>
+                                <option value="out" @selected($filters['direction'] === 'out')>Saídas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Tipo</label>
+                            <select name="type" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                @foreach($transactionTypes as $key => $type)
+                                    <option value="{{ $key }}" @selected($filters['type'] === $key)>{{ $type['label'] }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Buscar</label>
+                            <input type="text" name="search" value="{{ $filters['search'] }}" class="form-control form-control-sm" placeholder="Descrição">
+                        </div>
+                        <div class="col-12 d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-filter me-1"></i>Filtrar
+                            </button>
+                            <a href="{{ route('finances.index') }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+                        </div>
+                    </form>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -171,11 +235,12 @@
                                     <th>Descrição</th>
                                     <th>Conta</th>
                                     <th>Tipo</th>
+                                    <th>Categoria</th>
                                     <th class="text-end">Valor</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($recentTransactions as $transaction)
+                                @forelse($transactions as $transaction)
                                     <tr>
                                         <td>{{ $transaction->transaction_date->format('d/m/Y') }}</td>
                                         <td>{{ $transaction->description }}</td>
@@ -185,17 +250,23 @@
                                                 {{ $transaction->direction === 'in' ? 'Entrada' : 'Saída' }}
                                             </span>
                                         </td>
+                                        <td>
+                                            <small class="text-muted">{{ $transactionTypes[$transaction->type]['label'] ?? ucfirst(str_replace('_', ' ', $transaction->type)) }}</small>
+                                        </td>
                                         <td class="text-end fw-semibold {{ $transaction->direction === 'in' ? 'text-success' : 'text-danger' }}">
                                             {{ $transaction->direction === 'in' ? '+' : '-' }}MT {{ number_format($transaction->amount, 2, ',', '.') }}
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-4">Nenhum movimento financeiro registrado.</td>
+                                        <td colspan="6" class="text-center text-muted py-4">Nenhum movimento financeiro encontrado para os filtros aplicados.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+                    <div class="p-3">
+                        {{ $transactions->links() }}
                     </div>
                 </div>
             </div>
@@ -211,7 +282,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const canvas = document.getElementById('financeFlowChart');
     if (!canvas) return;
 
-    new Chart(canvas, {
+    if (window.financeFlowChart instanceof Chart) {
+        window.financeFlowChart.destroy();
+    }
+
+    window.financeFlowChart = new Chart(canvas, {
         type: 'bar',
         data: {
             labels: @json($cashFlowLabels),
@@ -233,6 +308,8 @@ document.addEventListener('DOMContentLoaded', function () {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
+            resizeDelay: 150,
             plugins: {
                 legend: {
                     position: 'bottom'
@@ -247,4 +324,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+@endpush
+
+@push('styles')
+<style>
+    .finance-chart-wrap {
+        position: relative;
+        height: 260px;
+        min-height: 260px;
+    }
+</style>
 @endpush

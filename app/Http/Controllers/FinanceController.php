@@ -8,6 +8,7 @@ use App\Models\FinancialTransaction;
 use App\Services\FinancialService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 
 class FinanceController extends Controller
@@ -30,6 +31,8 @@ class FinanceController extends Controller
         $currentCapital = (float) $accounts->sum('current_balance');
         $receivables = (float) Debt::where('status', 'active')->sum('remaining_amount');
         $monthSummary = $this->financialService->getMonthSummary();
+        $transactionTypes = $this->financialService->transactionTypes();
+        $manualTransactionTypes = $this->financialService->manualTransactionTypes();
 
         $todayInflow = (float) FinancialTransaction::whereDate('transaction_date', today())
             ->where('direction', 'in')
@@ -38,22 +41,30 @@ class FinanceController extends Controller
             ->where('direction', 'out')
             ->sum('amount');
 
-        $transactionTypes = [
-            'owner_investment' => ['label' => 'Aporte do Proprietário', 'direction' => 'in'],
-            'debt_payment_receipt' => ['label' => 'Recebimento Manual', 'direction' => 'in'],
-            'other_income' => ['label' => 'Outra Entrada', 'direction' => 'in'],
-            'salary_payment' => ['label' => 'Pagamento de Salário', 'direction' => 'out'],
-            'owner_withdrawal' => ['label' => 'Retirada do Proprietário', 'direction' => 'out'],
-            'cash_adjustment_out' => ['label' => 'Ajuste de Caixa (-)', 'direction' => 'out'],
-            'cash_adjustment_in' => ['label' => 'Ajuste de Caixa (+)', 'direction' => 'in'],
-            'other_outflow' => ['label' => 'Outra Saída', 'direction' => 'out'],
+        $filters = [
+            'date_from' => request('date_from', now()->startOfMonth()->format('Y-m-d')),
+            'date_to' => request('date_to', now()->format('Y-m-d')),
+            'financial_account_id' => request('financial_account_id'),
+            'direction' => request('direction'),
+            'type' => request('type'),
+            'search' => request('search'),
         ];
 
-        $recentTransactions = FinancialTransaction::with(['account', 'user'])
+        $transactions = FinancialTransaction::with(['account', 'user'])
+            ->whereBetween('transaction_date', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['financial_account_id'], fn ($query, $accountId) => $query->where('financial_account_id', $accountId))
+            ->when($filters['direction'], fn ($query, $direction) => $query->where('direction', $direction))
+            ->when($filters['type'], fn ($query, $type) => $query->where('type', $type))
+            ->when($filters['search'], function ($query, $search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('description', 'like', "%{$search}%")
+                        ->orWhere('notes', 'like', "%{$search}%");
+                });
+            })
             ->orderByDesc('transaction_date')
             ->latest('id')
-            ->limit(15)
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         $dailyFlow = FinancialTransaction::select(
                 DB::raw('DATE(transaction_date) as date'),
@@ -84,8 +95,10 @@ class FinanceController extends Controller
             'monthSummary',
             'todayInflow',
             'todayOutflow',
-            'recentTransactions',
+            'transactions',
             'transactionTypes',
+            'manualTransactionTypes',
+            'filters',
             'cashFlowLabels',
             'cashFlowInflows',
             'cashFlowOutflows',
@@ -96,23 +109,18 @@ class FinanceController extends Controller
     {
         $validated = $request->validate([
             'financial_account_id' => 'required|exists:financial_accounts,id',
-            'type' => 'required|string|max:50',
+            'type' => ['required', 'string', 'max:50', Rule::in(array_keys($this->financialService->manualTransactionTypes()))],
             'amount' => 'required|numeric|min:0.01',
             'transaction_date' => 'required|date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $direction = match ($validated['type']) {
-            'owner_investment', 'debt_payment_receipt', 'other_income', 'cash_adjustment_in' => 'in',
-            default => 'out',
-        };
-
         $this->financialService->createManualTransaction([
             'financial_account_id' => $validated['financial_account_id'],
             'user_id' => auth()->id(),
             'type' => $validated['type'],
-            'direction' => $direction,
+            'direction' => $this->financialService->transactionDirection($validated['type']),
             'amount' => $validated['amount'],
             'transaction_date' => $validated['transaction_date'],
             'description' => $validated['description'],
@@ -120,5 +128,18 @@ class FinanceController extends Controller
         ]);
 
         return redirect()->route('finances.index')->with('success', 'Movimento financeiro registrado com sucesso.');
+    }
+
+    public function updateAccount(Request $request, FinancialAccount $account)
+    {
+        $validated = $request->validate([
+            'opening_balance' => 'required|numeric',
+        ]);
+
+        $account->update([
+            'opening_balance' => $validated['opening_balance'],
+        ]);
+
+        return redirect()->route('finances.index')->with('success', "Saldo inicial da conta {$account->name} atualizado com sucesso.");
     }
 }

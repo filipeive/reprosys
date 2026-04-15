@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use App\Models\Role;
 use App\Models\Notification;
+use App\Models\SalaryPayment;
 use App\Models\UserActivity;
 use App\Models\TemporaryPassword;
 use App\Services\PermissionService;
@@ -20,7 +21,13 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'employee_code',
         'email',
+        'phone',
+        'monthly_salary',
+        'hire_date',
+        'job_title',
+        'document_number',
         'password',
         'role_id',
         'is_active',
@@ -38,6 +45,8 @@ class User extends Authenticatable
         'password' => 'hashed',
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
+        'monthly_salary' => 'decimal:2',
+        'hire_date' => 'date',
     ];
 
     // ===== RELACIONAMENTOS =====
@@ -64,6 +73,11 @@ class User extends Authenticatable
     public function temporaryPasswords(): HasMany
     {
         return $this->hasMany(TemporaryPassword::class)->latest();
+    }
+
+    public function salaryPayments(): HasMany
+    {
+        return $this->hasMany(SalaryPayment::class)->latest('payment_date');
     }
 
     public function activeTemporaryPasswords(): HasMany
@@ -105,6 +119,18 @@ class User extends Authenticatable
     public function getStatusDisplayAttribute(): string
     {
         return $this->is_active ? 'Ativo' : 'Inativo';
+    }
+
+    public function getFormattedMonthlySalaryAttribute(): string
+    {
+        return 'MT ' . number_format((float) ($this->monthly_salary ?? 0), 2, ',', '.');
+    }
+
+    public function getEmployeeLabelAttribute(): string
+    {
+        return $this->employee_code
+            ? "{$this->employee_code} - {$this->name}"
+            : $this->name;
     }
 
     public function getInitialsAttribute(): string

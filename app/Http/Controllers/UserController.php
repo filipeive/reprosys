@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Role;
+use App\Models\FinancialAccount;
+use App\Models\SalaryPayment;
 use App\Models\UserActivity;
 use App\Models\TemporaryPassword;
+use App\Services\FinancialService;
 use App\Traits\LogsActivity; 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
@@ -18,7 +22,12 @@ class UserController extends AppBaseController
 
     public function index(Request $request)
     {
+        $isEmployeesView = $request->routeIs('users.employees');
         $query = User::with(['role', 'activeTemporaryPasswords'])->orderBy('name');
+
+        if ($isEmployeesView) {
+            $query->whereHas('role', fn ($q) => $q->where('name', 'staff'));
+        }
 
         if ($request->filled('search')) {
             $query->where(function($q) use ($request) {
@@ -27,7 +36,7 @@ class UserController extends AppBaseController
             });
         }
 
-        if ($request->filled('role')) {
+        if ($request->filled('role') && !$isEmployeesView) {
             $query->whereHas('role', fn($q) => $q->where('name', $request->role));
         }
 
@@ -56,13 +65,14 @@ class UserController extends AppBaseController
             'with_temp_password' => User::whereHas('activeTemporaryPasswords')->count(),
         ];
 
-        return view('users.index', compact('users', 'stats'));
+        return view('users.index', compact('users', 'stats', 'isEmployeesView'));
     }
 
     public function create()
     {
         $roles = Role::all();
-        return view('users.create', compact('roles'));
+        $defaultRole = request('role');
+        return view('users.create', compact('roles', 'defaultRole'));
     }
 
     /**
@@ -72,7 +82,13 @@ class UserController extends AppBaseController
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'employee_code' => 'nullable|string|max:50|unique:users,employee_code',
             'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'monthly_salary' => 'nullable|numeric|min:0',
+            'hire_date' => 'nullable|date',
+            'job_title' => 'nullable|string|max:100',
+            'document_number' => 'nullable|string|max:50',
             'role_id' => 'required|exists:roles,id',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'password' => 'required|string|min:8|confirmed',
@@ -85,7 +101,7 @@ class UserController extends AppBaseController
         }
 
         $data['password'] = Hash::make($request->password);
-        $data['is_active'] = true;
+        $data['is_active'] = $request->boolean('is_active', true);
 
         $user = User::create($data);
 
@@ -101,9 +117,15 @@ class UserController extends AppBaseController
             $query->latest()->limit(5);
         }, 'temporaryPasswords' => function($query) {
             $query->latest()->limit(3);
+        }, 'salaryPayments' => function ($query) {
+            $query->with(['account', 'payer'])->latest('payment_date')->limit(10);
         }]);
 
-        return view('users.show', compact('user'));
+        $financialAccounts = FinancialAccount::where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        return view('users.show', compact('user', 'financialAccounts'));
     }
 
     public function edit(User $user)
@@ -122,7 +144,13 @@ class UserController extends AppBaseController
 
         $rules = [
             'name' => 'required|string|max:255',
+            'employee_code' => ['nullable', 'string', 'max:50', \Illuminate\Validation\Rule::unique('users', 'employee_code')->ignore($user->id)],
             'email' => ['required', 'email', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
+            'phone' => 'nullable|string|max:20',
+            'monthly_salary' => 'nullable|numeric|min:0',
+            'hire_date' => 'nullable|date',
+            'job_title' => 'nullable|string|max:100',
+            'document_number' => 'nullable|string|max:50',
             'role_id' => 'required|exists:roles,id',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
@@ -153,12 +181,86 @@ class UserController extends AppBaseController
             ]);
         }
 
+        $data['is_active'] = $request->boolean('is_active');
+
         $user->update($data);
 
         // Registrar log
         $this->logActivity('update', "Atualizou usuário de '{$oldName}' para '{$user->name}'", $user);
 
         return $this->success('users.index', 'Usuário atualizado com sucesso!');
+    }
+
+    public function storeSalaryPayment(Request $request, User $user, FinancialService $financialService)
+    {
+        $validated = $request->validate([
+            'financial_account_id' => 'required|exists:financial_accounts,id',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'required|date',
+            'reference_month' => 'nullable|date',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $description = "Pagamento de salário - {$user->name}";
+
+        $financialService->createSalaryPayment([
+            'user_id' => $user->id,
+            'financial_account_id' => $validated['financial_account_id'],
+            'paid_by' => auth()->id(),
+            'amount' => $validated['amount'],
+            'payment_date' => $validated['payment_date'],
+            'reference_month' => $validated['reference_month'] ?? null,
+            'description' => $description,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->logActivity('salary_payment', "Registrou pagamento salarial para {$user->name}", $user);
+
+        return redirect()->route('users.show', $user)->with('success', 'Pagamento salarial registrado com sucesso.');
+    }
+
+    public function payroll(Request $request)
+    {
+        $referenceMonth = Carbon::parse($request->input('reference_month', now()->startOfMonth()->format('Y-m-d')))
+            ->startOfMonth();
+
+        $employees = User::with(['role'])
+            ->whereHas('role', fn ($query) => $query->where('name', 'staff'))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $paymentsByUser = SalaryPayment::whereMonth('reference_month', $referenceMonth->month)
+            ->whereYear('reference_month', $referenceMonth->year)
+            ->get()
+            ->groupBy('user_id');
+
+        $payrollRows = $employees->map(function (User $employee) use ($paymentsByUser, $referenceMonth) {
+            $baseSalary = (float) ($employee->monthly_salary ?? 0);
+            $payments = $paymentsByUser->get($employee->id, collect());
+            $paidAmount = (float) $payments->sum('amount');
+            $balance = $baseSalary - $paidAmount;
+
+            return [
+                'employee' => $employee,
+                'reference_month' => $referenceMonth,
+                'base_salary' => $baseSalary,
+                'paid_amount' => $paidAmount,
+                'balance' => $balance,
+                'status' => $baseSalary <= 0
+                    ? 'undefined'
+                    : ($balance <= 0 ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending')),
+            ];
+        });
+
+        $summary = [
+            'employees' => $payrollRows->count(),
+            'base_total' => (float) $payrollRows->sum('base_salary'),
+            'paid_total' => (float) $payrollRows->sum('paid_amount'),
+            'balance_total' => (float) $payrollRows->sum('balance'),
+        ];
+
+        return view('users.payroll', compact('referenceMonth', 'payrollRows', 'summary'));
     }
 
     /**

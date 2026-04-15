@@ -7,11 +7,52 @@ use App\Models\DebtPayment;
 use App\Models\Expense;
 use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
+use App\Models\SalaryPayment;
 use App\Models\Sale;
 use Carbon\Carbon;
 
 class FinancialService
 {
+    public function transactionTypes(): array
+    {
+        return [
+            'owner_investment' => ['label' => 'Aporte do Proprietário', 'direction' => 'in'],
+            'debt_payment_receipt' => ['label' => 'Recebimento Manual', 'direction' => 'in'],
+            'other_income' => ['label' => 'Outra Entrada', 'direction' => 'in'],
+            'sale_receipt' => ['label' => 'Recebimento de Venda', 'direction' => 'in'],
+            'salary_payment' => ['label' => 'Pagamento de Salário', 'direction' => 'out'],
+            'expense_payment' => ['label' => 'Pagamento de Despesa', 'direction' => 'out'],
+            'money_debt_disbursement' => ['label' => 'Empréstimo em Dinheiro', 'direction' => 'out'],
+            'owner_withdrawal' => ['label' => 'Retirada do Proprietário', 'direction' => 'out'],
+            'cash_adjustment_out' => ['label' => 'Ajuste de Caixa (-)', 'direction' => 'out'],
+            'cash_adjustment_in' => ['label' => 'Ajuste de Caixa (+)', 'direction' => 'in'],
+            'other_outflow' => ['label' => 'Outra Saída', 'direction' => 'out'],
+        ];
+    }
+
+    public function transactionDirection(string $type): string
+    {
+        return $this->transactionTypes()[$type]['direction'] ?? 'out';
+    }
+
+    public function manualTransactionTypes(): array
+    {
+        return array_intersect_key($this->transactionTypes(), array_flip([
+            'owner_investment',
+            'debt_payment_receipt',
+            'other_income',
+            'owner_withdrawal',
+            'cash_adjustment_out',
+            'cash_adjustment_in',
+            'other_outflow',
+        ]));
+    }
+
+    public function transactionLabel(string $type): string
+    {
+        return $this->transactionTypes()[$type]['label'] ?? ucfirst(str_replace('_', ' ', $type));
+    }
+
     public function getDefaultAccountForPaymentMethod(?string $paymentMethod): ?FinancialAccount
     {
         $slug = match ($paymentMethod) {
@@ -43,6 +84,41 @@ class FinancialService
             'payment_method' => $data['payment_method'] ?? null,
             'notes' => $data['notes'] ?? null,
         ]);
+    }
+
+    public function createSalaryPayment(array $data): SalaryPayment
+    {
+        $transaction = $this->createManualTransaction([
+            'financial_account_id' => $data['financial_account_id'],
+            'user_id' => $data['paid_by'] ?? auth()->id(),
+            'type' => 'salary_payment',
+            'direction' => 'out',
+            'amount' => $data['amount'],
+            'transaction_date' => $data['payment_date'],
+            'description' => $data['description'],
+            'reference_type' => SalaryPayment::class,
+            'reference_id' => null,
+            'payment_method' => 'cash',
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        $salaryPayment = SalaryPayment::create([
+            'user_id' => $data['user_id'],
+            'financial_account_id' => $data['financial_account_id'],
+            'financial_transaction_id' => $transaction->id,
+            'paid_by' => $data['paid_by'] ?? auth()->id(),
+            'amount' => $data['amount'],
+            'payment_date' => $data['payment_date'],
+            'reference_month' => $data['reference_month'] ?? null,
+            'description' => $data['description'],
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        $transaction->update([
+            'reference_id' => $salaryPayment->id,
+        ]);
+
+        return $salaryPayment;
     }
 
     public function syncSaleTransaction(Sale $sale): void

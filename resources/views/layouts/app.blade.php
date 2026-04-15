@@ -1569,13 +1569,24 @@
                         @if (userCan('manage_users'))
                             <li class="nav-item">
                                 <a href="{{ route('users.index') }}"
-                                    class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                    class="nav-link {{ request()->routeIs('users.index') || request()->routeIs('users.create') || request()->routeIs('users.edit') || request()->routeIs('users.activity') || request()->routeIs('users.temporary-passwords') ? 'active' : '' }}">
+                                    <span class="nav-icon">
+                                        <i class="fas fa-user-shield"></i>
+                                    </span>
+                                    <span class="nav-text">Usuários</span>
+                                    <span class="nav-badge badge-danger">Acesso</span>
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="{{ route('users.employees') }}"
+                                    class="nav-link {{ request()->routeIs('users.employees') ? 'active' : '' }}">
                                     <span class="nav-icon">
                                         <i class="fas fa-users"></i>
                                     </span>
-                                    <span class="nav-text">Usuários</span>
-                                    <span class="nav-badge badge-danger">Admin</span>
-                                </as>
+                                    <span class="nav-text">Funcionários</span>
+                                    <span class="nav-badge badge-danger">RH</span>
+                                </a>
                             </li>
                         @endif
 

@@ -1,11 +1,20 @@
 @extends('layouts.app')
 
-@section('title', 'Usuários')
-@section('page-title', 'Gestão de Usuários')
-@section('title-icon', 'fa-users-gear')
+@php
+    $isEmployeesView = $isEmployeesView ?? false;
+    $pageTitle = $isEmployeesView ? 'Funcionários' : 'Usuários';
+    $pageHeading = $isEmployeesView ? 'Gestão de Funcionários' : 'Gestão de Usuários';
+    $pageIcon = $isEmployeesView ? 'fa-id-badge' : 'fa-users-gear';
+    $formAction = $isEmployeesView ? route('users.employees') : route('users.index');
+    $clearAction = $formAction;
+@endphp
+
+@section('title', $pageTitle)
+@section('page-title', $pageHeading)
+@section('title-icon', $pageIcon)
 
 @section('breadcrumbs')
-<li class="breadcrumb-item active">Usuários</li>
+<li class="breadcrumb-item active">{{ $pageTitle }}</li>
 @endsection
 
 @section('content')
@@ -83,9 +92,15 @@
                     Ações Rápidas
                 </h6>
                 <div class="d-grid gap-2">
-                    <a href="{{ route('users.create') }}" class="btn btn-primary">
+                    @if($isEmployeesView)
+                        <a href="{{ route('users.employees.payroll', ['reference_month' => now()->startOfMonth()->format('Y-m-d')]) }}" class="btn btn-outline-success">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>
+                            Folha Salarial
+                        </a>
+                    @endif
+                    <a href="{{ route('users.create', $isEmployeesView ? ['role' => 'staff'] : []) }}" class="btn btn-primary">
                         <i class="fas fa-user-plus me-2"></i>
-                        Novo Usuário
+                        {{ $isEmployeesView ? 'Novo Funcionário' : 'Novo Usuário' }}
                     </a>
                 </div>
             </div>
@@ -96,7 +111,7 @@
 <!-- Filtros e Pesquisa -->
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body">
-        <form method="GET" action="{{ route('users.index') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ $formAction }}" class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label for="search" class="form-label">Pesquisar</label>
                 <div class="input-group">
@@ -108,17 +123,19 @@
                 </div>
             </div>
             
-            <div class="col-md-2">
-                <label for="role" class="form-label">Função</label>
-                <select class="form-select" id="role" name="role">
-                    <option value="">Todas</option>
-                    @foreach(App\Models\Role::all() as $role)
-                        <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>
-                            {{ ucfirst($role->name) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            @unless($isEmployeesView)
+                <div class="col-md-2">
+                    <label for="role" class="form-label">Função</label>
+                    <select class="form-select" id="role" name="role">
+                        <option value="">Todas</option>
+                        @foreach(App\Models\Role::all() as $role)
+                            <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>
+                                {{ ucfirst($role->name) }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endunless
             
             <div class="col-md-2">
                 <label for="status" class="form-label">Status</label>
@@ -145,7 +162,7 @@
                         <i class="fas fa-filter me-1"></i> Filtrar
                     </button>
                     @if(request()->hasAny(['search', 'role', 'status', 'sort']))
-                        <a href="{{ route('users.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <a href="{{ $clearAction }}" class="btn btn-outline-secondary btn-sm">
                             <i class="fas fa-times me-1"></i> Limpar
                         </a>
                     @endif
@@ -160,7 +177,7 @@
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <h6 class="mb-0">
             <i class="fas fa-list me-2"></i>
-            Lista de Usuários
+            Lista de {{ $pageTitle }}
             @if(request()->hasAny(['search', 'role', 'status']))
                 <span class="badge bg-primary ms-2">{{ $users->total() }} encontrados</span>
             @endif
@@ -175,6 +192,10 @@
                         <tr>
                             <th>Foto</th>
                             <th>Usuário</th>
+                            @if($isEmployeesView)
+                                <th>Cargo</th>
+                                <th>Salário</th>
+                            @endif
                             <th>Função</th>
                             <th>Status</th>
                             <th>Senha Temp</th>
@@ -193,10 +214,20 @@
                             </td>
                             <td>
                                 <div>
-                                    <strong>{{ $user->name }}</strong><br>
+                                    <strong>{{ $user->employee_label }}</strong><br>
                                     <small class="text-muted">{{ $user->email }}</small>
                                 </div>
                             </td>
+                            @if($isEmployeesView)
+                                <td>
+                                    <span>{{ $user->job_title ?: '-' }}</span><br>
+                                    <small class="text-muted">{{ $user->document_number ?: 'Sem documento' }}</small>
+                                </td>
+                                <td>
+                                    <strong class="text-success">{{ $user->monthly_salary ? $user->formatted_monthly_salary : '-' }}</strong><br>
+                                    <small class="text-muted">{{ $user->hire_date ? 'Admissão: '.$user->hire_date->format('d/m/Y') : 'Sem admissão' }}</small>
+                                </td>
+                            @endif
                             <td>
                                 @php
                                     $badgeClass = match($user->role?->name) {
@@ -312,7 +343,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="text-muted small">
                             Mostrando {{ $users->firstItem() }} a {{ $users->lastItem() }} 
-                            de {{ $users->total() }} usuários
+                            de {{ $users->total() }} {{ $isEmployeesView ? 'funcionários' : 'usuários' }}
                         </div>
                         {{ $users->appends(request()->query())->links() }}
                     </div>
@@ -321,18 +352,18 @@
         @else
             <div class="text-center py-5">
                 <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                <h5 class="text-muted">Nenhum usuário encontrado</h5>
+                <h5 class="text-muted">Nenhum {{ $isEmployeesView ? 'funcionário' : 'usuário' }} encontrado</h5>
                 <p class="text-muted mb-4">
                     @if(request()->hasAny(['search', 'role', 'status']))
-                        Nenhum usuário corresponde aos filtros aplicados.
+                        Nenhum {{ $isEmployeesView ? 'funcionário' : 'usuário' }} corresponde aos filtros aplicados.
                         <br>
-                        <a href="{{ route('users.index') }}" class="text-primary">Limpar filtros</a>
+                        <a href="{{ $clearAction }}" class="text-primary">Limpar filtros</a>
                     @else
-                        Comece criando o primeiro usuário do sistema.
+                        Comece criando o primeiro {{ $isEmployeesView ? 'funcionário' : 'usuário' }} do sistema.
                     @endif
                 </p>
-                <a href="{{ route('users.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i> Criar Primeiro Usuário
+                <a href="{{ route('users.create', $isEmployeesView ? ['role' => 'staff'] : []) }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i> Criar Primeiro {{ $isEmployeesView ? 'Funcionário' : 'Usuário' }}
                 </a>
             </div>
         @endif

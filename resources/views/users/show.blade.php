@@ -65,6 +65,36 @@
                     </div>
 
                     <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Código:</span>
+                        <span>{{ $user->employee_code ?: '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Telefone:</span>
+                        <span>{{ $user->phone ?: '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Salário Base:</span>
+                        <span>{{ $user->monthly_salary ? $user->formatted_monthly_salary : '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Admissão:</span>
+                        <span>{{ $user->hire_date ? $user->hire_date->format('d/m/Y') : '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Cargo:</span>
+                        <span>{{ $user->job_title ?: '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-muted">Documento:</span>
+                        <span>{{ $user->document_number ?: '-' }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between mb-3">
                         <span class="text-muted">Criado em:</span>
                         <span>{{ $user->created_at->format('d/m/Y H:i') }}</span>
                     </div>
@@ -135,6 +165,92 @@
                             Nenhuma atividade registrada ainda
                         </div>
                     @endif
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-money-check-alt text-success me-2"></i>Salário e Pagamentos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <div class="border rounded p-3 h-100 bg-light">
+                                <small class="text-muted d-block">Salário Base</small>
+                                <div class="h5 mb-2">{{ $user->monthly_salary ? $user->formatted_monthly_salary : 'Não definido' }}</div>
+                                <small class="text-muted">Pagamentos registrados: {{ $user->salaryPayments->count() }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            @if(auth()->user()->canEdit($user) && userCan('manage_finances'))
+                                <form method="POST" action="{{ route('users.salary-payments.store', $user) }}" class="border rounded p-3">
+                                    @csrf
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Conta de Saída</label>
+                                            <select name="financial_account_id" class="form-select form-select-sm" required>
+                                                @foreach($financialAccounts as $account)
+                                                    <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Valor</label>
+                                            <input type="number" step="0.01" min="0.01" name="amount" value="{{ old('amount', $user->monthly_salary) }}" class="form-control form-control-sm" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Data do Pagamento</label>
+                                            <input type="date" name="payment_date" value="{{ old('payment_date', now()->format('Y-m-d')) }}" class="form-control form-control-sm" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small">Mês de Referência</label>
+                                            <input type="date" name="reference_month" value="{{ old('reference_month', now()->startOfMonth()->format('Y-m-d')) }}" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small">Notas</label>
+                                            <textarea name="notes" rows="2" class="form-control form-control-sm">{{ old('notes') }}</textarea>
+                                        </div>
+                                        <div class="col-12">
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="fas fa-save me-1"></i>Registrar Pagamento
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            @else
+                                <div class="alert alert-light border mb-0">Sem permissão para registrar pagamentos salariais.</div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mt-4">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Referência</th>
+                                    <th>Conta</th>
+                                    <th>Registrado por</th>
+                                    <th class="text-end">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($user->salaryPayments as $payment)
+                                    <tr>
+                                        <td>{{ $payment->payment_date->format('d/m/Y') }}</td>
+                                        <td>{{ $payment->reference_month ? $payment->reference_month->format('m/Y') : '-' }}</td>
+                                        <td>{{ $payment->account->name ?? '-' }}</td>
+                                        <td>{{ $payment->payer->name ?? 'Sistema' }}</td>
+                                        <td class="text-end text-danger fw-semibold">- MT {{ number_format($payment->amount, 2, ',', '.') }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">Nenhum pagamento salarial registrado.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 

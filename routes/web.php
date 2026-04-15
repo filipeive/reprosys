@@ -310,6 +310,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
 
         Route::middleware('permissions:manage_finances')->group(function () {
             Route::post('/transactions', [FinanceController::class, 'storeTransaction'])->name('transactions.store');
+            Route::patch('/accounts/{account}', [FinanceController::class, 'updateAccount'])->name('accounts.update');
         });
     });
 
@@ -403,8 +404,10 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
 
 
     // ===== USUÁRIOS - manage_users permission =====
-    Route::prefix('users')->name('users.')->middleware('permissions:manage_settings')->group(function () {
+    Route::prefix('users')->name('users.')->middleware('permissions:manage_users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/employees', [UserController::class, 'index'])->name('employees');
+        Route::get('/employees/payroll', [UserController::class, 'payroll'])->name('employees.payroll');
         Route::get('/create', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
         Route::get('/{user}', [UserController::class, 'show'])->name('show');
@@ -418,6 +421,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         // Rotas de ação
         Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
         Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
+        Route::post('/{user}/salary-payments', [UserController::class, 'storeSalaryPayment'])->name('salary-payments.store');
 
         // Rotas de senhas temporárias
         Route::get('/{user}/temporary-passwords', [UserController::class, 'temporaryPasswords'])->name('temporary-passwords');
