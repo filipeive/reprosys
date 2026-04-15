@@ -144,9 +144,9 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Total de Vendas</h6>
-                            <h3 class="mb-0 text-primary fw-bold">{{ $totalSales }}</h3>
-                            <small class="text-muted">em vendas
+                            <h6 class="text-muted mb-2 fw-semibold">Faturamento Vendido</h6>
+                            <h3 class="mb-0 text-primary fw-bold">{{ number_format($totalRevenue, 2, ',', '.') }} MT</h3>
+                            <small class="text-muted">{{ $totalSales }} venda(s)
                                 @if (isset($revenueGrowth))
                                     <span class="badge bg-{{ $revenueGrowth >= 0 ? 'success' : 'danger' }} ms-1">
                                         {{ $revenueGrowth >= 0 ? '+' : '' }}{{ number_format($revenueGrowth, 1) }}%
@@ -166,14 +166,14 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <h6 class="text-muted mb-2 fw-semibold">Lucro Bruto</h6>
-                            <h3 class="mb-0 text-info fw-bold">{{ number_format($grossProfit, 2, ',', '.') }} MT</h3>
+                            <h6 class="text-muted mb-2 fw-semibold">Recebido no Período</h6>
+                            <h3 class="mb-0 text-info fw-bold">{{ number_format($totalReceived, 2, ',', '.') }} MT</h3>
                             <small class="text-muted">
-                                Margem: {{ number_format($grossMargin, 1) }}%
+                                Fluxo líquido: {{ number_format($netCashFlow, 2, ',', '.') }} MT
                             </small>
                         </div>
                         <div class="text-info">
-                            <i class="fas fa-chart-line fa-2x"></i>
+                            <i class="fas fa-wallet fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -194,6 +194,24 @@
                         </div>
                         <div class="{{ $netProfit >= 0 ? 'text-success' : 'text-danger' }}">
                             <i class="fas fa-{{ $netProfit >= 0 ? 'trophy' : 'exclamation-triangle' }} fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
+            <div class="card stats-card warning h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-2 fw-semibold">Capital Atual</h6>
+                            <h3 class="mb-0 text-warning fw-bold">{{ number_format($currentCapital, 2, ',', '.') }} MT</h3>
+                            <small class="text-muted">
+                                A receber: {{ number_format($accountsReceivable, 2, ',', '.') }} MT
+                            </small>
+                        </div>
+                        <div class="text-warning">
+                            <i class="fas fa-piggy-bank fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -222,18 +240,16 @@
         <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
             <div class="card bg-light h-100">
                 <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Ticket Médio</h6>
-                    <h4 class="text-primary mb-0">{{ number_format($averageTicket, 2, ',', '.') }} MT</h4>
+                    <h6 class="text-muted mb-2">Saídas Financeiras</h6>
+                    <h4 class="text-primary mb-0">{{ number_format($totalOutflows, 2, ',', '.') }} MT</h4>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-6 col-md-6 mb-3">
             <div class="card bg-light h-100">
                 <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Vendas/Dia (Média)</h6>
-                    <h4 class="text-info mb-0">
-                        {{ $totalSales > 0 ? number_format($totalSales / max(1, \Carbon\Carbon::parse($dateFrom)->diffInDays(\Carbon\Carbon::parse($dateTo)) + 1), 1) : 0 }}
-                    </h4>
+                    <h6 class="text-muted mb-2">Ticket Médio</h6>
+                    <h4 class="text-info mb-0">{{ number_format($averageTicket, 2, ',', '.') }} MT</h4>
                 </div>
             </div>
         </div>

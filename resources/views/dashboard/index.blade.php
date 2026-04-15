@@ -426,13 +426,13 @@
                     <i class="fas fa-receipt"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <div class="metric-value" id="today-expenses">
-                        {{ number_format($todayExpenses, 2, ',', '.') }}
+                    <div class="metric-value" id="today-outflows">
+                        {{ number_format($todayOutflows, 2, ',', '.') }}
                     </div>
-                    <div class="metric-label">Despesas de Hoje</div>
-                    <div class="metric-change {{ $expensesChangeDirection }}" id="today-expenses-change">
-                        <i class="fas {{ $expensesChangeIcon }}"></i>
-                        <span id="today-expenses-change-percent">{{ $expensesChangePercent }}</span>%
+                    <div class="metric-label">Saídas de Hoje</div>
+                    <div class="metric-change {{ $outflowsChangeDirection }}" id="today-outflows-change">
+                        <i class="fas {{ $outflowsChangeIcon }}"></i>
+                        <span id="today-outflows-change-percent">{{ $outflowsChangePercent }}</span>%
                     </div>
                 </div>
             </div>
@@ -445,12 +445,12 @@
                 </div>
                 <div class="flex-grow-1">
                     <div class="metric-value">
-                        {{ number_format($monthSales, 2, ',', '.') }}
+                        {{ number_format($monthReceived, 2, ',', '.') }}
                     </div>
-                    <div class="metric-label">Vendas do Mês</div>
-                    <div class="metric-change {{ $monthSalesChangeDirection }}">
-                        <i class="fas {{ $monthSalesChangeIcon }}"></i>
-                        {{ $monthSalesChangePercent }}%
+                    <div class="metric-label">Recebido no Mês</div>
+                    <div class="metric-change {{ $monthReceivedChangeDirection }}">
+                        <i class="fas {{ $monthReceivedChangeIcon }}"></i>
+                        {{ $monthReceivedChangePercent }}%
                     </div>
                 </div>
             </div>
@@ -667,7 +667,7 @@
                 <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center py-3">
                     <h6 class="mb-0">
                         <i class="fas fa-chart-line text-primary me-2"></i>
-                        Vendas vs Despesas (7 dias)
+                        Vendido vs Despesas (7 dias)
                     </h6>
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-outline-primary active" onclick="updateChartPeriod(7)">7d</button>
@@ -688,7 +688,7 @@
                 <div class="card-header bg-transparent border-0 py-3">
                     <h6 class="mb-0">
                         <i class="fas fa-exchange-alt text-success me-2"></i>
-                        Fluxo de Caixa
+                        Fluxo de Caixa Real
                     </h6>
                 </div>
                 <div class="card-body py-2">
@@ -775,12 +775,22 @@
                     <div class="mb-3 p-3 bg-light rounded">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted d-block">Vendas</small>
+                                <small class="text-muted d-block">Faturamento Vendido</small>
                                 <h6 class="text-success mb-0">MT {{ number_format($monthSales, 2, ',', '.') }}</h6>
                             </div>
                             <span class="badge bg-success">
                                 <i class="fas fa-arrow-up"></i> {{ $monthSalesChangePercent }}%
                             </span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">Recebido</small>
+                                <h6 class="text-primary mb-0">MT {{ number_format($monthReceived, 2, ',', '.') }}</h6>
+                            </div>
+                            <small class="text-muted">Saídas: {{ number_format($monthOutflows, 0) }}</small>
                         </div>
                     </div>
                     
@@ -1035,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Atualizar métricas principais
             updateMetricCard('today-sales', data.todaySales, data.salesChangePercent, data.salesChangeDirection, data.salesChangeIcon);
-            updateMetricCard('today-expenses', data.todayExpenses, data.expensesChangePercent, data.expensesChangeDirection, data.expensesChangeIcon);
+            updateMetricCard('today-outflows', data.todayOutflows, data.outflowsChangePercent, data.outflowsChangeDirection, data.outflowsChangeIcon);
 
             // Atualizar estoque baixo
             const lowStockElement = document.getElementById('low-stock-count');

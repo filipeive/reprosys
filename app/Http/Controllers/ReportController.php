@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ReportExport; 
+use App\Models\Debt;
+use App\Models\FinancialAccount;
+use App\Models\FinancialTransaction;
 use App\Models\Sale;
 use App\Models\Expense;
 use App\Models\Product;
@@ -130,13 +133,19 @@ class ReportController extends Controller
         
         // Receita bruta (soma de todas as vendas)
         $totalRevenue = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->sum('total_amount');
+        $totalReceived = (float) FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])
+            ->where('direction', 'in')
+            ->sum('amount');
+        $totalOutflows = (float) FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])
+            ->where('direction', 'out')
+            ->sum('amount');
         
         // Custo dos produtos vendidos (COGS)
         $costOfGoodsSold = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->whereBetween('sales.sale_date', [$dateFrom, $dateTo])
-            ->sum(DB::raw('sale_items.quantity * products.purchase_price'));
+            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
         
         // Total de despesas operacionais
         $totalExpenses = Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->sum('amount');
@@ -158,10 +167,19 @@ class ReportController extends Controller
         
         $previousRevenue = Sale::whereBetween('sale_date', [$previousDateFrom, $previousDateTo])->sum('total_amount');
         $revenueGrowth = $previousRevenue > 0 ? ((($totalRevenue - $previousRevenue) / $previousRevenue) * 100) : 0;
+        $accountsReceivable = (float) Debt::where('status', 'active')
+            ->whereDate('debt_date', '<=', $dateTo)
+            ->sum('remaining_amount');
+        $currentCapital = (float) FinancialAccount::where('is_active', true)
+            ->get()
+            ->sum(fn ($account) => $account->current_balance);
         
         return [
             'totalSales' => $totalSales,
             'totalRevenue' => $totalRevenue,
+            'totalReceived' => $totalReceived,
+            'totalOutflows' => $totalOutflows,
+            'netCashFlow' => $totalReceived - $totalOutflows,
             'costOfGoodsSold' => $costOfGoodsSold,
             'totalExpenses' => $totalExpenses,
             'grossProfit' => $grossProfit,
@@ -169,7 +187,9 @@ class ReportController extends Controller
             'grossMargin' => $grossMargin,
             'netMargin' => $netMargin,
             'averageTicket' => $averageTicket,
-            'revenueGrowth' => $revenueGrowth
+            'revenueGrowth' => $revenueGrowth,
+            'accountsReceivable' => $accountsReceivable,
+            'currentCapital' => $currentCapital,
         ];
     }
 
@@ -517,35 +537,39 @@ class ReportController extends Controller
         $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->input('date_to', now()->format('Y-m-d'));
 
-        // Entradas de caixa por método de pagamento
-        $cashInflows = [
-            'cash' => Sale::whereBetween('sale_date', [$dateFrom, $dateTo])
-                ->where('payment_method', 'cash')
-                ->sum('total_amount'),
-            'card' => Sale::whereBetween('sale_date', [$dateFrom, $dateTo])
-                ->where('payment_method', 'card')
-                ->sum('total_amount'),
-            'transfer' => Sale::whereBetween('sale_date', [$dateFrom, $dateTo])
-                ->where('payment_method', 'transfer')
-                ->sum('total_amount'),
-            'credit' => Sale::whereBetween('sale_date', [$dateFrom, $dateTo])
-                ->where('payment_method', 'credit')
-                ->sum('total_amount')
-        ];
+        $transactions = FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->get();
 
-        // Saídas de caixa por categoria
-        $cashOutflows = Expense::with('category')
-            ->whereBetween('expense_date', [$dateFrom, $dateTo])
+        $cashInflows = $transactions
+            ->where('direction', 'in')
+            ->groupBy(fn ($transaction) => $transaction->payment_method ?: 'manual')
+            ->map(fn ($items) => (float) $items->sum('amount'))
+            ->sortDesc();
+
+        $cashOutflows = $transactions
+            ->where('direction', 'out')
+            ->groupBy(fn ($transaction) => $transaction->type)
+            ->map(fn ($items) => (float) $items->sum('amount'))
+            ->sortDesc();
+
+        $outflowLabels = $cashOutflows->keys()->mapWithKeys(fn ($type) => [$type => $this->formatTransactionType($type)]);
+        $salesCountByDate = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('COUNT(*) as total'))
+            ->whereBetween('sale_date', [$dateFrom, $dateTo])
+            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->pluck('total', 'date');
+
+        $dailyTransactions = FinancialTransaction::select(
+                DB::raw('DATE(transaction_date) as date'),
+                DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflow"),
+                DB::raw("SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) as outflow")
+            )
+            ->whereBetween('transaction_date', [$dateFrom, $dateTo])
+            ->groupBy(DB::raw('DATE(transaction_date)'))
+            ->orderBy(DB::raw('DATE(transaction_date)'))
             ->get()
-            ->groupBy(function ($expense) {
-                return $expense->category->name ?? 'Sem Categoria';
-            })
-            ->map(function ($expenses) {
-                return $expenses->sum('amount');
-            });
+            ->keyBy('date');
 
-        $totalInflows = array_sum($cashInflows);
-        $totalOutflows = $cashOutflows->sum();
+        $totalInflows = (float) $cashInflows->sum();
+        $totalOutflows = (float) $cashOutflows->sum();
         $netCashFlow = $totalInflows - $totalOutflows;
 
         // Fluxo diário detalhado
@@ -555,9 +579,9 @@ class ReportController extends Controller
 
         while ($period <= $end) {
             $date = $period->format('Y-m-d');
-            
-            $dailyInflow = Sale::whereDate('sale_date', $date)->sum('total_amount');
-            $dailyOutflow = Expense::whereDate('expense_date', $date)->sum('amount');
+            $dailyData = $dailyTransactions->get($date);
+            $dailyInflow = (float) ($dailyData->inflow ?? 0);
+            $dailyOutflow = (float) ($dailyData->outflow ?? 0);
             
             $dailyCashFlow[] = [
                 'date' => $period->format('d/m'),
@@ -565,7 +589,7 @@ class ReportController extends Controller
                 'inflow' => $dailyInflow,
                 'outflow' => $dailyOutflow,
                 'net' => $dailyInflow - $dailyOutflow,
-                'sales_count' => Sale::whereDate('sale_date', $date)->count()
+                'sales_count' => (int) ($salesCountByDate[$date] ?? 0)
             ];
             
             $period->addDay();
@@ -586,9 +610,27 @@ class ReportController extends Controller
 
         return view('reports.cash_flow', compact(
             'dateFrom', 'dateTo', 'cashInflows', 'cashOutflows',
-            'totalInflows', 'totalOutflows', 'netCashFlow', 
+            'outflowLabels', 'totalInflows', 'totalOutflows', 'netCashFlow', 
             'dailyCashFlow', 'projections'
         ));
+    }
+
+    private function formatTransactionType(string $type): string
+    {
+        return match ($type) {
+            'sale_receipt' => 'Recebimento de Venda',
+            'expense_payment' => 'Pagamento de Despesa',
+            'debt_payment_receipt' => 'Recebimento de Dívida',
+            'money_debt_disbursement' => 'Empréstimo em Dinheiro',
+            'owner_investment' => 'Aporte do Proprietário',
+            'owner_withdrawal' => 'Retirada do Proprietário',
+            'salary_payment' => 'Pagamento de Salário',
+            'cash_adjustment_in' => 'Ajuste de Caixa (+)',
+            'cash_adjustment_out' => 'Ajuste de Caixa (-)',
+            'other_income' => 'Outra Entrada',
+            'other_outflow' => 'Outra Saída',
+            default => ucfirst(str_replace('_', ' ', $type)),
+        };
     }
 
     /**

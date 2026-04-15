@@ -16,7 +16,7 @@
                 <i class="fas fa-money-bill-wave me-2"></i>
                 Fluxo de Caixa
             </h2>
-            <p class="text-muted mb-0">Entradas, saídas e projeções financeiras</p>
+            <p class="text-muted mb-0">Entradas e saídas reais com base nos movimentos financeiros</p>
         </div>
         <div class="d-flex gap-2">
             <a href="{{ route('reports.index') }}" class="btn btn-outline-secondary">
@@ -67,7 +67,7 @@
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Total de Entradas</h6>
                             <h3 class="mb-0 text-success fw-bold">{{ number_format($totalInflows, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">Receitas do período</small>
+                            <small class="text-muted">Entradas efetivamente registradas</small>
                         </div>
                         <div class="text-success">
                             <i class="fas fa-arrow-up fa-2x"></i>
@@ -83,7 +83,7 @@
                         <div>
                             <h6 class="text-muted mb-2 fw-semibold">Total de Saídas</h6>
                             <h3 class="mb-0 text-danger fw-bold">{{ number_format($totalOutflows, 2, ',', '.') }} MT</h3>
-                            <small class="text-muted">Despesas do período</small>
+                            <small class="text-muted">Saídas efetivamente registradas</small>
                         </div>
                         <div class="text-danger">
                             <i class="fas fa-arrow-down fa-2x"></i>
@@ -121,7 +121,7 @@
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-arrow-up text-success me-2"></i>
-                        Entradas por Método de Pagamento
+                        Entradas por Método Financeiro
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -140,7 +140,9 @@
                                         'cash' => ['label' => 'Dinheiro', 'color' => 'success'],
                                         'card' => ['label' => 'Cartão', 'color' => 'primary'],
                                         'transfer' => ['label' => 'Transferência', 'color' => 'info'],
-                                        'credit' => ['label' => 'Crédito', 'color' => 'warning']
+                                        'mpesa' => ['label' => 'M-Pesa', 'color' => 'info'],
+                                        'emola' => ['label' => 'E-Mola', 'color' => 'info'],
+                                        'manual' => ['label' => 'Manual / Sem Método', 'color' => 'secondary']
                                     ];
                                 @endphp
                                 @foreach($cashInflows as $method => $amount)
@@ -172,13 +174,13 @@
             </div>
         </div>
 
-        <!-- Saídas por Categoria -->
+        <!-- Saídas por Tipo -->
         <div class="col-lg-6 mb-4">
             <div class="card">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-arrow-down text-danger me-2"></i>
-                        Saídas por Categoria de Despesa
+                        Saídas por Tipo de Movimento
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -186,7 +188,7 @@
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Categoria</th>
+                                    <th>Tipo</th>
                                     <th class="text-end">Valor</th>
                                     <th class="text-center">Percentual</th>
                                 </tr>
@@ -194,7 +196,7 @@
                             <tbody>
                                 @foreach($cashOutflows as $category => $amount)
                                     <tr>
-                                        <td>{{ $category }}</td>
+                                        <td>{{ $outflowLabels[$category] ?? ucfirst(str_replace('_', ' ', $category)) }}</td>
                                         <td class="text-end text-danger fw-bold">
                                             {{ number_format($amount, 2, ',', '.') }} MT
                                         </td>

@@ -26,7 +26,7 @@ class DashboardController extends Controller
         // --- CÁLCULOS DE HOJE ---
         $today = Carbon::today();
         $todaySales = Sale::whereDate('sale_date', $today)->sum('total_amount');
-        $todayExpenses = Expense::whereDate('expense_date', $today)->sum('amount');
+        $todayOutflows = $this->sumTransactionsByDirection($today->toDateString(), $today->toDateString(), 'out');
         $todayProductsSold = Sale::whereDate('sale_date', $today)
             ->withCount('items') // Assumindo que 'items' é a relação
             ->get()
@@ -35,15 +35,18 @@ class DashboardController extends Controller
         // --- CÁLCULOS DE COMPARAÇÃO (HOJE vs ONTEM) ---
         $yesterday = Carbon::yesterday();
         $yesterdaySales = Sale::whereDate('sale_date', $yesterday)->sum('total_amount');
-        $yesterdayExpenses = Expense::whereDate('expense_date', $yesterday)->sum('amount');
+        $yesterdayOutflows = $this->sumTransactionsByDirection($yesterday->toDateString(), $yesterday->toDateString(), 'out');
 
         $salesChange = $this->calculatePercentageChange($todaySales, $yesterdaySales);
-        $expensesChange = $this->calculatePercentageChange($todayExpenses, $yesterdayExpenses);
+        $outflowsChange = $this->calculatePercentageChange($todayOutflows, $yesterdayOutflows);
 
         // --- CÁLCULOS DO MÊS ATUAL ---
         $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
         $monthSales = Sale::where('sale_date', '>=', $monthStart)->sum('total_amount');
         $monthExpenses = Expense::where('expense_date', '>=', $monthStart)->sum('amount');
+        $monthReceived = $this->sumTransactionsByDirection($monthStart->toDateString(), $monthEnd->toDateString(), 'in');
+        $monthOutflows = $this->sumTransactionsByDirection($monthStart->toDateString(), $monthEnd->toDateString(), 'out');
         $monthProfit = $monthSales - $monthExpenses;
         $monthCostOfGoods = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
@@ -65,17 +68,14 @@ class DashboardController extends Controller
         $accountsReceivable = class_exists(Debt::class)
             ? (float) Debt::where('status', 'active')->sum('remaining_amount')
             : 0;
-        $monthNetCashFlow = class_exists(FinancialTransaction::class)
-            ? (float) FinancialTransaction::whereBetween('transaction_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
-                ->selectRaw("SUM(CASE WHEN direction = 'in' THEN amount ELSE -amount END) as net")
-                ->value('net')
-            : 0;
+        $monthNetCashFlow = $monthReceived - $monthOutflows;
 
         // --- CÁLCULOS DO MÊS ANTERIOR (PARA COMPARAÇÃO) ---
         $prevMonthStart = Carbon::now()->subMonth()->startOfMonth();
         $prevMonthEnd = Carbon::now()->subMonth()->endOfMonth();
         $prevMonthSales = Sale::whereBetween('sale_date', [$prevMonthStart, $prevMonthEnd])->sum('total_amount');
         $prevMonthExpenses = Expense::whereBetween('expense_date', [$prevMonthStart, $prevMonthEnd])->sum('amount');
+        $prevMonthReceived = $this->sumTransactionsByDirection($prevMonthStart->toDateString(), $prevMonthEnd->toDateString(), 'in');
         $prevMonthProfit = $prevMonthSales - $prevMonthExpenses;
         $prevMonthCostOfGoods = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
@@ -85,6 +85,7 @@ class DashboardController extends Controller
         $prevMonthRealProfit = ($prevMonthSales - $prevMonthCostOfGoods) - $prevMonthExpenses;
 
         $monthSalesChange = $this->calculatePercentageChange($monthSales, $prevMonthSales);
+        $monthReceivedChange = $this->calculatePercentageChange($monthReceived, $prevMonthReceived);
         $monthProfitChange = $this->calculatePercentageChange($monthRealProfit, $prevMonthRealProfit);
 
         // --- DADOS DO GRÁFICO (ÚLTIMOS 7 DIAS) ---
@@ -109,13 +110,17 @@ class DashboardController extends Controller
         $salesChangeDirection = $salesChange['direction'];
         $salesChangeIcon = $salesChange['icon'];
 
-        $expensesChangePercent = $expensesChange['percent'];
-        $expensesChangeDirection = $expensesChange['direction'];
-        $expensesChangeIcon = $expensesChange['icon'];
+        $outflowsChangePercent = $outflowsChange['percent'];
+        $outflowsChangeDirection = $outflowsChange['direction'];
+        $outflowsChangeIcon = $outflowsChange['icon'];
 
         $monthSalesChangePercent = $monthSalesChange['percent'];
         $monthSalesChangeDirection = $monthSalesChange['direction'];
         $monthSalesChangeIcon = $monthSalesChange['icon'];
+
+        $monthReceivedChangePercent = $monthReceivedChange['percent'];
+        $monthReceivedChangeDirection = $monthReceivedChange['direction'];
+        $monthReceivedChangeIcon = $monthReceivedChange['icon'];
 
         $monthProfitChangePercent = $monthProfitChange['percent'];
         $monthProfitChangeDirection = $monthProfitChange['direction'];
@@ -123,11 +128,11 @@ class DashboardController extends Controller
         // ===== FIM DA CORREÇÃO =====
 
         // --- ALERTAS INTELIGENTES (para a carga da página) ---
-        $this->checkAndSetAlerts($lowStockProducts, $todayExpenses, $todaySales);
+        $this->checkAndSetAlerts($lowStockProducts, $todayOutflows, $todaySales);
 
         return view('dashboard.index', compact(
-            'todaySales', 'todayExpenses', 'lowStockProducts', 'recentSales', 
-            'monthSales', 'monthExpenses', 'monthProfit', 'todayProductsSold',
+            'todaySales', 'todayOutflows', 'lowStockProducts', 'recentSales', 
+            'monthSales', 'monthReceived', 'monthOutflows', 'monthExpenses', 'monthProfit', 'todayProductsSold',
             'monthActiveCustomers', 'salesChartData', 'cashFlowChartData',
             'monthCostOfGoods', 'monthGrossProfit', 'monthRealProfit', 'monthRoi',
             'monthGrossMargin', 'monthNetMargin',
@@ -135,12 +140,13 @@ class DashboardController extends Controller
             
             // Dados de Comparação (Hoje) - Agora definidos
             'salesChangePercent', 'salesChangeDirection', 'salesChangeIcon',
-            'expensesChangePercent', 'expensesChangeDirection', 'expensesChangeIcon',
+            'outflowsChangePercent', 'outflowsChangeDirection', 'outflowsChangeIcon',
 
             // Dados de Comparação (Mês) - Agora definidos
             'monthSalesChangePercent', 'monthSalesChangeDirection', 'monthSalesChangeIcon',
+            'monthReceivedChangePercent', 'monthReceivedChangeDirection', 'monthReceivedChangeIcon',
             'monthProfitChangePercent', 'monthProfitChangeDirection', 'monthProfitChangeIcon',
-            'prevMonthSales', 'prevMonthExpenses', 'prevMonthProfit', 'prevMonthRealProfit'
+            'prevMonthSales', 'prevMonthReceived', 'prevMonthExpenses', 'prevMonthProfit', 'prevMonthRealProfit'
         ));
     }
 
@@ -153,7 +159,7 @@ class DashboardController extends Controller
         // Cálculos de Hoje
         $today = Carbon::today();
         $todaySales = Sale::whereDate('sale_date', $today)->sum('total_amount');
-        $todayExpenses = Expense::whereDate('expense_date', $today)->sum('amount');
+        $todayOutflows = $this->sumTransactionsByDirection($today->toDateString(), $today->toDateString(), 'out');
         $lowStockCount = Product::whereRaw('stock_quantity <= min_stock_level')
             ->where('type', 'product')
             ->where('is_active', true)
@@ -162,21 +168,21 @@ class DashboardController extends Controller
         // Cálculos de Ontem (para comparação em tempo real)
         $yesterday = Carbon::yesterday();
         $yesterdaySales = Sale::whereDate('sale_date', $yesterday)->sum('total_amount');
-        $yesterdayExpenses = Expense::whereDate('expense_date', $yesterday)->sum('amount');
+        $yesterdayOutflows = $this->sumTransactionsByDirection($yesterday->toDateString(), $yesterday->toDateString(), 'out');
 
         $salesChange = $this->calculatePercentageChange($todaySales, $yesterdaySales);
-        $expensesChange = $this->calculatePercentageChange($todayExpenses, $yesterdayExpenses);
+        $outflowsChange = $this->calculatePercentageChange($todayOutflows, $yesterdayOutflows);
         
         // Dados do Gráfico (para atualização em tempo real)
         $salesChartData = $this->getSalesChartData();
         $cashFlowChartData = $this->getCashFlowChartData();
         
         // Alertas Dinâmicos (para Toasts)
-        $dynamicAlerts = $this->getDynamicAlerts($lowStockCount, $todayExpenses, $todaySales);
+        $dynamicAlerts = $this->getDynamicAlerts($lowStockCount, $todayOutflows, $todaySales);
 
         return response()->json([
             'todaySales' => $todaySales,
-            'todayExpenses' => $todayExpenses,
+            'todayOutflows' => $todayOutflows,
             'lowStockCount' => $lowStockCount,
             'activeSales' => Sale::whereDate('sale_date', $today)->count(),
             
@@ -185,9 +191,9 @@ class DashboardController extends Controller
             'salesChangeDirection' => $salesChange['direction'],
             'salesChangeIcon' => $salesChange['icon'],
             
-            'expensesChangePercent' => $expensesChange['percent'],
-            'expensesChangeDirection' => $expensesChange['direction'],
-            'expensesChangeIcon' => $expensesChange['icon'],
+            'outflowsChangePercent' => $outflowsChange['percent'],
+            'outflowsChangeDirection' => $outflowsChange['direction'],
+            'outflowsChangeIcon' => $outflowsChange['icon'],
             
             'salesChartData' => $salesChartData,
             'cashFlowChartData' => $cashFlowChartData,
@@ -273,7 +279,7 @@ class DashboardController extends Controller
      * Gera alertas para a API em tempo real (sem usar sessão).
      * @return array
      */
-    private function getDynamicAlerts($lowStockCount, $todayExpenses, $todaySales)
+    private function getDynamicAlerts($lowStockCount, $todayOutflows, $todaySales)
     {
         $alerts = [];
         
@@ -286,10 +292,10 @@ class DashboardController extends Controller
         }
 
         // Alerta de despesas altas
-        if ($todayExpenses > 0 && $todaySales > 0 && $todayExpenses > ($todaySales * 0.8)) {
+        if ($todayOutflows > 0 && $todaySales > 0 && $todayOutflows > ($todaySales * 0.8)) {
             $alerts[] = [
                 'type' => 'error',
-                'message' => "🚨 ALERTA FINANCEIRO: Despesas (MT " . number_format($todayExpenses, 2) . ") representam mais de 80% das vendas (MT " . number_format($todaySales, 2) . ")!"
+                'message' => "🚨 ALERTA FINANCEIRO: Saídas (MT " . number_format($todayOutflows, 2) . ") representam mais de 80% das vendas (MT " . number_format($todaySales, 2) . ")!"
             ];
         }
 
@@ -308,7 +314,7 @@ class DashboardController extends Controller
      * Verifica situações críticas e define alertas na sessão (para carga da página).
      * (Mantive sua lógica original de sessão e UserActivity)
      */
-    private function checkAndSetAlerts($lowStockProducts, $todayExpenses, $todaySales)
+    private function checkAndSetAlerts($lowStockProducts, $todayOutflows, $todaySales)
     {
         // Alerta de estoque baixo
         if ($lowStockProducts->count() > 0) {
@@ -328,17 +334,17 @@ class DashboardController extends Controller
         }
 
         // Alerta de despesas altas
-        if ($todayExpenses > 0 && $todaySales > 0 && $todayExpenses > ($todaySales * 0.8)) {
+        if ($todayOutflows > 0 && $todaySales > 0 && $todayOutflows > ($todaySales * 0.8)) {
             session()->flash('dashboard_alert', [
                 'type' => 'error',
-                'message' => "🚨 ALERTA FINANCEIRO: As despesas de hoje (MT " . number_format($todayExpenses, 2, ',', '.') . ") representam mais de 80% das vendas (MT " . number_format($todaySales, 2, ',', '.') . ")!"
+                'message' => "🚨 ALERTA FINANCEIRO: As saídas de hoje (MT " . number_format($todayOutflows, 2, ',', '.') . ") representam mais de 80% das vendas (MT " . number_format($todaySales, 2, ',', '.') . ")!"
             ]);
             
             // Registrar atividade
             UserActivity::create([
                 'user_id' => auth()->id(),
                 'action' => 'high_expenses_alert',
-                'description' => "Alerta de despesas altas: MT " . number_format($todayExpenses, 2, ',', '.'),
+                'description' => "Alerta de saídas altas: MT " . number_format($todayOutflows, 2, ',', '.'),
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
@@ -371,22 +377,17 @@ class DashboardController extends Controller
         $startDate = Carbon::today()->subDays(6);
         $endDate = Carbon::today();
 
-        // 1. Obter vendas (entradas) agrupadas por dia
-        $inflows = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('SUM(total_amount) as total'))
-            ->whereDate('sale_date', '>=', $startDate)
-            ->whereDate('sale_date', '<=', $endDate)
-            ->groupBy(DB::raw('DATE(sale_date)'))
-            ->orderBy(DB::raw('DATE(sale_date)'), 'ASC')
-            ->pluck('total', 'date')
-            ->toArray();
-
-        // 2. Obter despesas (saídas) agrupadas por dia
-        $outflows = Expense::select(DB::raw('DATE(expense_date) as date'), DB::raw('SUM(amount) as total'))
-            ->whereDate('expense_date', '>=', $startDate)
-            ->whereDate('expense_date', '<=', $endDate)
-            ->groupBy(DB::raw('DATE(expense_date)'))
-            ->orderBy(DB::raw('DATE(expense_date)'), 'ASC')
-            ->pluck('total', 'date')
+        $transactions = FinancialTransaction::select(
+                DB::raw('DATE(transaction_date) as date'),
+                DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflows"),
+                DB::raw("SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) as outflows")
+            )
+            ->whereDate('transaction_date', '>=', $startDate)
+            ->whereDate('transaction_date', '<=', $endDate)
+            ->groupBy(DB::raw('DATE(transaction_date)'))
+            ->orderBy(DB::raw('DATE(transaction_date)'), 'ASC')
+            ->get()
+            ->keyBy('date')
             ->toArray();
 
         $labels = [];
@@ -399,8 +400,8 @@ class DashboardController extends Controller
             $dateString = $date->format('Y-m-d');
             $labels[] = $date->format('d/m'); // Formato "27/10"
 
-            $inflow = isset($inflows[$dateString]) ? (float) $inflows[$dateString] : 0.0;
-            $outflow = isset($outflows[$dateString]) ? (float) $outflows[$dateString] : 0.0;
+            $inflow = isset($transactions[$dateString]) ? (float) $transactions[$dateString]['inflows'] : 0.0;
+            $outflow = isset($transactions[$dateString]) ? (float) $transactions[$dateString]['outflows'] : 0.0;
             $netFlow = $inflow - $outflow;
 
             $inflowsData[] = $inflow;
@@ -414,5 +415,14 @@ class DashboardController extends Controller
             'outflowsData' => $outflowsData,
             'netFlowData' => $netFlowData,
         ];
+    }
+
+    private function sumTransactionsByDirection(string $dateFrom, string $dateTo, string $direction): float
+    {
+        return class_exists(FinancialTransaction::class)
+            ? (float) FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])
+                ->where('direction', $direction)
+                ->sum('amount')
+            : 0;
     }
 }
