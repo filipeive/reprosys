@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
+use App\Models\Debt;
+use App\Models\DebtItem;
 use App\Models\Product;
 use App\Models\SaleItem;
 use App\Models\StockMovement;
 use App\Services\DiscountService;
+use App\Services\FinancialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,10 +18,12 @@ use Carbon\Carbon;
 class SaleController extends Controller
 {
     protected $discountService;
+    protected $financialService;
 
-    public function __construct(DiscountService $discountService)
+    public function __construct(DiscountService $discountService, FinancialService $financialService)
     {
         $this->discountService = $discountService;
+        $this->financialService = $financialService;
     }
 
     public function index(Request $request)
@@ -100,6 +105,17 @@ class SaleController extends Controller
 
         try {
             $items = json_decode($request->items, true);
+
+            $customerName = trim((string) ($validated['customer_name'] ?? ''));
+
+            if (
+                $validated['payment_method'] === 'credit' &&
+                ($customerName === '' || strcasecmp($customerName, 'Cliente Avulso') === 0)
+            ) {
+                return redirect()->back()
+                    ->with('error', 'Informe o nome real do cliente para registrar uma venda a crédito.')
+                    ->withInput();
+            }
 
             if (!$items || !is_array($items) || empty($items)) {
                 return redirect()->back()
@@ -250,6 +266,12 @@ class SaleController extends Controller
                     'discount_percentage' => $subtotal > 0 ? ($totalDiscountAmount / $subtotal) * 100 : null,
                 ]);
 
+                if ($validated['payment_method'] === 'credit') {
+                    $this->createDebtFromCreditSale($sale);
+                }
+
+                $this->financialService->syncSaleTransaction($sale->fresh());
+
                 // Log detalhado
                 if ($totalDiscountAmount > 0) {
                     Log::info("Venda #{$sale->id} - Descontos aplicados", [
@@ -392,6 +414,7 @@ class SaleController extends Controller
 
         try {
             $sale->update($validated);
+            $this->financialService->syncSaleTransaction($sale->fresh());
 
             return redirect()->route('sales.show', $sale)
                 ->with('success', 'Venda atualizada com sucesso.');
@@ -417,6 +440,8 @@ class SaleController extends Controller
                 
                 // Deletar itens da venda
                 $sale->items()->delete();
+
+                $this->financialService->removeTransactionsForReference(Sale::class, $sale->id);
                 
                 // Deletar a venda
                 $sale->delete();
@@ -617,6 +642,38 @@ class SaleController extends Controller
     {
         $sale->load(['user', 'items.product.category']);
         return view('sales.print', compact('sale'));
+    }
+
+    private function createDebtFromCreditSale(Sale $sale): Debt
+    {
+        $saleDate = $sale->sale_date ? Carbon::parse($sale->sale_date) : now();
+
+        $debt = Debt::create([
+            'debt_type' => 'product',
+            'user_id' => $sale->user_id,
+            'customer_name' => $sale->customer_name,
+            'customer_phone' => $sale->customer_phone,
+            'original_amount' => $sale->total_amount,
+            'remaining_amount' => $sale->total_amount,
+            'debt_date' => $saleDate->format('Y-m-d'),
+            'due_date' => $saleDate->copy()->addDays(30)->format('Y-m-d'),
+            'status' => 'active',
+            'description' => "Venda a crédito #{$sale->id}",
+            'notes' => $sale->notes,
+            'sale_id' => $sale->id,
+        ]);
+
+        foreach ($sale->items as $item) {
+            DebtItem::create([
+                'debt_id' => $debt->id,
+                'product_id' => $item->product_id,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'total_price' => $item->total_price,
+            ]);
+        }
+
+        return $debt;
     }
 
     public function searchProducts(Request $request)

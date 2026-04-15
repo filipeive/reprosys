@@ -1477,7 +1477,7 @@
                 </div>
             @endif
 
-            @if (userCanAny(['manage_debts', 'view_expenses', 'view_reports']))
+            @if (userCanAny(['manage_debts', 'view_expenses', 'view_reports', 'view_finances']))
                 <div class="nav-section">
                     <div class="nav-section-title">Gestão Financeira</div>
                     <ul class="nav-list">
@@ -1514,6 +1514,23 @@
                                         <span class="nav-badge badge-primary">Editar</span>
                                     @elseif(userCan('create_expenses'))
                                         <span class="nav-badge badge-secondary">Criar</span>
+                                    @else
+                                        <span class="nav-badge badge-secondary">Ver</span>
+                                    @endif
+                                </a>
+                            </li>
+                        @endif
+
+                        @if (userCan('view_finances'))
+                            <li class="nav-item">
+                                <a href="{{ route('finances.index') }}"
+                                    class="nav-link {{ request()->routeIs('finances.*') ? 'active' : '' }}">
+                                    <span class="nav-icon">
+                                        <i class="fas fa-wallet"></i>
+                                    </span>
+                                    <span class="nav-text">Finanças</span>
+                                    @if (userCan('manage_finances'))
+                                        <span class="nav-badge badge-primary">Gerir</span>
                                     @else
                                         <span class="nav-badge badge-secondary">Ver</span>
                                     @endif

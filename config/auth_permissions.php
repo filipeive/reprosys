@@ -44,6 +44,8 @@ return [
             'create_expenses',
             'edit_expenses',
             'delete_expenses',
+            'view_finances',
+            'manage_finances',
             'manage_stock',
             'view_stock_movements',
             'create_stock_movements',
@@ -75,6 +77,8 @@ return [
             'view_expenses',
             'create_expenses',
             'edit_expenses',
+            'view_finances',
+            'manage_finances',
             'manage_stock',
             'view_stock_movements',
             'create_stock_movements',
@@ -96,6 +100,7 @@ return [
             'manage_payments',
             'view_expenses',
             'create_expenses',
+            'view_finances',
             'view_stock_movements',
             'view_basic_reports',
         ],
@@ -111,6 +116,7 @@ return [
         'sales' => ['icon' => 'fa-shopping-cart', 'permission' => 'view_sales'],
         'debts' => ['icon' => 'fa-credit-card', 'permission' => null],
         'expenses' => ['icon' => 'fa-receipt', 'permission' => null],
+        'finances' => ['icon' => 'fa-wallet', 'permission' => null],
         'stock' => ['icon' => 'fa-exchange-alt', 'permission' => null],
         'reports' => ['icon' => 'fa-chart-bar', 'permission' => null],
         'users' => ['icon' => 'fa-users', 'permission' => 'manage_users', 'admin_only' => true],
@@ -118,5 +124,4 @@ return [
         'settings' => ['icon' => 'fa-cog', 'permission' => 'manage_settings', 'admin_only' => true],
     ]
 ];
-
 

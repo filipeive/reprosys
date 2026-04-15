@@ -22,6 +22,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\FinanceController;
 
 
 
@@ -299,6 +300,17 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::get('/search/customers', [DebtController::class, 'searchCustomers'])->name('search-customers');
         Route::post('/update-overdue-status', [DebtController::class, 'updateOverdueStatus'])->name('update-overdue-status');
         Route::post('/{debt}/create-manual-sale', [DebtController::class, 'createManualSale'])->name('create-manual-sale');
+    });
+
+    // ===== FINANÇAS =====
+    Route::prefix('finances')->name('finances.')->group(function () {
+        Route::middleware('permissions:view_finances')->group(function () {
+            Route::get('/', [FinanceController::class, 'index'])->name('index');
+        });
+
+        Route::middleware('permissions:manage_finances')->group(function () {
+            Route::post('/transactions', [FinanceController::class, 'storeTransaction'])->name('transactions.store');
+        });
     });
 
     // ===== CATEGORIAS DE DESPESAS =====

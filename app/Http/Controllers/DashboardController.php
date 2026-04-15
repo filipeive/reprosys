@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Sale;
 use App\Models\Product;
 use App\Models\Expense;
+use App\Models\Debt;
+use App\Models\FinancialAccount;
+use App\Models\FinancialTransaction;
 use App\Models\UserActivity;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -56,6 +59,17 @@ class DashboardController extends Controller
         $monthActiveCustomers = Sale::where('sale_date', '>=', $monthStart)
                                     ->distinct('customer_name')
                                     ->count('customer_name');
+        $currentCapital = class_exists(FinancialAccount::class)
+            ? (float) FinancialAccount::where('is_active', true)->get()->sum(fn ($account) => $account->current_balance)
+            : 0;
+        $accountsReceivable = class_exists(Debt::class)
+            ? (float) Debt::where('status', 'active')->sum('remaining_amount')
+            : 0;
+        $monthNetCashFlow = class_exists(FinancialTransaction::class)
+            ? (float) FinancialTransaction::whereBetween('transaction_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+                ->selectRaw("SUM(CASE WHEN direction = 'in' THEN amount ELSE -amount END) as net")
+                ->value('net')
+            : 0;
 
         // --- CÁLCULOS DO MÊS ANTERIOR (PARA COMPARAÇÃO) ---
         $prevMonthStart = Carbon::now()->subMonth()->startOfMonth();
@@ -117,6 +131,7 @@ class DashboardController extends Controller
             'monthActiveCustomers', 'salesChartData', 'cashFlowChartData',
             'monthCostOfGoods', 'monthGrossProfit', 'monthRealProfit', 'monthRoi',
             'monthGrossMargin', 'monthNetMargin',
+            'currentCapital', 'accountsReceivable', 'monthNetCashFlow',
             
             // Dados de Comparação (Hoje) - Agora definidos
             'salesChangePercent', 'salesChangeDirection', 'salesChangeIcon',

@@ -4,17 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\FinancialAccount;
+use App\Services\FinancialService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class ExpenseController extends Controller
 {
+    public function __construct(private FinancialService $financialService)
+    {
+    }
+
     /**
      * Exibir lista de despesas com filtros
      */
     public function index(Request $request)
     {
-        $query = Expense::with(['user', 'category']);
+        $query = Expense::with(['user', 'category', 'financialAccount']);
 
         // Se não for admin nem gerente, vê apenas as suas próprias despesas
         if (!auth()->user()->isAdmin() && !auth()->user()->hasPermission('view_all_expenses')) {
@@ -40,6 +46,7 @@ class ExpenseController extends Controller
 
         // Carregar categorias para o offcanvas
         $categories = ExpenseCategory::all();
+        $financialAccounts = FinancialAccount::where('is_active', true)->orderBy('sort_order')->get();
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -57,7 +64,7 @@ class ExpenseController extends Controller
         }
 
         return view('expenses.index', compact(
-            'expenses', 'totalExpenses', 'averageExpense', 'highestExpense', 'lowestExpense', 'categories'
+            'expenses', 'totalExpenses', 'averageExpense', 'highestExpense', 'lowestExpense', 'categories', 'financialAccounts'
         ));
     }
 
@@ -77,6 +84,7 @@ class ExpenseController extends Controller
     {
         $validated = $request->validate([
             'expense_category_id' => 'required|exists:expense_categories,id',
+            'financial_account_id' => 'required|exists:financial_accounts,id',
             'description' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0.01',
             'expense_date' => 'required|date',
@@ -87,6 +95,7 @@ class ExpenseController extends Controller
         $expense = Expense::create([
             'user_id' => auth()->id(),
             'expense_category_id' => $validated['expense_category_id'],
+            'financial_account_id' => $validated['financial_account_id'],
             'description' => $validated['description'],
             'amount' => $validated['amount'],
             'expense_date' => $validated['expense_date'],
@@ -94,11 +103,13 @@ class ExpenseController extends Controller
             'notes' => $validated['notes'],
         ]);
 
+        $this->financialService->syncExpenseTransaction($expense);
+
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Despesa registrada com sucesso!',
-                'data' => $expense->load(['user', 'category'])
+                'data' => $expense->load(['user', 'category', 'financialAccount'])
             ]);
         }
 
@@ -110,6 +121,7 @@ class ExpenseController extends Controller
      */
     public function show(Expense $expense)
     {
+        $expense->load(['category', 'user', 'financialAccount']);
         return view('expenses.show', compact('expense'));
     }
 
@@ -121,7 +133,8 @@ class ExpenseController extends Controller
         //$this->authorize('update-expense', $expense);
 
         $categories = ExpenseCategory::all();
-        return view('expenses.edit', compact('expense', 'categories'));
+        $financialAccounts = FinancialAccount::where('is_active', true)->orderBy('sort_order')->get();
+        return view('expenses.edit', compact('expense', 'categories', 'financialAccounts'));
     }
 
     /**
@@ -134,6 +147,7 @@ class ExpenseController extends Controller
 
         $validated = $request->validate([
             'expense_category_id' => 'required|exists:expense_categories,id',
+            'financial_account_id' => 'required|exists:financial_accounts,id',
             'description' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0.01',
             'expense_date' => 'required|date',
@@ -142,12 +156,13 @@ class ExpenseController extends Controller
         ]);
 
         $expense->update($validated);
+        $this->financialService->syncExpenseTransaction($expense->fresh());
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Despesa atualizada com sucesso!',
-                'data' => $expense->fresh()->load(['user', 'category'])
+                'data' => $expense->fresh()->load(['user', 'category', 'financialAccount'])
             ]);
         }
 
@@ -162,6 +177,7 @@ class ExpenseController extends Controller
         //$this->authorize('delete', $expense);
 
         // Opcional: verificar se pode ser excluída
+        $this->financialService->removeTransactionsForReference(Expense::class, $expense->id);
         $expense->delete();
 
         if ($request->wantsJson() || $request->ajax()) {

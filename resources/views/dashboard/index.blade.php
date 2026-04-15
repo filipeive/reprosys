@@ -588,6 +588,32 @@
         </div>
     </div>
 
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-4">
+            <div class="dashboard-card p-3 text-center">
+                <i class="fas fa-wallet text-primary mb-2" style="font-size: 1.5rem;"></i>
+                <h5 class="text-primary mb-1">MT {{ number_format($currentCapital, 2, ',', '.') }}</h5>
+                <small class="text-muted">Capital Atual</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="dashboard-card p-3 text-center">
+                <i class="fas fa-file-invoice-dollar text-warning mb-2" style="font-size: 1.5rem;"></i>
+                <h5 class="text-warning mb-1">MT {{ number_format($accountsReceivable, 2, ',', '.') }}</h5>
+                <small class="text-muted">Contas a Receber</small>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="dashboard-card p-3 text-center">
+                <i class="fas fa-exchange-alt {{ $monthNetCashFlow >= 0 ? 'text-success' : 'text-danger' }} mb-2" style="font-size: 1.5rem;"></i>
+                <h5 class="{{ $monthNetCashFlow >= 0 ? 'text-success' : 'text-danger' }} mb-1">
+                    MT {{ number_format($monthNetCashFlow, 2, ',', '.') }}
+                </h5>
+                <small class="text-muted">Fluxo Líquido do Mês</small>
+            </div>
+        </div>
+    </div>
+
     <div class="dashboard-card mb-3">
         <div class="card-header bg-transparent border-0 py-3">
             <h6 class="mb-0">

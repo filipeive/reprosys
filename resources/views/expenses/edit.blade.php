@@ -48,6 +48,28 @@
                             
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
+                                    <i class="fas fa-wallet text-secondary me-1"></i>
+                                    Conta de Saída *
+                                </label>
+                                <select class="form-select @error('financial_account_id') is-invalid @enderror"
+                                        name="financial_account_id" required>
+                                    <option value="">Selecione a conta</option>
+                                    @foreach($financialAccounts as $account)
+                                        <option value="{{ $account->id }}"
+                                                {{ old('financial_account_id', $expense->financial_account_id) == $account->id ? 'selected' : '' }}>
+                                            {{ $account->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('financial_account_id')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
                                     <i class="fas fa-calendar text-success me-1"></i>
                                     Data da Despesa *
                                 </label>

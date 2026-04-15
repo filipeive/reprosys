@@ -36,6 +36,8 @@ ssh -i "$KEY" "$SERVER" "cd $PROJECT_DIR && \
     git pull --ff-only origin $BRANCH && \
     echo '📦 Instalando dependências...' && \
     composer install --optimize-autoloader --no-dev --no-interaction && \
+    echo '🗃️ Executando migrations...' && \
+    php artisan migrate --force && \
     echo '🧹 Limpando caches antigos...' && \
     php artisan optimize:clear && \
     echo '⚡ Regerando caches...' && \

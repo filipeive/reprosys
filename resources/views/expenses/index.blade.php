@@ -100,6 +100,18 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">
+                                    <i class="fas fa-wallet text-muted me-1"></i> Conta de Saída *
+                                </label>
+                                <select class="form-select" name="financial_account_id" required>
+                                    <option value="">Selecione a conta</option>
+                                    @foreach ($financialAccounts as $account)
+                                        <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
                                     <i class="fas fa-dollar-sign text-muted me-1"></i> Valor (MT) *
                                 </label>
                                 <div class="input-group">
@@ -300,6 +312,7 @@
                             <th>Data</th>
                             <th>Categoria</th>
                             <th>Descrição</th>
+                            <th>Conta</th>
                             <th>Valor</th>
                             <th>Usuário</th>
                             <th class="text-center">Ações</th>
@@ -311,11 +324,13 @@
                                 data-description="{{ $expense->description }}" data-amount="{{ $expense->amount }}"
                                 data-date="{{ $expense->expense_date->format('Y-m-d') }}"
                                 data-receipt="{{ $expense->receipt_number }}" data-notes="{{ $expense->notes }}"
-                                data-user="{{ $expense->user?->name }}">
+                                data-user="{{ $expense->user?->name }}"
+                                data-account="{{ $expense->financialAccount?->name }}">
                                 <td><strong class="text-danger">#{{ $expense->id }}</strong></td>
                                 <td><strong>{{ $expense->expense_date->format('d/m/Y') }}</strong></td>
                                 <td><span class="badge bg-light text-dark">{{ $expense->category?->name ?? 'N/A' }}</span></td>
                                 <td>{{ Str::limit($expense->description, 50) }}</td>
+                                <td><span class="badge bg-secondary-subtle text-dark">{{ $expense->financialAccount?->name ?? 'N/A' }}</span></td>
                                 <td><strong class="text-danger">{{ number_format($expense->amount, 2, ',', '.') }} MT</strong></td>
                                 <td><small>{{ $expense->user?->name ?? 'N/A' }}</small></td>
                                 <td class="text-center">

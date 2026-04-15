@@ -10,12 +10,17 @@ use App\Models\SaleItem;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\FinancialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DebtController extends Controller
 {
+    public function __construct(private FinancialService $financialService)
+    {
+    }
+
     /**
      * Lista de dívidas
      */
@@ -254,6 +259,8 @@ class DebtController extends Controller
             $this->processInitialPayment($debt, $request->initial_payment, $request->debt_date);
         }
 
+        $this->financialService->syncMoneyDebtDisbursement($debt);
+
         return $debt;
     }
 
@@ -264,7 +271,7 @@ class DebtController extends Controller
     {
         $amount = min($amount, $debt->original_amount);
 
-        DebtPayment::create([
+        $payment = DebtPayment::create([
             'debt_id' => $debt->id,
             'user_id' => auth()->id(),
             'amount' => $amount,
@@ -272,6 +279,8 @@ class DebtController extends Controller
             'payment_date' => $date,
             'notes' => 'Pagamento inicial'
         ]);
+
+        $this->financialService->syncDebtPaymentTransaction($payment);
 
         $debt->remaining_amount -= $amount;
         if ($debt->remaining_amount <= 0) {
@@ -319,7 +328,7 @@ class DebtController extends Controller
         try {
             DB::beginTransaction();
 
-            DebtPayment::create([
+            $payment = DebtPayment::create([
                 'debt_id' => $debt->id,
                 'user_id' => auth()->id(),
                 'amount' => $request->amount,
@@ -328,13 +337,15 @@ class DebtController extends Controller
                 'notes' => $request->notes
             ]);
 
+            $this->financialService->syncDebtPaymentTransaction($payment);
+
             $debt->remaining_amount -= $request->amount;
             
             if ($debt->remaining_amount <= 0.01) {
                 $debt->status = 'paid';
                 $debt->remaining_amount = 0;
                 
-                if ($debt->isProductDebt() && $request->has('create_sale')) {
+                if ($debt->isProductDebt() && !$debt->sale_id && $request->has('create_sale')) {
                     $this->createSaleFromDebt($debt);
                 }
             }
