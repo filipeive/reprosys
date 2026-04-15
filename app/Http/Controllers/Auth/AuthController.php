@@ -20,4 +20,22 @@ class AuthController extends Controller
 
         return redirect('/login')->with('status', 'Você saiu do sistema.');
     }
+
+    /**
+     * Login automático para conta demo.
+     */
+    public function demoLogin(Request $request)
+    {
+        $demoUser = \App\Models\User::where('email', 'demo@reprosys.com')->first();
+        
+        if (!$demoUser) {
+            return redirect()->back()->with('error', 'Conta demo não encontrada.');
+        }
+
+        Auth::login($demoUser);
+        $request->session()->regenerate();
+        $demoUser->recordLogin();
+
+        return redirect()->intended('/dashboard')->with('success', 'Bem-vindo ao modo demonstração!');
+    }
 }

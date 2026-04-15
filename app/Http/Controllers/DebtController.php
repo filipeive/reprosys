@@ -129,7 +129,7 @@ class DebtController extends Controller
             $rules['customer_document'] = 'nullable|string|max:20';
             $rules['products'] = 'required|string';
         } else {
-            $rules['employee_id'] = 'required|exists:users,id';
+            $rules['employee_id'] = 'nullable|exists:users,id';
             $rules['employee_name'] = 'required|string|max:100';
             $rules['employee_phone'] = 'nullable|string|max:20';
             $rules['employee_document'] = 'nullable|string|max:20';
@@ -232,12 +232,12 @@ class DebtController extends Controller
      */
     private function createMoneyDebt(Request $request)
     {
-        $employee = User::findOrFail($request->employee_id);
+        $employeeId = $request->filled('employee_id') ? $request->employee_id : null;
 
         $debt = Debt::create([
             'debt_type' => 'money',
             'user_id' => auth()->id(),
-            'employee_id' => $employee->id,
+            'employee_id' => $employeeId,
             'employee_name' => $request->employee_name,
             'employee_phone' => $request->employee_phone,
             'employee_document' => $request->employee_document,

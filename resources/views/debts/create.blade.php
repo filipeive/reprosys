@@ -65,9 +65,15 @@
                             <!-- Dívida de Dinheiro -->
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label fw-semibold">Selecionar Funcionário *</label>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label class="form-label fw-semibold">Selecionar Funcionário</label>
+                                        <div class="form-check form-switch small">
+                                            <input class="form-check-input" type="checkbox" id="is-external" name="is_external">
+                                            <label class="form-check-label" for="is-external">Pessoa Externa</label>
+                                        </div>
+                                    </div>
                                     <select class="form-select @error('employee_id') is-invalid @enderror"
-                                        name="employee_id" id="employee-select" required>
+                                        name="employee_id" id="employee-select">
                                         <option value="">Escolha um funcionário...</option>
                                         @foreach ($employees as $employee)
                                             <option value="{{ $employee->id }}" data-name="{{ $employee->name }}"
@@ -289,11 +295,46 @@
     <script>
         let productsCart = [];
 
+        // Controle de devedor externo
+        document.getElementById('is-external')?.addEventListener('change', function() {
+            const employeeSelect = document.getElementById('employee-select');
+            const employeeName = document.getElementById('employee-name');
+            
+            if (this.checked) {
+                employeeSelect.value = '';
+                employeeSelect.disabled = true;
+                employeeName.value = '';
+                employeeName.readOnly = false;
+                employeeName.placeholder = 'Digite o nome da pessoa externa...';
+            } else {
+                employeeSelect.disabled = false;
+                employeeName.readOnly = true;
+                employeeName.placeholder = '';
+            }
+        });
+
         // Auto-preencher nome do funcionário
         document.getElementById('employee-select')?.addEventListener('change', function() {
             const selected = this.options[this.selectedIndex];
-            document.getElementById('employee-name').value = selected.dataset.name || '';
+            const employeeName = document.getElementById('employee-name');
+            employeeName.value = selected.dataset.name || '';
         });
+
+        // Initial state
+        if (document.getElementById('is-external')?.checked) {
+            const employeeSelect = document.getElementById('employee-select');
+            if (employeeSelect) employeeSelect.disabled = true;
+            const employeeName = document.getElementById('employee-name');
+            if (employeeName) {
+                employeeName.readOnly = false;
+                employeeName.placeholder = 'Digite o nome da pessoa externa...';
+            }
+        } else {
+            const employeeName = document.getElementById('employee-name');
+            if (employeeName && document.getElementById('employee-select')) {
+                employeeName.readOnly = true;
+            }
+        }
 
         // Adicionar produto ao carrinho
         function addProduct() {

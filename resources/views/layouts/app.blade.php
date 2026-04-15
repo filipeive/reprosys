@@ -16,6 +16,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
         rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
     <style>
         :root {
@@ -1624,9 +1625,9 @@
                 <div class="user-info">
                     <div class="user-name">{{ explode(' ', auth()->user()->name)[0] }}</div>
                     <div class="user-role">
-                        @if (auth()->user()->role === 'admin')
+                        @if (auth()->user()->isAdmin())
                             Administrador
-                        @elseif(auth()->user()->role === 'manager')
+                        @elseif(auth()->user()->isManager())
                             Gerente
                         @else
                             Funcionário
@@ -1741,9 +1742,9 @@
                         <li class="dropdown-header">
                             <strong>{{ explode(' ', auth()->user()->name)[0] }}</strong>
                             <small class="d-block text-muted">
-                                @if (auth()->user()->role === 'admin')
+                                @if (auth()->user()->isAdmin())
                                     Administrador do Sistema
-                                @elseif(auth()->user()->role === 'manager')
+                                @elseif(auth()->user()->isManager())
                                     Gerente
                                 @else
                                     Funcionário

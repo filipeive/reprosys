@@ -8,7 +8,7 @@
     <!-- SEO -->
     <meta name="description" content="A solução definitiva para gestão de reprografia. Controle stock, produção e vendas em tempo real com o ReproSys Pro.">
     
-    <!-- Fonts & CSS -->
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -302,7 +302,7 @@
                         <a href="{{ route('login') }}" class="btn btn-outline-glass btn-premium px-4">Entrar</a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ route('register') }}" class="btn btn-glow btn-premium px-4">Experimentar já</a>
+                        <button onclick="demoLogin()" class="btn btn-glow btn-premium px-4">Experimentar já</button>
                     </li>
                 </ul>
             </div>
@@ -325,9 +325,9 @@
                     </p>
                     <div class="d-flex gap-3 btn-group">
                         <a href="#features" class="btn btn-glow btn-premium">Explorar agora</a>
-                        <a href="{{ route('login') }}" class="btn btn-outline-glass btn-premium">
-                            <i class="fas fa-play me-2 fs-7"></i>Ver Demo
-                        </a>
+                        <button onclick="demoLogin()" class="btn btn-outline-glass btn-premium">
+                            <i class="fas fa-play me-2 fs-7"></i>Experimentar já
+                        </button>
                     </div>
                 </div>
                 <div class="col-lg-6 mt-5 mt-lg-0 hero-canvas" data-aos="zoom-in" data-aos-delay="200">
@@ -414,9 +414,8 @@
                             <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Gestão de Stock Base</li>
                             <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Registro de Vendas</li>
                             <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Relatórios Diários</li>
-                            <li class="mb-3 opacity-50"><i class="fas fa-times-circle me-2"></i> Suporte Prioritário</li>
                         </ul>
-                        <button class="btn btn-outline-glass w-100 btn-premium py-3">Começar agora</button>
+                        <button onclick="demoLogin()" class="btn btn-outline-glass w-100 btn-premium py-3">Começar agora</button>
                     </div>
                 </div>
                 <div class="col-lg-4" data-aos="fade-up">
@@ -434,7 +433,54 @@
                             <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> Multi-utilizadores</li>
                             <li class="mb-3"><i class="fas fa-check-circle text-accent me-2"></i> API de Integrações</li>
                         </ul>
-                        <button class="btn btn-glow w-100 btn-premium py-3">Escolher Pro</button>
+                        <button onclick="demoLogin()" class="btn btn-glow w-100 btn-premium py-3">Escolher Pro</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="py-5 mt-5">
+        <div class="container py-5">
+            <div class="row g-5 align-items-center">
+                <div class="col-lg-6" data-aos="fade-right">
+                    <h2 class="font-heading fs-1 mb-4">Pronto para <span class="text-primary">Evoluir?</span></h2>
+                    <p class="text-muted mb-5 fs-5">Entre em contacto agora mesmo para uma demonstração personalizada ou para adquirir a sua licença.</p>
+                    
+                    <div class="d-flex flex-column gap-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="feature-icon mb-0"><i class="fas fa-phone-alt"></i></div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">Call / WhatsApp</h6>
+                                <p class="text-muted mb-0">+258 847240296 / 862134230</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="feature-icon mb-0"><i class="fas fa-envelope"></i></div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">Eng. Filipe dos Santos</h6>
+                                <p class="text-muted mb-0">filipe.domingos@fdsmultiservices.com</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6" data-aos="fade-left">
+                    <div class="feature-card p-5">
+                        <h4 class="fw-bold mb-4 font-heading">Mantenha o Contacto</h4>
+                        <div class="d-flex flex-wrap gap-3">
+                            <a href="https://wa.me/258847240296" class="btn btn-outline-glass btn-premium flex-grow-1 py-3 text-start">
+                                <i class="fab fa-whatsapp me-2 text-success"></i> WhatsApp
+                            </a>
+                            <a href="https://web.facebook.com/filipe.domingos.31" class="btn btn-outline-glass btn-premium flex-grow-1 py-3 text-start">
+                                <i class="fab fa-facebook me-2 text-primary"></i> Facebook
+                            </a>
+                            <a href="https://www.linkedin.com/in/filipe-dos-santos-b2147311a/" class="btn btn-outline-glass btn-premium flex-grow-1 py-3 text-start">
+                                <i class="fab fa-linkedin me-2 text-info"></i> LinkedIn
+                            </a>
+                            <a href="https://github.com/filipeive" class="btn btn-outline-glass btn-premium flex-grow-1 py-3 text-start">
+                                <i class="fab fa-github me-2"></i> GitHub
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -447,17 +493,29 @@
                 <span class="text-primary font-heading">Repro</span>Sys<span class="text-secondary">.</span>
             </a>
             <div class="d-flex justify-content-center gap-3">
-                <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
-                <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://web.facebook.com/filipe.domingos.31" target="_blank" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://www.linkedin.com/in/filipe-dos-santos-b2147311a/" target="_blank" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://github.com/filipeive" target="_blank" class="social-link"><i class="fab fa-github"></i></a>
+                <a href="https://wa.me/258847240296" target="_blank" class="social-link"><i class="fab fa-whatsapp"></i></a>
+            </div>
+            <div class="mt-4 text-muted small">
+                <p class="mb-1"><i class="fas fa-phone me-2"></i> +258 847240296 / 862134230</p>
+                <p>&copy; 2025 FDS MULTISERVICES+. Todos os direitos reservados.</p>
             </div>
         </div>
-        <p class="text-muted small">&copy; 2025 FDS MULTISERVICES+. Todos os direitos reservados.</p>
     </footer>
+
+    <!-- Form para Login Demo -->
+    <form id="demo-login-form" action="{{ route('demo.login') }}" method="POST" style="display:none;">
+        @csrf
+    </form>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
     <script>
+        function demoLogin() {
+            document.getElementById('demo-login-form').submit();
+        }
         AOS.init({
             duration: 1000,
             once: true,

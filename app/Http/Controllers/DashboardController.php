@@ -42,6 +42,17 @@ class DashboardController extends Controller
         $monthSales = Sale::where('sale_date', '>=', $monthStart)->sum('total_amount');
         $monthExpenses = Expense::where('expense_date', '>=', $monthStart)->sum('amount');
         $monthProfit = $monthSales - $monthExpenses;
+        $monthCostOfGoods = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->join('products', 'sale_items.product_id', '=', 'products.id')
+            ->where('sales.sale_date', '>=', $monthStart)
+            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+        $monthGrossProfit = $monthSales - $monthCostOfGoods;
+        $monthRealProfit = $monthGrossProfit - $monthExpenses;
+        $monthInvestment = $monthCostOfGoods + $monthExpenses;
+        $monthRoi = $monthInvestment > 0 ? ($monthRealProfit / $monthInvestment) * 100 : 0;
+        $monthGrossMargin = $monthSales > 0 ? ($monthGrossProfit / $monthSales) * 100 : 0;
+        $monthNetMargin = $monthSales > 0 ? ($monthRealProfit / $monthSales) * 100 : 0;
         $monthActiveCustomers = Sale::where('sale_date', '>=', $monthStart)
                                     ->distinct('customer_name')
                                     ->count('customer_name');
@@ -52,9 +63,15 @@ class DashboardController extends Controller
         $prevMonthSales = Sale::whereBetween('sale_date', [$prevMonthStart, $prevMonthEnd])->sum('total_amount');
         $prevMonthExpenses = Expense::whereBetween('expense_date', [$prevMonthStart, $prevMonthEnd])->sum('amount');
         $prevMonthProfit = $prevMonthSales - $prevMonthExpenses;
+        $prevMonthCostOfGoods = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->join('products', 'sale_items.product_id', '=', 'products.id')
+            ->whereBetween('sales.sale_date', [$prevMonthStart, $prevMonthEnd])
+            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+        $prevMonthRealProfit = ($prevMonthSales - $prevMonthCostOfGoods) - $prevMonthExpenses;
 
         $monthSalesChange = $this->calculatePercentageChange($monthSales, $prevMonthSales);
-        $monthProfitChange = $this->calculatePercentageChange($monthProfit, $prevMonthProfit);
+        $monthProfitChange = $this->calculatePercentageChange($monthRealProfit, $prevMonthRealProfit);
 
         // --- DADOS DO GRÁFICO (ÚLTIMOS 7 DIAS) ---
         $salesChartData = $this->getSalesChartData();
@@ -98,6 +115,8 @@ class DashboardController extends Controller
             'todaySales', 'todayExpenses', 'lowStockProducts', 'recentSales', 
             'monthSales', 'monthExpenses', 'monthProfit', 'todayProductsSold',
             'monthActiveCustomers', 'salesChartData', 'cashFlowChartData',
+            'monthCostOfGoods', 'monthGrossProfit', 'monthRealProfit', 'monthRoi',
+            'monthGrossMargin', 'monthNetMargin',
             
             // Dados de Comparação (Hoje) - Agora definidos
             'salesChangePercent', 'salesChangeDirection', 'salesChangeIcon',
@@ -106,7 +125,7 @@ class DashboardController extends Controller
             // Dados de Comparação (Mês) - Agora definidos
             'monthSalesChangePercent', 'monthSalesChangeDirection', 'monthSalesChangeIcon',
             'monthProfitChangePercent', 'monthProfitChangeDirection', 'monthProfitChangeIcon',
-            'prevMonthSales', 'prevMonthExpenses', 'prevMonthProfit'
+            'prevMonthSales', 'prevMonthExpenses', 'prevMonthProfit', 'prevMonthRealProfit'
         ));
     }
 

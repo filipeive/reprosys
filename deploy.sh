@@ -5,6 +5,12 @@ SERVER="ubuntu@146.235.224.99"
 KEY="/home/fdev-ms/.ssh/oracle-2025"
 PROJECT_DIR="/var/www/html/reprosys"
 
+
+# Deploy local
+echo "Iniciando o deploy local"
+git push origin main # isso depois de comitar todas as mudancas
+
+# Deploy produção
 echo "🚀 Iniciando deploy para produção..."
 
 ssh -i $KEY $SERVER "cd $PROJECT_DIR && \

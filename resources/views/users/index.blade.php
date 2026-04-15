@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processando...';
             this.disabled = true;
             
-            fetch(`/users/${userId}/toggle-status`, {
+            fetch(`{{ url('users') }}/${userId}/toggle-status`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Gerando...';
             this.disabled = true;
             
-            fetch(`/users/${userId}/reset-password`, {
+            fetch(`{{ url('users') }}/${userId}/reset-password`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invalidando...';
             this.disabled = true;
             
-            fetch(`/users/${userId}/invalidate-temporary-passwords`, {
+            fetch(`{{ url('users') }}/${userId}/invalidate-temporary-passwords`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const userName = this.dataset.userName;
             
             document.getElementById('deleteUserName').textContent = userName;
-            document.getElementById('deleteUserForm').action = `/users/${userId}`;
+            document.getElementById('deleteUserForm').action = `{{ url('users') }}/${userId}`;
             
             const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
             modal.show();

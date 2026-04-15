@@ -558,8 +558,8 @@
         <div class="col-6 col-md-3">
             <div class="dashboard-card p-3 text-center">
                 <i class="fas fa-coins text-success mb-2" style="font-size: 1.5rem;"></i>
-                <h5 class="text-success mb-1">MT {{ number_format($monthProfit, 2, ',', '.') }}</h5>
-                <small class="text-muted">Lucro do Mês</small>
+                <h5 class="text-success mb-1">MT {{ number_format($monthRealProfit, 2, ',', '.') }}</h5>
+                <small class="text-muted">Lucro Real do Mês</small>
             </div>
         </div>
         
@@ -582,11 +582,53 @@
         <div class="col-6 col-md-3">
             <div class="dashboard-card p-3 text-center">
                 <i class="fas fa-percentage text-warning mb-2" style="font-size: 1.5rem;"></i>
-                @php
-                    $margin = $monthSales > 0 ? (($monthProfit / $monthSales) * 100) : 0;
-                @endphp
-                <h5 class="text-warning mb-1">{{ number_format($margin, 1) }}%</h5>
-                <small class="text-muted">Margem</small>
+                <h5 class="text-warning mb-1">{{ number_format($monthNetMargin, 1) }}%</h5>
+                <small class="text-muted">Margem Líquida</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card mb-3">
+        <div class="card-header bg-transparent border-0 py-3">
+            <h6 class="mb-0">
+                <i class="fas fa-heartbeat text-danger me-2"></i>
+                Saúde do Negócio
+            </h6>
+        </div>
+        <div class="card-body pt-0">
+            <div class="row g-2">
+                <div class="col-6 col-lg-3">
+                    <div class="dashboard-card p-3 h-100" style="background: rgba(59, 130, 246, 0.06);">
+                        <small class="text-muted d-block mb-1">Lucro Bruto</small>
+                        <h5 class="text-primary mb-1">MT {{ number_format($monthGrossProfit, 2, ',', '.') }}</h5>
+                        <small class="text-muted">{{ number_format($monthGrossMargin, 1) }}% das vendas do mês</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="dashboard-card p-3 h-100" style="background: rgba(16, 185, 129, 0.06);">
+                        <small class="text-muted d-block mb-1">Lucro Real</small>
+                        <h5 class="mb-1 {{ $monthRealProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                            MT {{ number_format($monthRealProfit, 2, ',', '.') }}
+                        </h5>
+                        <small class="text-muted">Após custo dos produtos e despesas</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="dashboard-card p-3 h-100" style="background: rgba(239, 68, 68, 0.06);">
+                        <small class="text-muted d-block mb-1">Despesas</small>
+                        <h5 class="text-danger mb-1">MT {{ number_format($monthExpenses, 2, ',', '.') }}</h5>
+                        <small class="text-muted">Custos operacionais do mês</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="dashboard-card p-3 h-100" style="background: rgba(245, 158, 11, 0.06);">
+                        <small class="text-muted d-block mb-1">ROI</small>
+                        <h5 class="mb-1 {{ $monthRoi >= 0 ? 'text-warning' : 'text-danger' }}">
+                            {{ number_format($monthRoi, 1) }}%
+                        </h5>
+                        <small class="text-muted">Retorno sobre investimento do mês</small>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -729,8 +771,8 @@
                     <div class="p-3 rounded" style="background: rgba(91, 155, 213, 0.1);">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted d-block">Lucro Líquido</small>
-                                <h6 class="text-primary mb-0">MT {{ number_format($monthProfit, 2, ',', '.') }}</h6>
+                                <small class="text-muted d-block">Lucro Real</small>
+                                <h6 class="text-primary mb-0">MT {{ number_format($monthRealProfit, 2, ',', '.') }}</h6>
                             </div>
                             <span class="badge {{ $monthProfitChangePercent > 0 ? 'bg-success' : 'bg-danger' }}">
                                 {{ $monthProfitChangePercent > 0 ? '+' : '' }}{{ $monthProfitChangePercent }}%

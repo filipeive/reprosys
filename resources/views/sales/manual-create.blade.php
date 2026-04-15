@@ -19,7 +19,7 @@
 
 @section('content')
     <div class="modern-sales-container">
-        <form action="{{ route('sales.store') }}" method="POST" id="manual-sale-form" class="modern-form">
+        <form action="{{ route('sales.store') }}" method="POST" id="manual-sale-form" class="modern-form" novalidate>
             @csrf
             <!-- COMPACT FIELDS - ULTRA CLEAN -->
             <div class="row g-2 mb-4">
@@ -253,7 +253,9 @@
                         <tbody>
                             @foreach ($products as $product)
                                 <tr class="product-row" data-product-id="{{ $product->id }}"
-                                    data-product-name="{{ strtolower($product->name) }}">
+                                    data-product-name="{{ strtolower($product->name) }}"
+                                    data-product-type="{{ $product->type }}"
+                                    data-stock-quantity="{{ $product->stock_quantity ?? 0 }}">
                                     <td class="checkbox-cell">
                                         <div class="table-checkbox">
                                             <input type="checkbox" value="1" class="checkbox-input select-product"
@@ -2144,16 +2146,26 @@
             // Form validation and submission
             document.getElementById('manual-sale-form').addEventListener('submit', function(e) {
                 let items = [];
-                let hasError = false;
 
                 // Collect items
                 document.querySelectorAll('.product-row').forEach(function(row) {
                     const productId = row.getAttribute('data-product-id');
                     const isSelected = row.querySelector('.select-product').checked;
                     const unitPrice = parseFloat(row.querySelector('.unit-price').value);
-                    const quantity = parseInt(row.querySelector('.quantity').value);
+                    const quantity = parseInt(row.querySelector('.quantity').value) || 0;
+                    const productType = row.getAttribute('data-product-type');
+                    const stockQuantity = parseInt(row.getAttribute('data-stock-quantity')) || 0;
+                    const productName = row.querySelector('.product-name').textContent.trim();
 
                     if ((isSelected || quantity > 0) && quantity > 0 && unitPrice >= 0) {
+                        if (productType === 'product' && quantity > stockQuantity) {
+                            showToast(`A quantidade de "${productName}" não pode ser maior que o stock disponível (${stockQuantity}).`, 'error');
+                            row.querySelector('.quantity').focus();
+                            e.preventDefault();
+                            items = [];
+                            return false;
+                        }
+
                         items.push({
                             product_id: parseInt(productId),
                             unit_price: unitPrice,
@@ -2161,6 +2173,10 @@
                         });
                     }
                 });
+
+                if (e.defaultPrevented) {
+                    return false;
+                }
 
                 // Validations
                 if (items.length === 0) {
