@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('expenses', function (Blueprint $table) use ($indexExists, $foreignExists) {
+        Schema::table('expenses', function (Blueprint $table) {
             if (!Schema::hasColumn('expenses', 'financial_account_id')) {
                 $table->unsignedBigInteger('financial_account_id')
                     ->nullable()
@@ -69,7 +69,7 @@ return new class extends Migration
             ->where('INDEX_NAME', 'expenses_financial_account_id_index')
             ->exists();
 
-        Schema::table('expenses', function (Blueprint $table) {
+        Schema::table('expenses', function (Blueprint $table) use ($indexExists, $foreignExists) {
             if ($foreignExists) {
                 $table->dropForeign('expenses_financial_account_id_foreign');
             }
