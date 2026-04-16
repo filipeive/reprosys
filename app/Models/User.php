@@ -194,7 +194,12 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->hasRole('admin') || $this->isSuperAdmin();
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super_admin');
     }
 
     public function isManager(): bool
@@ -225,8 +230,24 @@ class User extends Authenticatable
 
     public function canDelete($resource): bool
     {
-        if ($this->isAdmin()) return true;
+        // Não pode eliminar a si próprio
+        if ($resource instanceof User && $this->id === $resource->id) {
+            return false;
+        }
+
+        // Super Admin pode tudo
+        if ($this->isSuperAdmin()) return true;
+
+        if ($this->isAdmin()) {
+            // Admin não pode eliminar outros Admins ou Super Admins
+            if ($resource instanceof User && ($resource->isAdmin() || $resource->isSuperAdmin())) {
+                return false;
+            }
+            return true;
+        }
+
         if ($this->isManager()) return $this->hasPermission('delete_' . class_basename($resource));
+        
         return false;
     }
 
