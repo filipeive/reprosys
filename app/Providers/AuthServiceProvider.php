@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Providers;
@@ -20,11 +19,13 @@ class AuthServiceProvider extends ServiceProvider
         // Definir Gates baseados nas permissões
         $permissions = config('auth_permissions.role_permissions');
         
-        foreach ($permissions as $role => $rolePermissions) {
-            foreach ($rolePermissions as $permission) {
-                Gate::define($permission, function (User $user) use ($permission) {
-                    return $user->hasPermission($permission);
-                });
+        if ($permissions) {
+            foreach ($permissions as $role => $rolePermissions) {
+                foreach ($rolePermissions as $permission) {
+                    Gate::define($permission, function (User $user) use ($permission) {
+                        return $user->hasPermission($permission);
+                    });
+                }
             }
         }
 
@@ -37,6 +38,10 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('view-all-resources', function (User $user) {
             return $user->isAdmin() || $user->role === 'manager';
         });
-        
+
+        // Gates genéricos para recursos (mapeados para métodos do modelo User)
+        Gate::define('canEdit', fn (User $user, $resource) => $user->canEdit($resource));
+        Gate::define('canView', fn (User $user, $resource) => $user->canView($resource));
+        Gate::define('canDelete', fn (User $user, $resource) => $user->canDelete($resource));
     }
 }
