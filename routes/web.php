@@ -36,6 +36,7 @@ Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/register/verify-admin', [RegisterController::class, 'verifyAdminPasswordAjax'])->name('register.verify-admin');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/demo-login', [AuthController::class, 'demoLogin'])->name('demo.login');
 
 // ===== PROTECTED ROUTES =====
 Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(function () {

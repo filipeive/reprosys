@@ -157,6 +157,35 @@
         color: var(--primary-blue);
         text-decoration: none;
     }
+
+    /* Business Health Styling */
+    .bg-light-subtle { background-color: #f8f9fa; }
+    .bg-success-light { background-color: rgba(34, 197, 94, 0.1); }
+    .bg-info-light { background-color: rgba(59, 130, 246, 0.1); }
+    .bg-warning-light { background-color: rgba(245, 158, 11, 0.1); }
+    .bg-danger-light { background-color: rgba(239, 68, 68, 0.1); }
+    
+    .health-metric-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .health-metric-value {
+        font-size: 1.25rem;
+        font-weight: 800;
+    }
+    
+    .roi-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        display: inline-block;
+    }
     
     .quick-action-icon {
         width: 48px;
@@ -517,8 +546,72 @@
             <a href="{{ route('products.index', ['filter' => 'low_stock']) }}" class="btn btn-sm btn-outline-danger">
                 Ver Produtos
             </a>
-            </div>
         @endif
+    </div>
+
+    <!-- Saúde do Negócio (Mês Atual) -->
+    <div class="card border-0 shadow-sm mb-4 overflow-hidden dashboard-card">
+        <div class="card-header bg-white py-3 border-bottom-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-heartbeat text-danger me-2"></i>Saúde do Negócio <small class="text-muted fw-normal fs-6">(Performance do Mês)</small></h5>
+                <span class="badge bg-light text-dark border"><i class="far fa-calendar-alt me-1"></i> {{ now()->translatedFormat('F Y') }}</span>
+            </div>
+        </div>
+        <div class="card-body p-0 border-top">
+            <div class="row g-0">
+                <div class="col-6 col-md-3 border-end">
+                    <div class="p-4 text-center">
+                        <div class="health-metric-label">Lucro Bruto</div>
+                        <div class="health-metric-value text-primary">MT {{ number_format($monthGrossProfit, 2, ',', '.') }}</div>
+                        <div class="progress mx-auto mt-2" style="height: 4px; width: 80%;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $monthGrossMargin }}%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block small">Margem: {{ number_format($monthGrossMargin, 1) }}%</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 border-end">
+                    <div class="p-4 text-center">
+                        <div class="health-metric-label">Despesas</div>
+                        <div class="health-metric-value text-danger">MT {{ number_format($monthExpenses, 2, ',', '.') }}</div>
+                        <div class="progress mx-auto mt-2" style="height: 4px; width: 80%;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ $monthSales > 0 ? min(100, ($monthExpenses / $monthSales) * 100) : 0 }}%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block small">Peso: {{ $monthSales > 0 ? number_format(($monthExpenses / $monthSales) * 100, 1) : 0 }}%</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3 border-end bg-light-subtle">
+                    <div class="p-4 text-center">
+                        <div class="health-metric-label text-success">LUCRO REAL</div>
+                        <div class="health-metric-value {{ $monthRealProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                            MT {{ number_format($monthRealProfit, 2, ',', '.') }}
+                        </div>
+                        <div class="progress mx-auto mt-2" style="height: 4px; width: 80%;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ max(0, $monthNetMargin) }}%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block small">Líquido: {{ number_format($monthNetMargin, 1) }}%</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-4 text-center">
+                        <div class="health-metric-label">ROI do Negócio</div>
+                        <div class="health-metric-value mb-2 {{ $monthRoi >= 20 ? 'text-success' : ($monthRoi >= 0 ? 'text-warning' : 'text-danger') }}">
+                            {{ number_format($monthRoi, 1) }}%
+                        </div>
+                        <div class="mt-1">
+                            @if($monthRoi >= 20)
+                                <span class="roi-badge bg-success-light text-success">Excelente</span>
+                            @elseif($monthRoi >= 10)
+                                <span class="roi-badge bg-info-light text-info">Bom</span>
+                            @elseif($monthRoi > 0)
+                                <span class="roi-badge bg-warning-light text-warning">Atenção</span>
+                            @else
+                                <span class="roi-badge bg-danger-light text-danger">Crítico</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Alertas -->
