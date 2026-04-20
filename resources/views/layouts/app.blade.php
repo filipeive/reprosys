@@ -1321,6 +1321,105 @@
             margin-bottom: 10px;
             min-width: 300px;
         }
+
+        /* Search Results Dropdown */
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1050;
+            display: none;
+            flex-direction: column;
+        }
+
+        .search-results-dropdown.show {
+            display: flex;
+        }
+
+        .search-result-group {
+            padding: 10px 0 0 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-result-group:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-group-title {
+            padding: 5px 15px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: var(--transition);
+        }
+
+        .search-result-item:hover {
+            background: rgba(91, 155, 213, 0.05);
+        }
+
+        .search-result-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--border-radius);
+            background: rgba(91, 155, 213, 0.1);
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 14px;
+        }
+
+        .search-result-details {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .search-result-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .search-result-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .global-search-link {
+            display: block;
+            padding: 10px 15px;
+            text-align: center;
+            background: rgba(91, 155, 213, 0.05);
+            color: var(--primary-blue);
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .global-search-link:hover {
+            background: rgba(91, 155, 213, 0.1);
+        }
+        /* End Search Results */
     </style>
 
     @stack('styles')
@@ -1693,8 +1792,11 @@
 
             <div class="header-right">
                 <div class="header-search">
-                    <input type="text" class="search-input" placeholder="Pesquisar produtos, clientes, vendas...">
+                    <input type="text" class="search-input" id="global-search-input" placeholder="Pesquisar produtos, clientes, vendas..." autocomplete="off">
                     <i class="fas fa-search search-icon"></i>
+                    <div class="search-results-dropdown" id="global-search-results">
+                        <!-- Resultados serão injetados aqui via JS -->
+                    </div>
                 </div>
 
                 <button class="header-btn" id="notification-btn" data-bs-toggle="dropdown" title="Notificações">
@@ -2959,6 +3061,79 @@
 
         // Verificar status do sistema a cada 5 minutos
         setInterval(checkSystemStatus, 5 * 60 * 1000);
+
+        // Lógica de pesquisa global na Navbar
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('global-search-input');
+            const searchResults = document.getElementById('global-search-results');
+            let searchTimeout = null;
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const query = this.value.trim();
+
+                    clearTimeout(searchTimeout);
+
+                    if (query.length < 2) {
+                        searchResults.classList.remove('show');
+                        return;
+                    }
+
+                    searchTimeout = setTimeout(() => {
+                        fetch(`{{ route('search.api') }}?q=${encodeURIComponent(query)}&limit=5`, {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.results && Object.keys(data.results).length > 0) {
+                                let html = '';
+                                
+                                for (const [groupKey, group] of Object.entries(data.results)) {
+                                    html += `<div class="search-result-group">
+                                                <div class="search-result-group-title">${group.title}</div>`;
+                                                
+                                    group.items.forEach(item => {
+                                        html += `<a href="${item.url}" class="search-result-item">
+                                                    <div class="search-result-icon">
+                                                        <i class="${group.icon}"></i>
+                                                    </div>
+                                                    <div class="search-result-details">
+                                                        <div class="search-result-title">${item.text}</div>
+                                                        <div class="search-result-subtitle">${item.subtitle}</div>
+                                                    </div>
+                                                </a>`;
+                                    });
+                                    html += `</div>`;
+                                }
+
+                                html += `<a href="{{ route('search.index') }}?q=${encodeURIComponent(query)}" class="global-search-link">
+                                            Ver todos os resultados
+                                         </a>`;
+
+                                searchResults.innerHTML = html;
+                                searchResults.classList.add('show');
+                            } else {
+                                searchResults.innerHTML = `<div class="p-3 text-center text-muted"><small>Nenhum resultado encontrado.</small></div>`;
+                                searchResults.classList.add('show');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro na pesquisa:', error);
+                        });
+                    }, 300); // Debounce de 300ms
+                });
+
+                // Fechar dropdown ao clicar fora
+                document.addEventListener('click', function(e) {
+                    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                        searchResults.classList.remove('show');
+                    }
+                });
+            }
+        });
     </script>
     @stack('scripts')
 </body>

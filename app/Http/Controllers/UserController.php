@@ -26,7 +26,7 @@ class UserController extends AppBaseController
         $query = User::with(['role', 'activeTemporaryPasswords'])->orderBy('name');
 
         if ($isEmployeesView) {
-            $query->whereHas('role', fn ($q) => $q->where('name', 'staff'));
+            $query->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'manager']));
         }
 
         if ($request->filled('search')) {

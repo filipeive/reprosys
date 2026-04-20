@@ -129,6 +129,24 @@
                             </div>
                         </div>
 
+                        <div class="mb-3 p-3 bg-light rounded">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-box text-muted me-1"></i> Comprar Material (_stock)
+                            </label>
+                            <select class="form-select mb-2" name="product_id" id="expense_product_id">
+                                <option value="">Nenhum produto</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->stock_quantity }} em stock)</option>
+                                @endforeach
+                            </select>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Quantidade</label>
+                                    <input type="number" class="form-control" name="quantity" id="expense_quantity" min="1" value="1" placeholder="1">
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-semibold">
                                 <i class="fas fa-receipt text-muted me-1"></i> Número do Recibo

@@ -135,6 +135,28 @@
                             </div>
                         </div>
 
+                        <div class="mb-4 p-3 bg-light rounded">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-box text-muted me-1"></i>
+                                Comprar Material (_stock)
+                            </label>
+                            <select class="form-select mb-2" name="product_id">
+                                <option value="">Nenhum produto</option>
+                                @foreach($products as $product)
+                                    <option value="{{ $product->id }}" 
+                                            {{ old('product_id', $expense->product_id) == $product->id ? 'selected' : '' }}>
+                                        {{ $product->name }} ({{ $product->stock_quantity }} em stock)
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small">Quantidade</label>
+                                    <input type="number" class="form-control" name="quantity" min="1" value="{{ old('quantity', $expense->quantity ?? 1) }}">
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label fw-semibold">
                                 <i class="fas fa-sticky-note text-warning me-1"></i>
