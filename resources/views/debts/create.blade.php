@@ -137,19 +137,32 @@
                                     <select class="form-select" id="product-select">
                                         <option value="">Selecione um produto...</option>
                                         @foreach ($products as $product)
-                                            <option value="{{ $product->id }}" data-name="{{ $product->name }}"
-                                                data-price="{{ $product->selling_price }}"
-                                                data-stock="{{ $product->stock_quantity ?? 999 }}">
-                                                {{ $product->name }} - MT
-                                                {{ number_format($product->selling_price, 2, ',', '.') }}
-                                                @if ($product->stock_quantity)
-                                                    (Estoque: {{ $product->stock_quantity }})
-                                                @endif
-                                            </option>
+                                            @if ($product->stock_quantity > 0 || $product->type === 'service')
+                                                <option value="{{ $product->id }}" 
+                                                    data-name="{{ $product->name }}"
+                                                    data-price="{{ $product->selling_price }}"
+                                                    data-stock="{{ $product->stock_quantity ?? 999 }}"
+                                                    data-type="{{ $product->type }}"
+                                                    @if ($product->stock_quantity <= 0 && $product->type === 'product') disabled @endif>
+                                                    {{ $product->name }} - MT
+                                                    {{ number_format($product->selling_price, 2, ',', '.') }}
+                                                    @if ($product->stock_quantity > 0)
+                                                        ({{ $product->stock_quantity }})
+                                                    @elseif ($product->type === 'product')
+                                                        (SEM STOCK)
+                                                    @endif
+                                                </option>
+                                            @endif
                                         @endforeach
                                     </select>
+                                    @if ($products->where('type', 'product')->where('stock_quantity', '<=', 0)->count() > 0)
+                                        <div class="form-text text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {{ $products->where('type', 'product')->where('stock_quantity', '<=', 0)->count() }} produto(s) sem stock não disponíveis
+                                        </div>
+                                    @endif
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-4 d-flex align-items-end">
                                     <button type="button" class="btn btn-primary w-100" onclick="addProduct()">
                                         <i class="fas fa-plus me-2"></i>Adicionar
                                     </button>
@@ -346,11 +359,19 @@
                 return;
             }
 
+            if (option.disabled) {
+                alert('Produto sem stock disponível');
+                return;
+            }
+
+            const productType = option.dataset.type;
+            const stock = productType === 'service' ? 9999 : parseInt(option.dataset.stock);
+
             const product = {
                 product_id: parseInt(option.value),
                 name: option.dataset.name,
                 unit_price: parseFloat(option.dataset.price),
-                stock: parseInt(option.dataset.stock),
+                stock: stock,
                 quantity: 1
             };
 
@@ -360,7 +381,7 @@
                 if (existing.quantity < product.stock) {
                     existing.quantity++;
                 } else {
-                    alert('Estoque máximo atingido');
+                    alert('Estoque máximo atingido para ' + product.name);
                     return;
                 }
             } else {
