@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Debt;
 use App\Models\DebtItem;
 use App\Models\DebtPayment;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\FinancialService;
@@ -17,9 +17,7 @@ use Illuminate\Support\Facades\Log;
 
 class DebtController extends Controller
 {
-    public function __construct(private FinancialService $financialService)
-    {
-    }
+    public function __construct(private FinancialService $financialService) {}
 
     /**
      * Lista de dívidas
@@ -39,10 +37,10 @@ class DebtController extends Controller
             }
 
             if ($request->filled('customer')) {
-                $search = '%' . $request->customer . '%';
-                $query->where(function($q) use ($search) {
+                $search = '%'.$request->customer.'%';
+                $query->where(function ($q) use ($search) {
                     $q->where('customer_name', 'like', $search)
-                      ->orWhere('employee_name', 'like', $search);
+                        ->orWhere('employee_name', 'like', $search);
                 });
             }
 
@@ -90,13 +88,14 @@ class DebtController extends Controller
                         ->where('status', 'active')
                         ->where('due_date', '<', now()->toDateString())
                         ->sum('remaining_amount') ?? 0,
-                ]
+                ],
             ];
 
             return view('debts.index', compact('debts', 'stats'));
-            
+
         } catch (\Exception $e) {
-            Log::error('Erro ao carregar dívidas: ' . $e->getMessage());
+            Log::error('Erro ao carregar dívidas: '.$e->getMessage());
+
             return back()->withErrors(['error' => 'Erro ao carregar dívidas']);
         }
     }
@@ -107,10 +106,10 @@ class DebtController extends Controller
     public function create(Request $request)
     {
         $type = $request->get('type', 'product');
-        
+
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $employees = User::where('is_active', true)->orderBy('name')->get();
-        
+
         return view('debts.create', compact('type', 'products', 'employees'));
     }
 
@@ -159,7 +158,8 @@ class DebtController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao criar dívida: ' . $e->getMessage());
+            Log::error('Erro ao criar dívida: '.$e->getMessage());
+
             return back()->withInput()->withErrors(['error' => $e->getMessage()]);
         }
     }
@@ -170,8 +170,8 @@ class DebtController extends Controller
     private function createProductDebt(Request $request)
     {
         $products = json_decode($request->products, true);
-        
-        if (empty($products)) {
+
+        if (empty($products) || ! is_array($products) || count($products) === 0) {
             throw new \Exception('Adicione pelo menos um produto');
         }
 
@@ -192,7 +192,7 @@ class DebtController extends Controller
             'due_date' => $request->due_date ?: now()->addDays(30)->toDateString(),
             'status' => 'active',
             'description' => $request->description,
-            'notes' => $request->notes
+            'notes' => $request->notes,
         ]);
 
         foreach ($products as $productData) {
@@ -207,7 +207,7 @@ class DebtController extends Controller
                 'product_id' => $product->id,
                 'quantity' => $productData['quantity'],
                 'unit_price' => $productData['unit_price'],
-                'total_price' => $productData['quantity'] * $productData['unit_price']
+                'total_price' => $productData['quantity'] * $productData['unit_price'],
             ]);
 
             if ($product->type === 'product') {
@@ -220,7 +220,7 @@ class DebtController extends Controller
                     'quantity' => $productData['quantity'],
                     'reason' => "Dívida #$debt->id",
                     'reference_id' => $debt->id,
-                    'movement_date' => $request->debt_date
+                    'movement_date' => $request->debt_date,
                 ]);
             }
         }
@@ -252,7 +252,7 @@ class DebtController extends Controller
             'due_date' => $request->due_date ?: now()->addDays(30)->toDateString(),
             'status' => 'active',
             'description' => $request->description,
-            'notes' => $request->notes
+            'notes' => $request->notes,
         ]);
 
         if ($request->filled('initial_payment') && $request->initial_payment > 0) {
@@ -277,7 +277,7 @@ class DebtController extends Controller
             'amount' => $amount,
             'payment_method' => 'cash',
             'payment_date' => $date,
-            'notes' => 'Pagamento inicial'
+            'notes' => 'Pagamento inicial',
         ]);
 
         $this->financialService->syncDebtPaymentTransaction($payment);
@@ -296,6 +296,7 @@ class DebtController extends Controller
     public function show(Debt $debt)
     {
         $debt->load(['user', 'employee', 'items.product', 'payments.user', 'generatedSale']);
+
         return view('debts.show', compact('debt'));
     }
 
@@ -304,7 +305,7 @@ class DebtController extends Controller
      */
     public function payment(Debt $debt)
     {
-        if (!$debt->canReceivePayment()) {
+        if (! $debt->canReceivePayment()) {
             return redirect()->route('debts.show', $debt)
                 ->with('error', 'Esta dívida não pode receber pagamentos');
         }
@@ -318,11 +319,11 @@ class DebtController extends Controller
     public function addPayment(Request $request, Debt $debt)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $debt->remaining_amount,
+            'amount' => 'required|numeric|min:0.01|max:'.$debt->remaining_amount,
             'payment_method' => 'required|in:cash,card,transfer,mpesa,emola',
             'payment_date' => 'required|date|before_or_equal:today',
             'notes' => 'nullable|string',
-            'create_sale' => 'sometimes|boolean'
+            'create_sale' => 'sometimes|boolean',
         ]);
 
         try {
@@ -334,22 +335,22 @@ class DebtController extends Controller
                 'amount' => $request->amount,
                 'payment_method' => $request->payment_method,
                 'payment_date' => $request->payment_date,
-                'notes' => $request->notes
+                'notes' => $request->notes,
             ]);
 
             $this->financialService->syncDebtPaymentTransaction($payment);
 
             $debt->remaining_amount -= $request->amount;
-            
+
             if ($debt->remaining_amount <= 0.01) {
                 $debt->status = 'paid';
                 $debt->remaining_amount = 0;
-                
-                if ($debt->isProductDebt() && !$debt->sale_id && $request->has('create_sale')) {
+
+                if ($debt->isProductDebt() && ! $debt->sale_id && $request->has('create_sale')) {
                     $this->createSaleFromDebt($debt);
                 }
             }
-            
+
             $debt->save();
 
             DB::commit();
@@ -359,7 +360,8 @@ class DebtController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao registrar pagamento: ' . $e->getMessage());
+            Log::error('Erro ao registrar pagamento: '.$e->getMessage());
+
             return back()->withErrors(['error' => 'Erro ao processar pagamento']);
         }
     }
@@ -393,7 +395,7 @@ class DebtController extends Controller
                 'quantity' => $item->quantity,
                 'original_unit_price' => $item->unit_price,
                 'unit_price' => $item->unit_price,
-                'total_price' => $item->total_price
+                'total_price' => $item->total_price,
             ]);
         }
 
@@ -407,7 +409,7 @@ class DebtController extends Controller
      */
     public function cancel(Debt $debt)
     {
-        if (!$debt->canBeCancelled()) {
+        if (! $debt->canBeCancelled()) {
             return back()->with('error', 'Esta dívida não pode ser cancelada');
         }
 
@@ -428,7 +430,7 @@ class DebtController extends Controller
                             'quantity' => $item->quantity,
                             'reason' => "Cancelamento dívida #$debt->id",
                             'reference_id' => $debt->id,
-                            'movement_date' => now()->toDateString()
+                            'movement_date' => now()->toDateString(),
                         ]);
                     }
                 }
@@ -443,7 +445,8 @@ class DebtController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao cancelar: ' . $e->getMessage());
+            Log::error('Erro ao cancelar: '.$e->getMessage());
+
             return back()->with('error', 'Erro ao cancelar dívida');
         }
     }
@@ -460,18 +463,19 @@ class DebtController extends Controller
                 $query->where('debt_type', $request->debt_type);
             }
 
-            $debtors = $query->get()->groupBy(function($debt) {
+            $debtors = $query->get()->groupBy(function ($debt) {
                 return $debt->isProductDebt() ? $debt->customer_name : $debt->employee_name;
-            })->map(function($debts) {
+            })->map(function ($debts) {
                 $first = $debts->first();
-                return (object)[
+
+                return (object) [
                     'debt_type' => $first->debt_type,
                     'debtor_name' => $first->isProductDebt() ? $first->customer_name : $first->employee_name,
                     'debtor_phone' => $first->isProductDebt() ? $first->customer_phone : $first->employee_phone,
                     'total_debt' => $debts->sum('remaining_amount'),
                     'debt_count' => $debts->count(),
                     'oldest_debt' => $debts->min('debt_date'),
-                    'status_group' => $debts->contains(fn($d) => $d->is_overdue) ? 'Vencida' : 'Ativa'
+                    'status_group' => $debts->contains(fn ($d) => $d->is_overdue) ? 'Vencida' : 'Ativa',
                 ];
             })->sortByDesc('total_debt')->values();
 
@@ -490,7 +494,8 @@ class DebtController extends Controller
             return view('debts.debtors-report', compact('debtors'));
 
         } catch (\Exception $e) {
-            Log::error('Erro no relatório: ' . $e->getMessage());
+            Log::error('Erro no relatório: '.$e->getMessage());
+
             return back()->with('error', 'Erro ao gerar relatório');
         }
     }
@@ -503,6 +508,7 @@ class DebtController extends Controller
         try {
             $debt->load(['user', 'employee', 'items.product', 'payments.user', 'generatedSale']);
             $html = view('debts.partials.details', compact('debt'))->render();
+
             return response()->json(['success' => true, 'html' => $html]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erro ao carregar detalhes'], 500);
@@ -514,14 +520,14 @@ class DebtController extends Controller
      */
     public function edit(Debt $debt)
     {
-        if (!$debt->canBeEdited()) {
+        if (! $debt->canBeEdited()) {
             return redirect()->route('debts.show', $debt)
                 ->with('error', 'Esta dívida não pode ser editada');
         }
 
         $products = Product::where('is_active', true)->orderBy('name')->get();
         $employees = User::where('is_active', true)->orderBy('name')->get();
-        
+
         return view('debts.edit', compact('debt', 'products', 'employees'));
     }
 
@@ -533,7 +539,7 @@ class DebtController extends Controller
         $rules = [
             'due_date' => 'nullable|date|after_or_equal:debt_date',
             'description' => 'required|string|max:255',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
         ];
 
         if ($debt->isProductDebt()) {
@@ -548,16 +554,18 @@ class DebtController extends Controller
 
         $validated = $request->validate($rules);
 
-        if (!$debt->canBeEdited()) {
+        if (! $debt->canBeEdited()) {
             return back()->with('error', 'Esta dívida não pode ser editada');
         }
 
         try {
             $debt->update($validated);
+
             return redirect()->route('debts.show', $debt)
                 ->with('success', 'Dívida atualizada com sucesso!');
         } catch (\Exception $e) {
-            Log::error('Erro ao atualizar: ' . $e->getMessage());
+            Log::error('Erro ao atualizar: '.$e->getMessage());
+
             return back()->withInput()->with('error', 'Erro ao atualizar dívida');
         }
     }
@@ -569,13 +577,13 @@ class DebtController extends Controller
     {
         $request->validate([
             'payment_method' => 'required|in:cash,card,transfer,mpesa,emola',
-            'create_sale' => 'sometimes|boolean'
+            'create_sale' => 'sometimes|boolean',
         ]);
 
-        if (!$debt->canBeMarkedAsPaid()) {
+        if (! $debt->canBeMarkedAsPaid()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Esta dívida não pode ser marcada como paga'
+                'message' => 'Esta dívida não pode ser marcada como paga',
             ], 400);
         }
 
@@ -589,7 +597,7 @@ class DebtController extends Controller
                     'amount' => $debt->remaining_amount,
                     'payment_method' => $request->payment_method,
                     'payment_date' => now()->toDateString(),
-                    'notes' => 'Pagamento final - quitação completa'
+                    'notes' => 'Pagamento final - quitação completa',
                 ]);
             }
 
@@ -608,7 +616,8 @@ class DebtController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao marcar como paga: ' . $e->getMessage());
+            Log::error('Erro ao marcar como paga: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Erro ao quitar dívida'], 500);
         }
     }
@@ -618,10 +627,10 @@ class DebtController extends Controller
      */
     public function createManualSale(Debt $debt)
     {
-        if (!$debt->isProductDebt() || $debt->status !== 'paid' || $debt->generated_sale_id) {
+        if (! $debt->isProductDebt() || $debt->status !== 'paid' || $debt->generated_sale_id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Não é possível criar venda para esta dívida'
+                'message' => 'Não é possível criar venda para esta dívida',
             ], 400);
         }
 
@@ -635,7 +644,7 @@ class DebtController extends Controller
                     'success' => true,
                     'message' => "Venda #{$sale->id} criada!",
                     'sale_id' => $sale->id,
-                    'redirect' => route('sales.show', $sale)
+                    'redirect' => route('sales.show', $sale),
                 ]);
             }
 
@@ -643,8 +652,9 @@ class DebtController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao criar venda manual: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Erro: ' . $e->getMessage()], 500);
+            Log::error('Erro ao criar venda manual: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Erro: '.$e->getMessage()], 500);
         }
     }
 
@@ -655,6 +665,7 @@ class DebtController extends Controller
     {
         try {
             $debt->load(['items.product', 'employee']);
+
             return response()->json(['success' => true, 'data' => $debt]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Erro ao carregar dados'], 500);
@@ -673,16 +684,16 @@ class DebtController extends Controller
             'due_date' => 'nullable|date|after_or_equal:debt_date',
             'description' => 'required|string|max:255',
             'notes' => 'nullable|string',
-            'products' => 'required|string'
+            'products' => 'required|string',
         ]);
 
         try {
             $products = json_decode($request->products, true);
-            
-            if (empty($products)) {
+
+            if (empty($products) || ! is_array($products) || count($products) === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Nenhum produto fornecido'
+                    'message' => 'Nenhum produto fornecido',
                 ], 400);
             }
 
@@ -704,7 +715,7 @@ class DebtController extends Controller
                 'due_date' => $request->due_date ?: now()->addDays(30)->toDateString(),
                 'status' => 'active',
                 'description' => $request->description,
-                'notes' => $request->notes
+                'notes' => $request->notes,
             ]);
 
             foreach ($products as $productData) {
@@ -719,7 +730,7 @@ class DebtController extends Controller
                     'product_id' => $product->id,
                     'quantity' => $productData['quantity'],
                     'unit_price' => $productData['unit_price'],
-                    'total_price' => $productData['quantity'] * $productData['unit_price']
+                    'total_price' => $productData['quantity'] * $productData['unit_price'],
                 ]);
 
                 if ($product->type === 'product') {
@@ -732,7 +743,7 @@ class DebtController extends Controller
                         'quantity' => $productData['quantity'],
                         'reason' => "Venda convertida em dívida #$debt->id",
                         'reference_id' => $debt->id,
-                        'movement_date' => $request->debt_date
+                        'movement_date' => $request->debt_date,
                     ]);
                 }
             }
@@ -743,15 +754,16 @@ class DebtController extends Controller
                 'success' => true,
                 'message' => 'Dívida criada com sucesso!',
                 'debt_id' => $debt->id,
-                'redirect' => route('debts.show', $debt)
+                'redirect' => route('debts.show', $debt),
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Erro ao criar dívida de venda: ' . $e->getMessage());
+            Log::error('Erro ao criar dívida de venda: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -773,7 +785,7 @@ class DebtController extends Controller
         try {
             // Deletar itens relacionados primeiro
             DebtItem::where('debt_id', $debt->id)->delete();
-            
+
             // Deletar a dívida
             $debt->delete();
 
@@ -781,7 +793,8 @@ class DebtController extends Controller
                 ->with('success', 'Dívida deletada com sucesso!');
 
         } catch (\Exception $e) {
-            Log::error('Erro ao deletar dívida: ' . $e->getMessage());
+            Log::error('Erro ao deletar dívida: '.$e->getMessage());
+
             return back()->with('error', 'Erro ao deletar dívida');
         }
     }
@@ -799,35 +812,36 @@ class DebtController extends Controller
             }
 
             if ($request->filled('customer')) {
-                $search = '%' . $request->customer . '%';
-                $query->where(function($q) use ($search) {
+                $search = '%'.$request->customer.'%';
+                $query->where(function ($q) use ($search) {
                     $q->where('customer_name', 'like', $search)
-                      ->orWhere('employee_name', 'like', $search);
+                        ->orWhere('employee_name', 'like', $search);
                 });
             }
 
-            $debtors = $query->get()->groupBy(function($debt) {
+            $debtors = $query->get()->groupBy(function ($debt) {
                 return $debt->isProductDebt() ? $debt->customer_name : $debt->employee_name;
-            })->map(function($debts) {
+            })->map(function ($debts) {
                 $first = $debts->first();
+
                 return [
                     'tipo' => $first->debt_type === 'product' ? 'Produtos' : 'Dinheiro',
                     'devedor' => $first->isProductDebt() ? $first->customer_name : $first->employee_name,
                     'telefone' => $first->isProductDebt() ? $first->customer_phone : $first->employee_phone,
                     'num_dividas' => $debts->count(),
                     'valor_total' => $debts->sum('remaining_amount'),
-                    'divida_antiga' => $debts->min('debt_date')
+                    'divida_antiga' => $debts->min('debt_date'),
                 ];
             })->values();
 
-            $filename = 'relatorio-devedores-' . date('Y-m-d') . '.csv';
-            
-            $callback = function() use ($debtors) {
+            $filename = 'relatorio-devedores-'.date('Y-m-d').'.csv';
+
+            $callback = function () use ($debtors) {
                 $file = fopen('php://output', 'w');
-                
+
                 // Cabeçalho
                 fputcsv($file, ['Tipo', 'Devedor', 'Telefone', 'Nº Dívidas', 'Valor Total', 'Dívida Mais Antiga']);
-                
+
                 // Dados
                 foreach ($debtors as $debtor) {
                     fputcsv($file, [
@@ -835,11 +849,11 @@ class DebtController extends Controller
                         $debtor['devedor'],
                         $debtor['telefone'] ?: 'Não informado',
                         $debtor['num_dividas'],
-                        'MT ' . number_format($debtor['valor_total'], 2, ',', '.'),
-                        date('d/m/Y', strtotime($debtor['divida_antiga']))
+                        'MT '.number_format($debtor['valor_total'], 2, ',', '.'),
+                        date('d/m/Y', strtotime($debtor['divida_antiga'])),
                     ]);
                 }
-                
+
                 fclose($file);
             };
 
@@ -849,7 +863,8 @@ class DebtController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Erro ao exportar relatório: ' . $e->getMessage());
+            Log::error('Erro ao exportar relatório: '.$e->getMessage());
+
             return back()->with('error', 'Erro ao exportar relatório');
         }
     }
@@ -860,11 +875,11 @@ class DebtController extends Controller
     public function searchEmployees(Request $request)
     {
         $search = $request->get('q', '');
-        
+
         $employees = User::where('is_active', true)
-            ->where(function($query) use ($search) {
+            ->where(function ($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             })
             ->select('id', 'name', 'email')
             ->limit(10)
@@ -879,21 +894,21 @@ class DebtController extends Controller
     public function searchCustomers(Request $request)
     {
         $search = $request->get('q', '');
-        
+
         $customers = Debt::where('debt_type', 'product')
-            ->where(function($query) use ($search) {
+            ->where(function ($query) use ($search) {
                 $query->where('customer_name', 'like', "%{$search}%")
-                      ->orWhere('customer_phone', 'like', "%{$search}%");
+                    ->orWhere('customer_phone', 'like', "%{$search}%");
             })
             ->select('customer_name', 'customer_phone', 'customer_document')
             ->groupBy('customer_name', 'customer_phone', 'customer_document')
             ->limit(10)
             ->get()
-            ->map(function($debt) {
+            ->map(function ($debt) {
                 return [
                     'name' => $debt->customer_name,
                     'phone' => $debt->customer_phone,
-                    'document' => $debt->customer_document
+                    'document' => $debt->customer_document,
                 ];
             });
 
@@ -912,14 +927,15 @@ class DebtController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "{$updatedCount} dívidas marcadas como vencidas."
+                'message' => "{$updatedCount} dívidas marcadas como vencidas.",
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Erro ao atualizar status: ' . $e->getMessage());
+            Log::error('Erro ao atualizar status: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao atualizar status'
+                'message' => 'Erro ao atualizar status',
             ], 500);
         }
     }
