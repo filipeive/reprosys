@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class SyncMissingSaleTransactions extends Command
 {
-    protected $signature = 'finances:sync-missing-sales {--dry-run : Apenas mostrar o que seria feito, sem alterar dados}';
+    protected $signature = 'finances:sync-missing-sales {--dry-run : Apenas mostrar o que seria feito, sem alterar dados} {--force : Executar sem pedir confirmação}';
     protected $description = 'Sincroniza vendas que não têm transação financeira registada (vendas anteriores ao módulo financeiro)';
 
     public function handle(FinancialService $financialService): int
@@ -56,7 +56,7 @@ class SyncMissingSaleTransactions extends Command
             return 0;
         }
 
-        if (!$this->confirm('Deseja sincronizar estas vendas agora?')) {
+        if (!$this->option('force') && !$this->confirm('Deseja sincronizar estas vendas agora?')) {
             $this->info('Operação cancelada.');
             return 0;
         }
