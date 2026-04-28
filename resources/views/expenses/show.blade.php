@@ -20,20 +20,19 @@
                         Detalhes da Despesa #{{ $expense->id }}
                     </h5>
                     <div class="d-flex gap-2">
-                        @if($expense->isRentExpense())
-                            <a href="{{ route('expenses.rent-receipt', $expense) }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-print me-1"></i>Recibo de Renda
-                            </a>
-                        @endif
-                        <a href="{{ route('expenses.edit', $expense) }}" class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-edit me-1"></i>Editar
-                        </a>
-                        @if($expense->isRentExpense())
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#contractModal">
-                                <i class="fas fa-file-contract me-1"></i>Contrato
-                            </button>
-                        @endif
-                    </div>
+<a href="{{ route('documents.templates.rent-contract.print') }}" target="_blank" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-print me-1"></i>Recibo de Renda
+</a>
+@endif
+<a href="{{ route('expenses.edit', $expense) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-edit me-1"></i>Editar
+</a>
+@if($expense->isRentExpense())
+<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#contractModal">
+    <i class="fas fa-file-contract me-1"></i>Contrato
+</button>
+@endif
+</div>
                 </div>
             </div>
             <div class="card-body">
@@ -228,11 +227,14 @@
                     <div class="mt-3 p-3 border rounded bg-light">
                         <h6 class="fw-bold mb-2"><i class="fas fa-file-contract text-primary me-1"></i> Modelos Disponíveis</h6>
                         <div class="d-grid gap-2">
-                            <a href="{{ route('documents.templates.rent-contract.print') }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-file-contract"></i> Contrato de Arrendamento
+<a href="{{ route('documents.templates.rent-contract.print') }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-file-contract"></i> Contrato
                             </a>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="generateLivroRecibosPDF()">
+                            <a href="{{ route('documents.templates.physical-receipt.print') }}" target="_blank" class="btn btn-outline-secondary btn-sm">
                                 <i class="fas fa-book"></i> Livro de Recibos
+                            </a>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="generatePhysicalReceiptTemplate()">
+                                <i class="fas fa-file-invoice"></i> Recibo Físico
                             </button>
                             <button class="btn btn-outline-secondary btn-sm" onclick="generatePhysicalReceiptTemplate()">
                                 <i class="fas fa-file-invoice"></i> Recibo Físico

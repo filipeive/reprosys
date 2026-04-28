@@ -256,12 +256,15 @@ class FinancialService
         $monthStart = $date->copy()->startOfMonth()->toDateString();
         $monthEnd = $date->copy()->endOfMonth()->toDateString();
 
+        // Exclude adjustment transactions from month summary to avoid inflating real transaction totals
         $inflows = (float) FinancialTransaction::whereBetween('transaction_date', [$monthStart, $monthEnd])
             ->where('direction', 'in')
+            ->whereNotIn('type', ['cash_adjustment_in'])
             ->sum('amount');
 
         $outflows = (float) FinancialTransaction::whereBetween('transaction_date', [$monthStart, $monthEnd])
             ->where('direction', 'out')
+            ->whereNotIn('type', ['cash_adjustment_out'])
             ->sum('amount');
 
         return [

@@ -37,9 +37,11 @@ class FinanceController extends Controller
 
         $todayInflow = (float) FinancialTransaction::whereDate('transaction_date', today())
             ->where('direction', 'in')
+            ->whereNotIn('type', ['cash_adjustment_in'])
             ->sum('amount');
         $todayOutflow = (float) FinancialTransaction::whereDate('transaction_date', today())
             ->where('direction', 'out')
+            ->whereNotIn('type', ['cash_adjustment_out'])
             ->sum('amount');
 
         $filters = [
@@ -69,8 +71,8 @@ class FinanceController extends Controller
 
         $dailyFlow = FinancialTransaction::select(
                 DB::raw('DATE(transaction_date) as date'),
-                DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflows"),
-                DB::raw("SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) as outflows")
+                DB::raw("SUM(CASE WHEN direction = 'in' AND type != 'cash_adjustment_in' THEN amount ELSE 0 END) as inflows"),
+                DB::raw("SUM(CASE WHEN direction = 'out' AND type != 'cash_adjustment_out' THEN amount ELSE 0 END) as outflows")
             )
             ->whereDate('transaction_date', '>=', Carbon::today()->subDays(6))
             ->groupBy(DB::raw('DATE(transaction_date)'))
