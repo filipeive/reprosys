@@ -63,12 +63,6 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::get('/search/{type}', [SearchController::class, 'index'])->name('search.type');
     });
 
-    // ===== DOWNLOAD TEMPLATES =====
-    Route::middleware(['auth'])->group(function () {
-        Route::get('/document-templates/rent-contract/pdf', [DocumentTemplateController::class, 'printRentContract'])->name('documents.templates.rent-contract.print');
-        Route::get('/document-templates/physical-receipt-book/pdf', [DocumentTemplateController::class, 'printPhysicalReceiptBook'])->name('documents.templates.physical-receipt.print');
-    });
-
     // ===== PERFIL DO USUÁRIO =====
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');
@@ -457,11 +451,12 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::middleware('permissions:manage_settings')->group(function () {
         Route::get('/api/admin/settings', [AdminController::class, 'getSettings'])->name('admin.settings.get');
         Route::post('/admin/settings', [AdminController::class, 'saveSettings'])->name('admin.settings.save');
-        Route::prefix('documents/templates')->name('documents.templates.')->group(function () {
-            Route::get('/', [DocumentTemplateController::class, 'index'])->name('index');
-            Route::post('/rent-contract', [DocumentTemplateController::class, 'updateRentContract'])->name('rent-contract.update');
-            Route::get('/rent-contract/print', [DocumentTemplateController::class, 'printRentContract'])->name('rent-contract.print');
-        });
+Route::prefix('documents/templates')->name('documents.templates.')->group(function () {
+    Route::get('/', [DocumentTemplateController::class, 'index'])->name('index');
+    Route::post('/rent-contract', [DocumentTemplateController::class, 'updateRentContract'])->name('rent-contract.update');
+    Route::get('/rent-contract/print', [DocumentTemplateController::class, 'printRentContract'])->name('rent-contract.print');
+    Route::get('/physical-receipt-book/pdf', [DocumentTemplateController::class, 'printPhysicalReceiptBook'])->name('physical-receipt.print');
+});
     });
 
     Route::middleware('permissions:backup_system')->group(function () {
