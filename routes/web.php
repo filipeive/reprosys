@@ -62,6 +62,13 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         // Busca específica por tipo
         Route::get('/search/{type}', [SearchController::class, 'index'])->name('search.type');
     });
+
+    // ===== DOWNLOAD TEMPLATES =====
+    Route::middleware(['auth'])->group(function () {
+        Route::get('/document-templates/rent-contract/pdf', [DocumentTemplateController::class, 'printRentContract'])->name('documents.templates.rent-contract.print');
+        Route::get('/document-templates/physical-receipt-book/pdf', [DocumentTemplateController::class, 'printPhysicalReceiptBook'])->name('documents.templates.physical-receipt.print');
+    });
+
     // ===== PERFIL DO USUÁRIO =====
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [ProfileController::class, 'edit'])->name('edit');

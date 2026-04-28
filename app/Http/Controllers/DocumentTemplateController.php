@@ -59,6 +59,18 @@ class DocumentTemplateController extends Controller
         return $pdf->stream('contrato-arrendamento-comercial.pdf');
     }
 
+    /**
+     * Generate physical receipt book template PDF
+     */
+    public function printPhysicalReceiptBook()
+    {
+        $contract = $this->getRentContractSettings();
+
+        $pdf = Pdf::loadView('documents.templates.physical-receipt-book', compact('contract'));
+
+        return $pdf->stream('livro-recibos-template.pdf');
+    }
+
     private function getRentContractSettings(): array
     {
         $defaults = [

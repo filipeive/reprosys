@@ -193,6 +193,19 @@ class ExpenseController extends Controller
     }
 
     /**
+     * Exibir dados detalhados da despesa (API/Modal)
+     */
+    public function showData(Expense $expense)
+    {
+        $expense->load(['category', 'user', 'financialAccount']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $expense
+        ]);
+    }
+
+    /**
      * Exibir formulário de edição
      */
     public function edit(Expense $expense)

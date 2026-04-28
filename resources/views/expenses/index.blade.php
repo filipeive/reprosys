@@ -384,11 +384,14 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                    @if($expense->isRentExpense())
-                                            <a href="{{ route('expenses.rent-receipt', $expense) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo de Renda">
-                                                <i class="fas fa-print"></i>
-                                            </a>
-                                        @endif
+@if($expense->isRentExpense())
+                                             <a href="{{ route('expenses.rent-receipt', $expense) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo de Renda">
+                                                 <i class="fas fa-print"></i>
+                                             </a>
+                                             <a href="{{ route('expenses.show', $expense) }}" class="btn btn-outline-info" title="Ver Detalhes">
+                                                 <i class="fas fa-file-contract"></i>
+                                             </a>
+                                         @endif
                                         <button type="button" class="btn btn-outline-success" onclick="openExpenseUploadModal({{ $expense->id }})" title="Carregar Recibo Assinado">
                                             <i class="fas fa-upload"></i>
                                         </button>

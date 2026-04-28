@@ -103,7 +103,15 @@
             <table class="info-table">
                 <tr>
                     <td class="label">Recebemos de</td>
-                    <td class="value">{{ $contract['tenant_name'] ?? 'REPROSYS - Gestão de Reprografia' }}</td>
+                    <td class="value">Senhor {{ $contract['landlord_name'] ?? 'Proprietário / Gerente do Imóvel' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Mês Referência</td>
+                    <td class="value">{{ $expense->expense_date->format('m/Y') }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Localização</td>
+                    <td class="value">{{ $contract['property_location'] ?? '' }}</td>
                 </tr>
                 <tr>
                     <td class="label">A Importância de</td>
@@ -111,7 +119,7 @@
                 </tr>
                 <tr>
                     <td class="label">Referente a</td>
-                    <td class="value">{{ $expense->description }} - {{ $contract['property_location'] ?? '' }}</td>
+                    <td class="value">{{ $expense->description }}</td>
                 </tr>
                 <tr>
                     <td class="label">Data de Emissão</td>
