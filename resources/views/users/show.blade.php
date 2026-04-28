@@ -186,8 +186,8 @@
                                 <form method="POST" action="{{ route('users.salary-payments.store', $user) }}" class="border rounded p-3">
                                     @csrf
                                     <div class="row g-2">
-                                        <div class="col-md-6">
-                                            <label class="form-label small">Conta de Saída</label>
+                                        <div class="col-md-12">
+                                            <label class="form-label small fw-bold">Conta de Saída</label>
                                             <select name="financial_account_id" class="form-select form-select-sm" required>
                                                 @foreach($financialAccounts as $account)
                                                     <option value="{{ $account->id }}">{{ $account->name }}</option>
@@ -195,23 +195,27 @@
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small">Valor</label>
-                                            <input type="number" step="0.01" min="0.01" name="amount" value="{{ old('amount', $user->monthly_salary) }}" class="form-control form-control-sm" required>
+                                            <label class="form-label small fw-bold">Salário Base (MT)</label>
+                                            <input type="number" step="0.01" min="0" name="base_amount" value="{{ old('base_amount', $user->monthly_salary) }}" class="form-control form-control-sm" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small">Data do Pagamento</label>
+                                            <label class="form-label small fw-bold">Variável / Ajuste (±1500)</label>
+                                            <input type="number" step="0.01" min="-1500" max="1500" name="variable_amount" value="{{ old('variable_amount', 0) }}" class="form-control form-control-sm">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-bold">Data do Pagamento</label>
                                             <input type="date" name="payment_date" value="{{ old('payment_date', now()->format('Y-m-d')) }}" class="form-control form-control-sm" required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label small">Mês de Referência</label>
+                                            <label class="form-label small fw-bold">Mês de Referência</label>
                                             <input type="date" name="reference_month" value="{{ old('reference_month', now()->startOfMonth()->format('Y-m-d')) }}" class="form-control form-control-sm">
                                         </div>
                                         <div class="col-12">
-                                            <label class="form-label small">Notas</label>
-                                            <textarea name="notes" rows="2" class="form-control form-control-sm">{{ old('notes') }}</textarea>
+                                            <label class="form-label small fw-bold">Notas</label>
+                                            <textarea name="notes" rows="2" class="form-control form-control-sm" placeholder="Ex: Horas extras, bónus de desempenho...">{{ old('notes') }}</textarea>
                                         </div>
                                         <div class="col-12">
-                                            <button type="submit" class="btn btn-success btn-sm">
+                                            <button type="submit" class="btn btn-success btn-sm w-100">
                                                 <i class="fas fa-save me-1"></i>Registrar Pagamento
                                             </button>
                                         </div>
@@ -230,8 +234,9 @@
                                     <th>Data</th>
                                     <th>Referência</th>
                                     <th>Conta</th>
-                                    <th>Registrado por</th>
-                                    <th class="text-end">Valor</th>
+                                    <th class="text-end">Valor Total</th>
+                                    <th class="text-center">Recibo</th>
+                                    <th class="text-end">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -239,13 +244,31 @@
                                     <tr>
                                         <td>{{ $payment->payment_date->format('d/m/Y') }}</td>
                                         <td>{{ $payment->reference_month ? $payment->reference_month->format('m/Y') : '-' }}</td>
-                                        <td>{{ $payment->account->name ?? '-' }}</td>
-                                        <td>{{ $payment->payer->name ?? 'Sistema' }}</td>
-                                        <td class="text-end text-danger fw-semibold">- MT {{ number_format($payment->amount, 2, ',', '.') }}</td>
+                                        <td><small>{{ $payment->account->name ?? '-' }}</small></td>
+                                        <td class="text-end text-danger fw-semibold">MT {{ number_format($payment->amount, 2, ',', '.') }}</td>
+                                        <td class="text-center">
+                                            @if($payment->signed_receipt_path)
+                                                <a href="{{ Storage::url($payment->signed_receipt_path) }}" target="_blank" class="btn btn-xs btn-success" title="Ver Recibo Assinado">
+                                                    <i class="fas fa-file-signature"></i>
+                                                </a>
+                                            @else
+                                                <span class="badge bg-light text-muted border">Pendente</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ route('users.salary-payments.receipt', ['user' => $user->id, 'payment' => $payment->id]) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo para Assinar">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-outline-success" onclick="openUploadModal({{ $payment->id }})" title="Carregar Foto do Recibo Assinado">
+                                                    <i class="fas fa-upload"></i>
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">Nenhum pagamento salarial registrado.</td>
+                                        <td colspan="6" class="text-center text-muted py-3">Nenhum pagamento salarial registrado.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -315,10 +338,45 @@
             </div>
         </div>
     </div>
+    </div>
+    </div>
+
+    <!-- Modal para Carregar Recibo Assinado -->
+    <div class="modal fade" id="uploadReceiptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="uploadReceiptForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Carregar Recibo Assinado</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Carregue a foto ou scan do recibo assinado pelo funcionário.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Arquivo (JPEG, PNG ou PDF)</label>
+                            <input type="file" name="signed_receipt" class="form-control" accept="image/*,.pdf" required>
+                            <div class="form-text">Tamanho máximo: 5MB</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Salvar Recibo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('styles')
     <style>
+        .btn-xs {
+            padding: 0.15rem 0.3rem;
+            font-size: 0.7rem;
+            line-height: 1;
+            border-radius: 0.2rem;
+        }
         .timeline {
             position: relative;
         }
@@ -372,6 +430,12 @@
 
 @push('scripts')
     <script>
+        function openUploadModal(paymentId) {
+            const form = document.getElementById('uploadReceiptForm');
+            form.action = `/users/{{ $user->id }}/salary-payments/${paymentId}/receipt/upload`;
+            const modal = new bootstrap.Modal(document.getElementById('uploadReceiptModal'));
+            modal.show();
+        }
         function showDeleteModal() {
             const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
             modal.show();

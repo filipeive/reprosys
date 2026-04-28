@@ -56,8 +56,7 @@ class FinancialService
     public function getDefaultAccountForPaymentMethod(?string $paymentMethod): ?FinancialAccount
     {
         $slug = match ($paymentMethod) {
-            'cash', null => 'caixa-principal',
-            'card', 'transfer' => 'conta-bancaria',
+            'cash', 'card', 'transfer', null => 'caixa-principal',
             'mpesa', 'emola' => 'carteira-movel',
             default => null,
         };
@@ -108,6 +107,8 @@ class FinancialService
             'financial_transaction_id' => $transaction->id,
             'paid_by' => $data['paid_by'] ?? auth()->id(),
             'amount' => $data['amount'],
+            'base_amount' => $data['base_amount'] ?? $data['amount'],
+            'variable_amount' => $data['variable_amount'] ?? 0,
             'payment_date' => $data['payment_date'],
             'reference_month' => $data['reference_month'] ?? null,
             'description' => $data['description'],

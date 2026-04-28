@@ -343,8 +343,10 @@ class SaleController extends Controller
                 $message = 'Desconto geral aplicado à venda com sucesso.';
             }
 
-            return redirect()->back()->with('success', $message);
+            // Sincronizar transação financeira
+            $this->financialService->syncSaleTransaction($sale->fresh());
 
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Erro ao aplicar desconto: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Erro ao aplicar desconto.');
@@ -378,8 +380,10 @@ class SaleController extends Controller
                 $message = 'Desconto geral removido da venda com sucesso.';
             }
 
-            return redirect()->back()->with('success', $message);
+            // Sincronizar transação financeira
+            $this->financialService->syncSaleTransaction($sale->fresh());
 
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Erro ao remover desconto: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Erro ao remover desconto.');

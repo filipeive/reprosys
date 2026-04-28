@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Sale extends Model
 {
@@ -40,17 +41,19 @@ class Sale extends Model
      */
     public function calculateTotals(): void
     {
+        $items = $this->items()->get();
+
         // 1. Subtotal é sempre a soma dos preços originais dos itens
-        $this->subtotal = $this->items->sum(function ($item) {
+        $this->subtotal = $items->sum(function ($item) {
             return $item->getOriginalTotal(); // Usa o método do SaleItem
         });
 
         // 2. Desconto total é sempre a soma dos descontos dos itens
-        $itemsDiscountTotal = $this->items->sum('discount_amount');
-        $this->discount_amount = $itemsDiscountTotal;
+        $itemsDiscountTotal = (float) $items->sum('discount_amount');
+        $this->discount_amount = min((float) $this->subtotal, $itemsDiscountTotal);
 
         // 3. Total final = subtotal - desconto total
-        $this->total_amount = $this->subtotal - $this->discount_amount;
+        $this->total_amount = max(0, (float) $this->subtotal - (float) $this->discount_amount);
         
         // 4. Percentagem total
         if ($this->subtotal > 0) {
@@ -66,19 +69,75 @@ class Sale extends Model
      */
     public function applyGeneralDiscount(float $discountValue, string $discountType = 'fixed', string $reason = null): void
     {
-        if ($discountType === 'percentage') {
-            $discountAmount = ($this->subtotal * $discountValue) / 100;
-            $this->discount_percentage = $discountValue;
-        } else {
-            $discountAmount = $discountValue;
-            $this->discount_percentage = ($discountAmount / $this->subtotal) * 100;
+        $items = $this->items()->get();
+        $discountableItems = $items->filter(fn ($item) => (float) $item->getOriginalTotal() > 0)->values();
+        $subtotal = (float) $discountableItems->sum(fn ($item) => $item->getOriginalTotal());
+        $currentDiscountTotal = (float) $discountableItems->sum('discount_amount');
+        $availableDiscount = max(0, $subtotal - $currentDiscountTotal);
+
+        if ($discountableItems->isEmpty() || $subtotal <= 0 || $availableDiscount <= 0) {
+            return;
         }
 
-        $this->discount_amount += $discountAmount;
+        $requestedDiscount = $discountType === 'percentage'
+            ? ($subtotal * $discountValue) / 100
+            : $discountValue;
+
+        $generalDiscountAmount = min($availableDiscount, max(0, $requestedDiscount));
+
+        if ($generalDiscountAmount <= 0) {
+            return;
+        }
+
+        $remainingDiscount = round($generalDiscountAmount, 2);
+        $lastItemId = $discountableItems->last()->id;
+
+        foreach ($discountableItems as $item) {
+            $itemOriginalTotal = (float) $item->getOriginalTotal();
+            $currentItemDiscount = (float) $item->discount_amount;
+
+            $allocatedDiscount = $item->id === $lastItemId
+                ? $remainingDiscount
+                : round($generalDiscountAmount * ($itemOriginalTotal / $subtotal), 2);
+
+            $allocatedDiscount = min($allocatedDiscount, $itemOriginalTotal - $currentItemDiscount);
+            $allocatedDiscount = max(0, $allocatedDiscount);
+            $remainingDiscount = round($remainingDiscount - $allocatedDiscount, 2);
+
+            $newItemDiscount = $currentItemDiscount + $allocatedDiscount;
+            $newUnitPrice = $item->quantity > 0
+                ? max(0, $item->original_unit_price - ($newItemDiscount / $item->quantity))
+                : (float) $item->original_unit_price;
+
+            $item->update([
+                'discount_amount' => $newItemDiscount,
+                'discount_percentage' => $itemOriginalTotal > 0 ? ($newItemDiscount / $itemOriginalTotal) * 100 : null,
+                'discount_type' => $currentItemDiscount > 0 ? 'mixed' : 'general',
+                'discount_reason' => $this->mergeDiscountReason($item->discount_reason, $reason),
+                'unit_price' => $newUnitPrice,
+                'total_price' => $newUnitPrice * $item->quantity,
+            ]);
+        }
+
         $this->discount_type = $discountType;
         $this->discount_reason = $reason;
         
         $this->calculateTotals();
+    }
+
+    private function mergeDiscountReason(?string $existingReason, ?string $generalReason): ?string
+    {
+        $generalLabel = $generalReason ?: 'Desconto geral';
+
+        if (blank($existingReason)) {
+            return $generalLabel;
+        }
+
+        if (Str::contains($existingReason, $generalLabel)) {
+            return $existingReason;
+        }
+
+        return "{$existingReason} + {$generalLabel}";
     }
 
     /**

@@ -23,6 +23,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Auth\PasswordChangeController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\DocumentTemplateController;
 
 
 
@@ -313,6 +314,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::middleware('permissions:manage_finances')->group(function () {
             Route::post('/transactions', [FinanceController::class, 'storeTransaction'])->name('transactions.store');
             Route::patch('/accounts/{account}', [FinanceController::class, 'updateAccount'])->name('accounts.update');
+            Route::post('/accounts/{account}/adjust-balance', [FinanceController::class, 'adjustAccountBalance'])->name('accounts.adjust-balance');
         });
     });
 
@@ -324,6 +326,7 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::prefix('expenses')->name('expenses.')->group(function () {
         // Visualizar despesas - todos podem
         Route::get('/', [ExpenseController::class, 'index'])->name('index');
+        Route::get('/operational', [ExpenseController::class, 'operational'])->name('operational');
 
         // Criar despesas - create_expenses permission (ANTES das rotas com {expense})
         Route::middleware('permissions:create_expenses')->group(function () {
@@ -345,6 +348,9 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         Route::middleware('permissions:delete_expenses')->group(function () {
             Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
         });
+        // Rotas de Recibos
+        Route::get('/{expense}/rent-receipt', [ExpenseController::class, 'rentReceipt'])->name('rent-receipt');
+        Route::post('/{expense}/receipt/upload', [ExpenseController::class, 'uploadReceipt'])->name('receipt.upload');
     });
 
     // ===== MOVIMENTAÇÕES DE ESTOQUE =====
@@ -423,7 +429,10 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
         // Rotas de ação
         Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
         Route::post('/{user}/reset-password', [UserController::class, 'resetPassword'])->name('reset-password');
+        // Rotas de salário e recibos
         Route::post('/{user}/salary-payments', [UserController::class, 'storeSalaryPayment'])->name('salary-payments.store');
+        Route::get('/{user}/salary-payments/{payment}/receipt', [UserController::class, 'salaryReceipt'])->name('salary-payments.receipt');
+        Route::post('/{user}/salary-payments/{payment}/receipt/upload', [UserController::class, 'uploadSalaryReceipt'])->name('salary-payments.receipt.upload');
 
         // Rotas de senhas temporárias
         Route::get('/{user}/temporary-passwords', [UserController::class, 'temporaryPasswords'])->name('temporary-passwords');
@@ -441,6 +450,11 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
     Route::middleware('permissions:manage_settings')->group(function () {
         Route::get('/api/admin/settings', [AdminController::class, 'getSettings'])->name('admin.settings.get');
         Route::post('/admin/settings', [AdminController::class, 'saveSettings'])->name('admin.settings.save');
+        Route::prefix('documents/templates')->name('documents.templates.')->group(function () {
+            Route::get('/', [DocumentTemplateController::class, 'index'])->name('index');
+            Route::post('/rent-contract', [DocumentTemplateController::class, 'updateRentContract'])->name('rent-contract.update');
+            Route::get('/rent-contract/print', [DocumentTemplateController::class, 'printRentContract'])->name('rent-contract.print');
+        });
     });
 
     Route::middleware('permissions:backup_system')->group(function () {

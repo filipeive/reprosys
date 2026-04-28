@@ -170,7 +170,7 @@ class ReportController extends Controller
         $accountsReceivable = (float) Debt::where('status', 'active')
             ->whereDate('debt_date', '<=', $dateTo)
             ->sum('remaining_amount');
-        $currentCapital = (float) FinancialAccount::where('is_active', true)
+        $currentCapital = (float) FinancialAccount::operational()
             ->get()
             ->sum(fn ($account) => $account->current_balance);
         

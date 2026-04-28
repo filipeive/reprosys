@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Gestão de Despesas')
-@section('page-title', 'Despesas')
+@section('title', $pageTitle ?? 'Gestão de Despesas')
+@section('page-title', $pageTitle ?? 'Despesas')
 @section('title-icon', 'fa-money-bill-wave')
 @section('breadcrumbs')
-    <li class="breadcrumb-item active">Despesas</li>
+    <li class="breadcrumb-item active">{{ $pageTitle ?? 'Despesas' }}</li>
 @endsection
 
 @section('content')
@@ -13,20 +13,26 @@
         <div>
             <h2 class="h3 mb-1 text-danger fw-bold">
                 <i class="fas fa-money-bill-wave me-2"></i>
-                Gestão de Despesas
+                {{ $pageTitle ?? 'Gestão de Despesas' }}
             </h2>
-            <p class="text-muted mb-0">Registre e acompanhe todas as despesas da reprografia</p>
+            <p class="text-muted mb-0">{{ $pageSubtitle ?? 'Registre e acompanhe todas as despesas da reprografia' }}</p>
         </div>
         <div class="d-flex gap-2">
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createExpenseModal">
                 <i class="fas fa-plus me-2"></i> Nova Despesa
             </button>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createCategoryModal">
-                <i class="fas fa-folder-plus me-2"></i> Nova Categoria
-            </button>
-            <a href="{{ route('expense-categories.index') }}" class="btn btn-secondary">
-                <i class="fas fa-tags me-2"></i> Gerir Categorias
-            </a>
+            @if(($pageMode ?? 'all') === 'all')
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createCategoryModal">
+                    <i class="fas fa-folder-plus me-2"></i> Nova Categoria
+                </button>
+                <a href="{{ route('expense-categories.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-tags me-2"></i> Gerir Categorias
+                </a>
+            @else
+                <a href="{{ route('documents.templates.index') }}" class="btn btn-primary">
+                    <i class="fas fa-file-contract me-2"></i> Templates
+                </a>
+            @endif
         </div>
     </div>
 
@@ -47,6 +53,14 @@
                             <label class="form-label fw-semibold">Nome da Categoria *</label>
                             <input type="text" class="form-control" name="name" required placeholder="Ex: Material de Escritório">
                             <div class="invalid-feedback"></div>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="is_operational" id="quick-category-operational" value="1">
+                            <label class="form-check-label" for="quick-category-operational">Categoria operacional</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_rent" id="quick-category-rent" value="1">
+                            <label class="form-check-label" for="quick-category-rent">Categoria de renda</label>
                         </div>
                     </form>
                 </div>
@@ -73,7 +87,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form id="expense-form" method="POST" action="{{ route('expenses.store') }}">
+                    <form id="expense-form" method="POST" action="{{ route('expenses.store') }}" enctype="multipart/form-data">
                         @csrf
 
                         <div class="mb-3">
@@ -152,6 +166,14 @@
                                 <i class="fas fa-receipt text-muted me-1"></i> Número do Recibo
                             </label>
                             <input type="text" class="form-control" name="receipt_number" placeholder="Opcional">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                <i class="fas fa-file-upload text-muted me-1"></i> Comprovante (Foto/Scan)
+                            </label>
+                            <input type="file" class="form-control" name="receipt_file" accept="image/*,.pdf">
+                            <div class="form-text">Opcional. Carregue o comprovante se já o tiver.</div>
                         </div>
 
                         <div class="mb-3">
@@ -330,9 +352,8 @@
                             <th>Data</th>
                             <th>Categoria</th>
                             <th>Descrição</th>
-                            <th>Conta</th>
                             <th>Valor</th>
-                            <th>Usuário</th>
+                            <th class="text-center">Recibo</th>
                             <th class="text-center">Ações</th>
                         </tr>
                     </thead>
@@ -347,28 +368,39 @@
                                 <td><strong class="text-danger">#{{ $expense->id }}</strong></td>
                                 <td><strong>{{ $expense->expense_date->format('d/m/Y') }}</strong></td>
                                 <td><span class="badge bg-light text-dark">{{ $expense->category?->name ?? 'N/A' }}</span></td>
-                                <td>{{ Str::limit($expense->description, 50) }}</td>
-                                <td><span class="badge bg-secondary-subtle text-dark">{{ $expense->financialAccount?->name ?? 'N/A' }}</span></td>
+                                <td>
+                                    {{ Str::limit($expense->description, 35) }}
+                                    <br><small class="text-muted">{{ $expense->financialAccount?->name }}</small>
+                                </td>
                                 <td><strong class="text-danger">{{ number_format($expense->amount, 2, ',', '.') }} MT</strong></td>
-                                <td><small>{{ $expense->user?->name ?? 'N/A' }}</small></td>
+                                <td class="text-center">
+                                    @if($expense->receipt_file_path)
+                                        <a href="{{ Storage::url($expense->receipt_file_path) }}" target="_blank" class="btn btn-xs btn-success" title="Ver Recibo Digitalizado">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                    @else
+                                        <span class="badge bg-light text-muted border">Pendente</span>
+                                    @endif
+                                </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-info view-btn" title="Ver Detalhes"
-                                            data-bs-toggle="tooltip" data-bs-placement="top">
+                                    @if($expense->isRentExpense())
+                                            <a href="{{ route('expenses.rent-receipt', $expense) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo de Renda">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                        @endif
+                                        <button type="button" class="btn btn-outline-success" onclick="openExpenseUploadModal({{ $expense->id }})" title="Carregar Recibo Assinado">
+                                            <i class="fas fa-upload"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info view-btn" title="Ver Detalhes">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <a href="{{ route('expenses.edit', $expense) }}"
-                                            class="btn btn-outline-warning" title="Editar" data-bs-toggle="tooltip"
-                                            data-bs-placement="top">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
                                         <form method="POST" action="{{ route('expenses.destroy', $expense) }}"
                                             class="d-inline"
                                             onsubmit="return confirmDelete('{{ $expense->description }}')">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger" title="Excluir"
-                                                data-bs-toggle="tooltip" data-bs-placement="top">
+                                            <button type="submit" class="btn btn-outline-danger" title="Excluir">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </form>
@@ -403,10 +435,53 @@
             @endif
         </div>
     </div>
+    <!-- Modal para Carregar Recibo de Despesa -->
+    <div class="modal fade" id="uploadExpenseReceiptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="uploadExpenseReceiptForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Carregar Recibo/Comprovante</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Carregue a foto ou scan do recibo ou comprovante de pagamento desta despesa.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Arquivo (JPEG, PNG ou PDF)</label>
+                            <input type="file" name="receipt_file" class="form-control" accept="image/*,.pdf" required>
+                            <div class="form-text">Tamanho máximo: 5MB</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Salvar Recibo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
+
+@push('styles')
+    <style>
+        .btn-xs {
+            padding: 0.1rem 0.25rem;
+            font-size: 0.75rem;
+            line-height: 1;
+            border-radius: 0.2rem;
+        }
+    </style>
+@endpush
 
 @push('scripts')
     <script>
+        function openExpenseUploadModal(expenseId) {
+            const form = document.getElementById('uploadExpenseReceiptForm');
+            form.action = `/expenses/${expenseId}/receipt/upload`;
+            const modal = new bootstrap.Modal(document.getElementById('uploadExpenseReceiptModal'));
+            modal.show();
+        }
         // Limpar validação
         function clearValidation() {
             document.querySelectorAll('.form-control, .form-select').forEach(el => el.classList.remove('is-invalid'));
@@ -475,6 +550,12 @@
             clearValidation();
         });
 
+        document.getElementById('quick-category-rent')?.addEventListener('change', function () {
+            if (this.checked) {
+                document.getElementById('quick-category-operational').checked = true;
+            }
+        });
+
         // Submeter o formulário de criação de categoria
         document.getElementById('category-form').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -497,7 +578,7 @@
                         if (modal) modal.hide();
 
                         showToast(data.message || 'Categoria criada com sucesso!', 'success');
-                        setTimeout(() => window.location.reload(), 1500);
+                        setTimeout(() => window.location.reload(), 300);
                     } else {
                         if (data.errors) {
                             Object.keys(data.errors).forEach(field => {
@@ -651,7 +732,7 @@
                             if (modal) modal.hide();
 
                             showToast(data.message || 'Despesa criada com sucesso!', 'success');
-                            setTimeout(() => window.location.reload(), 1500);
+                            setTimeout(() => window.location.reload(), 300);
                         } else {
                             if (data.errors) {
                                 Object.keys(data.errors).forEach(field => {

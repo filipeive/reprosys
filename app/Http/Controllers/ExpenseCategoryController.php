@@ -35,12 +35,21 @@ class ExpenseCategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:expense_categories,name',
             'description' => 'nullable|string|max:500',
+            'is_operational' => 'nullable|boolean',
+            'is_rent' => 'nullable|boolean',
         ], [
             'name.required' => 'O nome da categoria é obrigatório.',
             'name.unique' => 'Já existe uma categoria com este nome.',
             'name.max' => 'O nome não pode ter mais de 255 caracteres.',
             'description.max' => 'A descrição não pode ter mais de 500 caracteres.',
         ]);
+
+        $validated['is_operational'] = $request->boolean('is_operational');
+        $validated['is_rent'] = $request->boolean('is_rent');
+
+        if ($validated['is_rent']) {
+            $validated['is_operational'] = true;
+        }
 
         $category = ExpenseCategory::create($validated);
 
@@ -86,12 +95,21 @@ class ExpenseCategoryController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:expense_categories,name,' . $expenseCategory->id,
             'description' => 'nullable|string|max:500',
+            'is_operational' => 'nullable|boolean',
+            'is_rent' => 'nullable|boolean',
         ], [
             'name.required' => 'O nome da categoria é obrigatório.',
             'name.unique' => 'Já existe uma categoria com este nome.',
             'name.max' => 'O nome não pode ter mais de 255 caracteres.',
             'description.max' => 'A descrição não pode ter mais de 500 caracteres.',
         ]);
+
+        $validated['is_operational'] = $request->boolean('is_operational');
+        $validated['is_rent'] = $request->boolean('is_rent');
+
+        if ($validated['is_rent']) {
+            $validated['is_operational'] = true;
+        }
 
         $expenseCategory->update($validated);
 

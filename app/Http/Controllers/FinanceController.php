@@ -20,7 +20,7 @@ class FinanceController extends Controller
 
     public function index()
     {
-        $accounts = FinancialAccount::where('is_active', true)
+        $accounts = FinancialAccount::operational()
             ->orderBy('sort_order')
             ->get();
 
@@ -164,6 +164,66 @@ class FinanceController extends Controller
         ]);
 
         return redirect()->route('finances.index')->with('success', "Saldo inicial da conta {$account->name} atualizado com sucesso.");
+    }
+
+    public function adjustAccountBalance(Request $request, FinancialAccount $account)
+    {
+        abort_unless(auth()->check() && auth()->user()->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'mode' => ['required', Rule::in(['add', 'remove', 'set'])],
+            'amount' => 'required|numeric|min:0',
+            'transaction_date' => 'required|date',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $currentBalance = (float) $account->current_balance;
+        $requestedAmount = round((float) $validated['amount'], 2);
+
+        $delta = match ($validated['mode']) {
+            'add' => $requestedAmount,
+            'remove' => -$requestedAmount,
+            'set' => round($requestedAmount - $currentBalance, 2),
+        };
+
+        if (abs($delta) < 0.01) {
+            return redirect()->route('finances.index')->with('success', "Saldo da conta {$account->name} já estava ajustado.");
+        }
+
+        $type = $delta > 0 ? 'cash_adjustment_in' : 'cash_adjustment_out';
+        $actionLabel = match ($validated['mode']) {
+            'add' => 'acréscimo',
+            'remove' => 'redução',
+            'set' => 'definição manual de saldo',
+        };
+
+        $transaction = $this->financialService->createManualTransaction([
+            'financial_account_id' => $account->id,
+            'user_id' => auth()->id(),
+            'type' => $type,
+            'direction' => $this->financialService->transactionDirection($type),
+            'amount' => abs($delta),
+            'transaction_date' => $validated['transaction_date'],
+            'description' => "Ajuste administrativo da conta {$account->name}",
+            'notes' => trim(implode(' | ', array_filter([
+                "Operação: {$actionLabel}",
+                "Saldo anterior: " . number_format($currentBalance, 2, '.', ''),
+                "Saldo alvo: " . number_format($validated['mode'] === 'set' ? $requestedAmount : $currentBalance + $delta, 2, '.', ''),
+                $validated['notes'] ?? null,
+            ]))),
+        ]);
+
+        UserActivity::create([
+            'user_id' => auth()->id(),
+            'action' => 'financial_account_adjustment',
+            'model_type' => FinancialTransaction::class,
+            'model_id' => $transaction->id,
+            'description' => "Ajustou o saldo da conta {$account->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return redirect()->route('finances.index')->with('success', "Saldo da conta {$account->name} ajustado com sucesso.");
     }
 
     public function show(FinancialTransaction $transaction)

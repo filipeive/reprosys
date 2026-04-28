@@ -322,7 +322,7 @@
                     <ul class="dropdown-menu dropdown-menu-end shadow">
                         <li>
                             <a class="dropdown-item" href="#" 
-                               onclick="event.preventDefault(); openEditModal({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ addslashes($category->description ?? '') }}')">
+                               onclick="event.preventDefault(); openEditModal({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ addslashes($category->description ?? '') }}', {{ $category->is_operational ? 'true' : 'false' }}, {{ $category->is_rent ? 'true' : 'false' }})">
                                 <i class="fas fa-edit me-2 text-primary"></i>
                                 Editar
                             </a>
@@ -360,6 +360,15 @@
             <p class="category-description">
                 {{ $category->description ?? 'Sem descrição' }}
             </p>
+
+            <div class="d-flex gap-2 mb-3">
+                @if($category->is_operational)
+                    <span class="badge bg-warning text-dark">Operacional</span>
+                @endif
+                @if($category->is_rent)
+                    <span class="badge bg-primary">Renda</span>
+                @endif
+            </div>
 
             <!-- Stats -->
             <div class="category-stats">
@@ -441,6 +450,22 @@
                             placeholder="Descreva o propósito desta categoria de despesa..."></textarea>
                         <small class="text-muted">Ajude a equipe a entender quando usar esta categoria</small>
                     </div>
+
+                    <div class="mt-4">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="is_operational" name="is_operational" value="1">
+                            <label class="form-check-label fw-semibold" for="is_operational">
+                                Categoria operacional
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_rent" name="is_rent" value="1">
+                            <label class="form-check-label fw-semibold" for="is_rent">
+                                Categoria de renda
+                            </label>
+                        </div>
+                        <small class="text-muted">Categorias de renda entram automaticamente como operacionais.</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer-custom">
@@ -489,7 +514,7 @@ function openCreateModal() {
 }
 
 // Abrir modal para editar
-function openEditModal(id, name, description) {
+function openEditModal(id, name, description, isOperational, isRent) {
     const modal = document.getElementById('categoryModal');
     const form = document.getElementById('categoryForm');
     const modalHeader = document.getElementById('modalHeader');
@@ -500,6 +525,8 @@ function openEditModal(id, name, description) {
     // Preencher form
     document.getElementById('name').value = name;
     document.getElementById('description').value = description;
+    document.getElementById('is_operational').checked = Boolean(isOperational);
+    document.getElementById('is_rent').checked = Boolean(isRent);
     form.action = `/expense-categories/${id}`;
     methodField.innerHTML = '@method("PUT")';
     
@@ -550,6 +577,12 @@ document.getElementById('categoryForm')?.addEventListener('submit', function(e) 
         } else {
             alert('O nome da categoria é obrigatório');
         }
+    }
+});
+
+document.getElementById('is_rent')?.addEventListener('change', function () {
+    if (this.checked) {
+        document.getElementById('is_operational').checked = true;
     }
 });
 

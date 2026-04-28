@@ -17,6 +17,8 @@ class ExpenseCategory extends Model
     protected $fillable = [
         'name',
         'description',
+        'is_operational',
+        'is_rent',
     ];
 
     /**
@@ -25,9 +27,21 @@ class ExpenseCategory extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'is_operational' => 'boolean',
+        'is_rent' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    public function scopeOperational($query)
+    {
+        return $query->where('is_operational', true);
+    }
+
+    public function scopeRent($query)
+    {
+        return $query->where('is_rent', true);
+    }
 
     /**
      * Relacionamento: Uma categoria possui muitas despesas.

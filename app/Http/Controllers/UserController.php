@@ -10,13 +10,14 @@ use App\Models\UserActivity;
 use App\Models\TemporaryPassword;
 use App\Services\FinancialService;
 use App\Traits\LogsActivity; 
-use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Request;
 
-class UserController extends AppBaseController
+class UserController extends Controller
 {
     use LogsActivity; 
 
@@ -121,7 +122,7 @@ class UserController extends AppBaseController
             $query->with(['account', 'payer'])->latest('payment_date')->limit(10);
         }]);
 
-        $financialAccounts = FinancialAccount::where('is_active', true)
+        $financialAccounts = FinancialAccount::operational()
             ->orderBy('sort_order')
             ->get();
 
@@ -195,28 +196,72 @@ class UserController extends AppBaseController
     {
         $validated = $request->validate([
             'financial_account_id' => 'required|exists:financial_accounts,id',
-            'amount' => 'required|numeric|min:0.01',
+            'base_amount' => 'required|numeric|min:0',
+            'variable_amount' => 'nullable|numeric|min:-1500|max:1500',
             'payment_date' => 'required|date',
             'reference_month' => 'nullable|date',
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $description = "Pagamento de salário - {$user->name}";
+        $baseAmount = (float) $validated['base_amount'];
+        $variableAmount = (float) ($validated['variable_amount'] ?? 0);
+        $totalAmount = $baseAmount + $variableAmount;
 
-        $financialService->createSalaryPayment([
+        $description = "Pagamento de salário - {$user->name}";
+        if ($variableAmount > 0) {
+            $description .= " (Base: " . number_format($baseAmount, 2) . " + Variável: " . number_format($variableAmount, 2) . ")";
+        }
+
+        $salaryPayment = $financialService->createSalaryPayment([
             'user_id' => $user->id,
             'financial_account_id' => $validated['financial_account_id'],
             'paid_by' => auth()->id(),
-            'amount' => $validated['amount'],
+            'amount' => $totalAmount,
+            'base_amount' => $baseAmount,
+            'variable_amount' => $variableAmount,
             'payment_date' => $validated['payment_date'],
             'reference_month' => $validated['reference_month'] ?? null,
             'description' => $description,
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        $this->logActivity('salary_payment', "Registrou pagamento salarial para {$user->name}", $user);
+        $this->logActivity('salary_payment', "Registrou pagamento salarial para {$user->name} (MT " . number_format($totalAmount, 2) . ")", $user);
 
         return redirect()->route('users.show', $user)->with('success', 'Pagamento salarial registrado com sucesso.');
+    }
+
+    /**
+     * Upload signed receipt for a salary payment.
+     */
+    public function uploadSalaryReceipt(Request $request, User $user, SalaryPayment $payment)
+    {
+        $request->validate([
+            'signed_receipt' => 'required|file|mimes:jpeg,jpg,png,pdf|max:5120',
+        ]);
+
+        // Remover recibo anterior se existir
+        if ($payment->signed_receipt_path) {
+            Storage::disk('public')->delete($payment->signed_receipt_path);
+        }
+
+        $path = $request->file('signed_receipt')->store('salary-receipts/' . $user->id, 'public');
+        $payment->update(['signed_receipt_path' => $path]);
+
+        $this->logActivity('receipt_upload', "Carregou recibo assinado do pagamento salarial #{$payment->id} de {$user->name}", $user);
+
+        return redirect()->route('users.show', $user)->with('success', 'Recibo assinado carregado com sucesso.');
+    }
+
+    /**
+     * Generate printable salary receipt.
+     */
+    public function salaryReceipt(User $user, SalaryPayment $payment)
+    {
+        $pdf = Pdf::loadView('users.salary-receipt', compact('user', 'payment'));
+        
+        $filename = 'recibo-salario-' . $user->id . '-' . ($payment->reference_month ? $payment->reference_month->format('m-Y') : $payment->payment_date->format('m-Y')) . '.pdf';
+        
+        return $pdf->stream($filename);
     }
 
     public function payroll(Request $request)
@@ -250,6 +295,7 @@ class UserController extends AppBaseController
                 'status' => $baseSalary <= 0
                     ? 'undefined'
                     : ($balance <= 0 ? 'paid' : ($paidAmount > 0 ? 'partial' : 'pending')),
+                'payments' => $payments, // Adicionado os pagamentos para mostrar recibos
             ];
         });
 
@@ -260,7 +306,9 @@ class UserController extends AppBaseController
             'balance_total' => (float) $payrollRows->sum('balance'),
         ];
 
-        return view('users.payroll', compact('referenceMonth', 'payrollRows', 'summary'));
+        $financialAccounts = FinancialAccount::operational()->orderBy('sort_order')->get();
+
+        return view('users.payroll', compact('referenceMonth', 'payrollRows', 'summary', 'financialAccounts'));
     }
 
     /**

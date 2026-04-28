@@ -6,9 +6,11 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\FinancialAccount;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Services\FinancialService;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ExpenseController extends Controller
 {
@@ -18,6 +20,16 @@ class ExpenseController extends Controller
      * Exibir lista de despesas com filtros
      */
     public function index(Request $request)
+    {
+        return $this->renderExpenseIndex($request, false);
+    }
+
+    public function operational(Request $request)
+    {
+        return $this->renderExpenseIndex($request, true);
+    }
+
+    private function renderExpenseIndex(Request $request, bool $operationalOnly)
     {
         $query = Expense::with(['user', 'category', 'financialAccount']);
 
@@ -36,6 +48,13 @@ class ExpenseController extends Controller
             $query->whereDate('expense_date', '<=', $request->date_to);
         }
 
+        if ($operationalOnly) {
+            $query->where(function ($subQuery) {
+                $subQuery->whereNotNull('product_id')
+                    ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('is_operational', true));
+            });
+        }
+
         $expenses = $query->latest()->paginate(10);
 
         $totalExpenses = (clone $query)->sum('amount');
@@ -44,8 +63,10 @@ class ExpenseController extends Controller
         $lowestExpense = (clone $query)->min('amount') ?: 0;
 
         // Carregar categorias para o offcanvas
-        $categories = ExpenseCategory::all();
-        $financialAccounts = FinancialAccount::where('is_active', true)->orderBy('sort_order')->get();
+        $categories = $operationalOnly
+            ? ExpenseCategory::operational()->orderBy('name')->get()
+            : ExpenseCategory::orderBy('name')->get();
+        $financialAccounts = FinancialAccount::operational()->orderBy('sort_order')->get();
         $products = Product::where('type', 'product')->where('is_active', true)->orderBy('name')->get();
 
         if ($request->wantsJson() || $request->ajax()) {
@@ -63,8 +84,24 @@ class ExpenseController extends Controller
             ]);
         }
 
+        $pageMode = $operationalOnly ? 'operational' : 'all';
+        $pageTitle = $operationalOnly ? 'Despesas Operacionais' : 'Despesas';
+        $pageSubtitle = $operationalOnly
+            ? 'Controle de renda, compras operacionais e custos ligados ao funcionamento do negócio'
+            : 'Registre e acompanhe todas as despesas da reprografia';
+
         return view('expenses.index', compact(
-            'expenses', 'totalExpenses', 'averageExpense', 'highestExpense', 'lowestExpense', 'categories', 'financialAccounts', 'products'
+            'expenses',
+            'totalExpenses',
+            'averageExpense',
+            'highestExpense',
+            'lowestExpense',
+            'categories',
+            'financialAccounts',
+            'products',
+            'pageMode',
+            'pageTitle',
+            'pageSubtitle',
         ));
     }
 
@@ -92,10 +129,16 @@ class ExpenseController extends Controller
             'notes' => 'nullable|string|max:500',
             'product_id' => 'nullable|exists:products,id',
             'quantity' => 'nullable|integer|min:1',
+            'receipt_file' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120',
         ]);
 
         $productId = $request->filled('product_id') ? $request->product_id : null;
         $quantity = $request->filled('quantity') ? $request->quantity : 1;
+
+        $receiptPath = null;
+        if ($request->hasFile('receipt_file')) {
+            $receiptPath = $request->file('receipt_file')->store('expense-receipts', 'public');
+        }
 
         $expense = Expense::create([
             'user_id' => auth()->id(),
@@ -108,6 +151,7 @@ class ExpenseController extends Controller
             'notes' => $validated['notes'],
             'product_id' => $productId,
             'quantity' => $quantity,
+            'receipt_file_path' => $receiptPath,
         ]);
 
         if ($productId) {
@@ -156,7 +200,7 @@ class ExpenseController extends Controller
         // $this->authorize('update-expense', $expense);
 
         $categories = ExpenseCategory::all();
-        $financialAccounts = FinancialAccount::where('is_active', true)->orderBy('sort_order')->get();
+        $financialAccounts = FinancialAccount::operational()->orderBy('sort_order')->get();
         $products = Product::where('type', 'product')->where('is_active', true)->orderBy('name')->get();
 
         return view('expenses.edit', compact('expense', 'categories', 'financialAccounts', 'products'));
@@ -266,5 +310,50 @@ class ExpenseController extends Controller
         }
 
         return redirect()->route('expenses.index')->with('success', 'Despesa excluída com sucesso!');
+    }
+
+    /**
+     * Generate printable rent receipt.
+     */
+    public function rentReceipt(Expense $expense)
+    {
+        $expense->loadMissing(['category', 'financialAccount']);
+
+        if (!$expense->isRentExpense()) {
+            return redirect()->back()->with('error', 'Esta despesa não é uma categoria de renda.');
+        }
+
+        $contract = [
+            'landlord_name' => Setting::get('rent_contract_landlord_name', 'Filipe Domingos dos Santos'),
+            'tenant_name' => Setting::get('rent_contract_tenant_name', 'Minora Nhatambo Paquete'),
+            'property_location' => Setting::get('rent_contract_property_location', 'Avenida Eduardo Mondlane'),
+            'business_activity' => Setting::get('rent_contract_business_activity', 'Reprografia, Serigrafia & Escritorio'),
+        ];
+
+        $pdf = Pdf::loadView('expenses.rent-receipt', compact('expense', 'contract'));
+        
+        $filename = 'recibo-renda-' . $expense->expense_date->format('m-Y') . '.pdf';
+        
+        return $pdf->stream($filename);
+    }
+
+    /**
+     * Upload signed receipt for an expense.
+     */
+    public function uploadReceipt(Request $request, Expense $expense)
+    {
+        $request->validate([
+            'receipt_file' => 'required|file|mimes:jpeg,jpg,png,pdf|max:5120',
+        ]);
+
+        // Remover arquivo anterior se existir
+        if ($expense->receipt_file_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($expense->receipt_file_path);
+        }
+
+        $path = $request->file('receipt_file')->store('expense-receipts', 'public');
+        $expense->update(['receipt_file_path' => $path]);
+
+        return redirect()->back()->with('success', 'Comprovante/Recibo carregado com sucesso.');
     }
 }

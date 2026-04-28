@@ -1604,7 +1604,7 @@
                         @if (userCan('view_expenses'))
                             <li class="nav-item">
                                 <a href="{{ route('expenses.index') }}"
-                                    class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}">
+                                    class="nav-link {{ request()->routeIs('expenses.*') && !request()->routeIs('expenses.operational') ? 'active' : '' }}">
                                     <span class="nav-icon">
                                         <i class="fas fa-receipt"></i>
                                     </span>
@@ -1616,6 +1616,17 @@
                                     @else
                                         <span class="nav-badge badge-secondary">Ver</span>
                                     @endif
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a href="{{ route('expenses.operational') }}"
+                                    class="nav-link {{ request()->routeIs('expenses.operational') ? 'active' : '' }}">
+                                    <span class="nav-icon">
+                                        <i class="fas fa-building"></i>
+                                    </span>
+                                    <span class="nav-text">Despesas Operacionais</span>
+                                    <span class="nav-badge badge-warning">Core</span>
                                 </a>
                             </li>
                         @endif
@@ -1690,6 +1701,17 @@
                         @endif
 
                         @if (userCan('manage_settings'))
+                            <li class="nav-item">
+                                <a href="{{ route('documents.templates.index') }}"
+                                    class="nav-link {{ request()->routeIs('documents.templates.*') ? 'active' : '' }}">
+                                    <span class="nav-icon">
+                                        <i class="fas fa-file-contract"></i>
+                                    </span>
+                                    <span class="nav-text">Templates de Documentos</span>
+                                    <span class="nav-badge badge-warning">Docs</span>
+                                </a>
+                            </li>
+
                             <li class="nav-item">
                                 <a href="#" onclick="showSettings()" class="nav-link">
                                     <span class="nav-icon">
@@ -2058,6 +2080,16 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        window.addEventListener('pageshow', function (event) {
+            const navigationEntry = performance.getEntriesByType('navigation')[0];
+            const isBackForward = navigationEntry && navigationEntry.type === 'back_forward';
+
+            if (event.persisted || isBackForward) {
+                window.location.reload();
+            }
+        });
+    </script>
     <script>
         // ===== VARIÁVEIS GLOBAIS =====
         let sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';

@@ -26,6 +26,11 @@ class FinancialAccount extends Model
         return $this->hasMany(FinancialTransaction::class);
     }
 
+    public function scopeOperational($query)
+    {
+        return $query->where('is_active', true);
+    }
+
     public function getCurrentBalanceAttribute(): float
     {
         $inflows = (float) $this->transactions()->where('direction', 'in')->sum('amount');

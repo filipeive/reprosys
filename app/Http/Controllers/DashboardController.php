@@ -63,7 +63,7 @@ class DashboardController extends Controller
                                     ->distinct('customer_name')
                                     ->count('customer_name');
         $currentCapital = class_exists(FinancialAccount::class)
-            ? (float) FinancialAccount::where('is_active', true)->get()->sum(fn ($account) => $account->current_balance)
+            ? (float) FinancialAccount::operational()->get()->sum(fn ($account) => $account->current_balance)
             : 0;
         $accountsReceivable = class_exists(Debt::class)
             ? (float) Debt::where('status', 'active')->sum('remaining_amount')

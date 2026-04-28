@@ -73,16 +73,40 @@
                                     </div>
                                     <small class="text-muted">Saldo inicial: MT {{ number_format($account->opening_balance, 2, ',', '.') }}</small>
                                     @if(auth()->check() && auth()->user()->isAdmin())
-                                        <button
-                                            type="button"
-                                            class="btn btn-link btn-sm p-0 mt-2 text-decoration-none"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#openingBalanceModal"
-                                            data-account-id="{{ $account->id }}"
-                                            data-account-name="{{ $account->name }}"
-                                            data-opening-balance="{{ $account->opening_balance }}">
-                                            Ajustar saldo inicial
-                                        </button>
+                                        <div class="d-flex flex-wrap gap-2 mt-2">
+                                            <button
+                                                type="button"
+                                                class="btn btn-link btn-sm p-0 text-decoration-none"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#openingBalanceModal"
+                                                data-account-id="{{ $account->id }}"
+                                                data-account-name="{{ $account->name }}"
+                                                data-opening-balance="{{ $account->opening_balance }}">
+                                                Ajustar saldo inicial
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-link btn-sm p-0 text-decoration-none"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#balanceAdjustmentModal"
+                                                data-account-id="{{ $account->id }}"
+                                                data-account-name="{{ $account->name }}"
+                                                data-current-balance="{{ number_format($account->current_balance, 2, '.', '') }}">
+                                                Ajustar saldo atual
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-link btn-sm p-0 text-danger text-decoration-none"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#balanceAdjustmentModal"
+                                                data-account-id="{{ $account->id }}"
+                                                data-account-name="{{ $account->name }}"
+                                                data-current-balance="{{ number_format($account->current_balance, 2, '.', '') }}"
+                                                data-adjustment-mode="set"
+                                                data-adjustment-amount="0">
+                                                Zerar saldo
+                                            </button>
+                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -331,6 +355,61 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="balanceAdjustmentModal" tabindex="-1" aria-labelledby="balanceAdjustmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title" id="balanceAdjustmentModalLabel">
+                    <i class="fas fa-balance-scale me-2 text-warning"></i>Ajustar Saldo Atual
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="POST" id="balanceAdjustmentForm">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Conta</label>
+                        <input type="text" id="balanceAdjustmentAccountName" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Saldo atual</label>
+                        <input type="text" id="balanceAdjustmentCurrentBalance" class="form-control" readonly>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Operação</label>
+                            <select name="mode" id="balanceAdjustmentMode" class="form-select" required>
+                                <option value="add">Adicionar valor</option>
+                                <option value="remove">Remover valor</option>
+                                <option value="set">Definir saldo final</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Valor</label>
+                            <input type="number" step="0.01" min="0" name="amount" id="balanceAdjustmentAmount" class="form-control" required>
+                            <div class="form-text">Use Definir saldo final com 0,00 para zerar a conta.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Data do ajuste</label>
+                            <input type="date" name="transaction_date" value="{{ now()->format('Y-m-d') }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Motivo</label>
+                            <textarea name="notes" rows="3" class="form-control" placeholder="Ex: valor lançado por engano na conta bancária"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning text-white">
+                        <i class="fas fa-save me-1"></i>Registrar Ajuste
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endif
 @endsection
 
@@ -398,6 +477,28 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('openingBalanceAccountName').value = accountName || '';
         document.getElementById('openingBalanceValue').value = openingBalance || '0.00';
         document.getElementById('openingBalanceForm').action = `{{ url('finances/accounts') }}/${accountId}`;
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    const balanceAdjustmentModal = document.getElementById('balanceAdjustmentModal');
+    if (!balanceAdjustmentModal) return;
+
+    balanceAdjustmentModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        if (!button) return;
+
+        const accountId = button.getAttribute('data-account-id');
+        const accountName = button.getAttribute('data-account-name');
+        const currentBalance = button.getAttribute('data-current-balance');
+        const mode = button.getAttribute('data-adjustment-mode') || 'add';
+        const amount = button.getAttribute('data-adjustment-amount') || '';
+
+        document.getElementById('balanceAdjustmentAccountName').value = accountName || '';
+        document.getElementById('balanceAdjustmentCurrentBalance').value = `MT ${Number(currentBalance || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        document.getElementById('balanceAdjustmentMode').value = mode;
+        document.getElementById('balanceAdjustmentAmount').value = amount;
+        document.getElementById('balanceAdjustmentForm').action = `{{ url('finances/accounts') }}/${accountId}/adjust-balance`;
     });
 });
 </script>
