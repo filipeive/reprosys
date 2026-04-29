@@ -254,7 +254,6 @@
                                                             <i class="fas fa-undo"></i>
                                                         </button>
                                                     @endif
-                                                @endif
                                             </div>
                                         </td>
                                     </tr>
