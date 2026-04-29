@@ -346,12 +346,17 @@ class DebtController extends Controller
                 $debt->status = 'paid';
                 $debt->remaining_amount = 0;
 
-                if ($debt->isProductDebt() && ! $debt->sale_id && $request->has('create_sale')) {
+                if ($debt->isProductDebt() && ! $debt->generated_sale_id && $request->has('create_sale')) {
                     $this->createSaleFromDebt($debt);
                 }
             }
 
             $debt->save();
+
+            // Garantir que a transação financeira seja criada se houver pagamento
+            if (isset($payment)) {
+                $this->financialService->syncDebtPaymentTransaction($payment);
+            }
 
             DB::commit();
 
@@ -383,7 +388,7 @@ class DebtController extends Controller
             'customer_phone' => $debt->customer_phone,
             'subtotal' => $debt->original_amount,
             'total_amount' => $debt->original_amount,
-            'payment_method' => 'mixed',
+            'payment_method' => 'debt_settlement',
             'sale_date' => now(),
             'notes' => "Venda da dívida #{$debt->id}",
         ]);
@@ -591,7 +596,7 @@ class DebtController extends Controller
             DB::beginTransaction();
 
             if ($debt->remaining_amount > 0) {
-                DebtPayment::create([
+                $payment = DebtPayment::create([
                     'debt_id' => $debt->id,
                     'user_id' => auth()->id(),
                     'amount' => $debt->remaining_amount,
@@ -599,6 +604,8 @@ class DebtController extends Controller
                     'payment_date' => now()->toDateString(),
                     'notes' => 'Pagamento final - quitação completa',
                 ]);
+
+                $this->financialService->syncDebtPaymentTransaction($payment);
             }
 
             $debt->update(['status' => 'paid', 'remaining_amount' => 0]);

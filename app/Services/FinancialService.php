@@ -233,7 +233,7 @@ class FinancialService
         DB::transaction(function () use ($sale) {
             $this->reverseTransactionsForReference(Sale::class, $sale->id);
 
-            if ($sale->payment_method === 'credit') {
+            if ($sale->payment_method === 'credit' || $sale->payment_method === 'debt_settlement') {
                 return;
             }
 
