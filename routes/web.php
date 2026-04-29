@@ -316,6 +316,8 @@ Route::middleware(['auth', 'permissions', 'temp.password', 'verified'])->group(f
             Route::post('/transactions', [FinanceController::class, 'storeTransaction'])->name('transactions.store');
             Route::patch('/accounts/{account}', [FinanceController::class, 'updateAccount'])->name('accounts.update');
             Route::post('/accounts/{account}/adjust-balance', [FinanceController::class, 'adjustAccountBalance'])->name('accounts.adjust-balance');
+            Route::post('/transactions/{transaction}/revert', [FinanceController::class, 'revertTransaction'])->name('transactions.revert');
+            Route::patch('/transactions/{transaction}/toggle-metrics', [FinanceController::class, 'toggleMetrics'])->name('transactions.toggle-metrics');
         });
     });
 

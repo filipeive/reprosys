@@ -227,19 +227,37 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <small class="text-muted">{{ $transactionTypes[$transaction->type]['label'] ?? ucfirst(str_replace('_', ' ', $transaction->type)) }}</small>
+                                            <div class="d-flex flex-column">
+                                                <small class="text-muted">{{ $transactionTypes[$transaction->type]['label'] ?? ucfirst(str_replace('_', ' ', $transaction->type)) }}</small>
+                                                @if(!$transaction->include_in_metrics)
+                                                    <span class="badge bg-light text-muted border" style="font-size: 0.65rem; width: fit-content;">Excluído das Métricas</span>
+                                                @endif
+                                            </div>
                                         </td>
                                         <td class="text-end fw-semibold {{ $transaction->direction === 'in' ? 'text-success' : 'text-danger' }}">
                                             {{ $transaction->direction === 'in' ? '+' : '-' }}MT {{ number_format($transaction->amount, 2, ',', '.') }}
                                         </td>
                                         <td class="text-center">
-                                            @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isManager() || (int) $transaction->user_id === (int) auth()->id()))
-                                                <a href="{{ route('finances.transactions.show', $transaction) }}" class="btn btn-sm btn-outline-primary">
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <a href="{{ route('finances.transactions.show', $transaction) }}" class="btn btn-sm btn-outline-primary" title="Ver detalhes">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
-                                            @else
-                                                <span class="text-muted small">-</span>
-                                            @endif
+                                                @if(auth()->check() && auth()->user()->isAdmin())
+                                                    <form action="{{ route('finances.transactions.toggle-metrics', $transaction) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        @method('PATCH')
+                                                        <button type="submit" class="btn btn-sm {{ $transaction->include_in_metrics ? 'btn-outline-info' : 'btn-info text-white' }}" title="{{ $transaction->include_in_metrics ? 'Excluir das métricas' : 'Incluir nas métricas' }}">
+                                                            <i class="fas {{ $transaction->include_in_metrics ? 'fa-chart-line' : 'fa-chart-line' }}" style="{{ $transaction->include_in_metrics ? '' : 'text-decoration: line-through;' }}"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form action="{{ route('finances.transactions.revert', $transaction) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja reverter/excluir esta transação? Esta ação não pode ser desfeita.')">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Reverter/Excluir">
+                                                            <i class="fas fa-undo"></i>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                 @empty

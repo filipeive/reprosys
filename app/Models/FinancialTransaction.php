@@ -26,12 +26,14 @@ class FinancialTransaction extends Model
         'balance_after',
         'reversed_by',
         'reversal_of',
+        'include_in_metrics',
     ];
 
     protected $casts = [
-        'amount'           => 'decimal:2',
-        'balance_after'    => 'decimal:2',
-        'transaction_date' => 'date',
+        'amount'             => 'decimal:2',
+        'balance_after'      => 'decimal:2',
+        'transaction_date'   => 'date',
+        'include_in_metrics' => 'boolean',
     ];
 
     protected $attributes = [
@@ -85,6 +87,11 @@ class FinancialTransaction extends Model
     public function scopeOperational($query)
     {
         return $query->whereNotIn('type', ['cash_adjustment_in', 'cash_adjustment_out']);
+    }
+
+    public function scopeInMetrics($query)
+    {
+        return $query->where('include_in_metrics', true);
     }
 
     // ── Helpers ──

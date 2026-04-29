@@ -166,6 +166,7 @@ class FinancialService
             'payment_method'       => $data['payment_method'] ?? null,
             'notes'                => $data['notes'] ?? null,
             'status'               => $data['status'] ?? 'confirmed',
+            'include_in_metrics'   => $data['include_in_metrics'] ?? true,
         ]);
 
         // Snapshot balance after transaction for audit trail
@@ -411,8 +412,7 @@ class FinancialService
             ->where('direction', $direction);
 
         if ($excludeAdjustments) {
-            $adjustmentType = $direction === 'in' ? 'cash_adjustment_in' : 'cash_adjustment_out';
-            $query->where('type', '!=', $adjustmentType);
+            $query->inMetrics();
         }
 
         return (float) $query->sum('amount');

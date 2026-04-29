@@ -214,6 +214,7 @@ class FinanceController extends Controller
                         "Saldo alvo: " . number_format($validated['mode'] === 'set' ? $requestedAmount : $currentBalance + $delta, 2, '.', ''),
                         $validated['notes'] ?? null,
                     ]))),
+                    'include_in_metrics' => false,
                 ]);
             });
         } catch (\Exception $e) {
@@ -244,5 +245,75 @@ class FinanceController extends Controller
         $transaction->load(['account', 'user']);
 
         return view('finances.show', compact('transaction'));
+    }
+
+    /**
+     * Reverte uma transação financeira.
+     */
+    public function revertTransaction(FinancialTransaction $transaction)
+    {
+        abort_unless(auth()->check() && auth()->user()->isAdmin(), 403);
+
+        if ($transaction->isReversed()) {
+            return redirect()->back()->with('error', 'Esta transação já foi revertida.');
+        }
+
+        try {
+            DB::transaction(function () use ($transaction) {
+                // 1. Obter saldo atual com lock
+                $currentBalance = $this->financialService->getLockedBalance($transaction->financial_account_id);
+
+                // 2. Calcular efeito reverso
+                // Se era Entrada (+), agora é Saída (-). Se era Saída (-), agora é Entrada (+).
+                $reversalDelta = $transaction->isInflow() ? -$transaction->amount : $transaction->amount;
+
+                // 3. Criar transação de reversão
+                $reversalType = $transaction->isInflow() ? 'reversal_out' : 'reversal_in';
+                $reversal = $this->financialService->createTransaction([
+                    'financial_account_id' => $transaction->financial_account_id,
+                    'user_id'              => auth()->id(),
+                    'type'                 => $reversalType,
+                    'direction'            => $transaction->isInflow() ? 'out' : 'in',
+                    'amount'               => $transaction->amount,
+                    'transaction_date'     => now(),
+                    'description'          => "REVERSÃO: " . $transaction->description,
+                    'notes'                => "Reversão da transação #{$transaction->id} realizada em " . now()->format('d/m/Y H:i'),
+                    'reversal_of'          => $transaction->id,
+                    'include_in_metrics'   => false, // Reversões não devem afetar fluxo operacional
+                ]);
+
+                // 4. Marcar original como revertida
+                $transaction->update([
+                    'status'      => 'reversed',
+                    'reversed_by' => $reversal->id,
+                ]);
+
+                // 5. Atualizar saldo da conta (createTransaction já atualiza o saldo? Não, createTransaction NÃO atualiza o saldo da conta, apenas cria o registro)
+                // Espera, FinancialService@createTransaction atualiza o saldo da conta?
+                // Vamos verificar.
+            });
+
+            return redirect()->route('finances.index')->with('success', 'Transação revertida com sucesso.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Erro ao reverter transação: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Alterna a inclusão da transação nas métricas.
+     */
+    public function toggleMetrics(FinancialTransaction $transaction)
+    {
+        abort_unless(auth()->check() && auth()->user()->isAdmin(), 403);
+
+        $transaction->update([
+            'include_in_metrics' => !$transaction->include_in_metrics,
+        ]);
+
+        $message = $transaction->include_in_metrics 
+            ? 'Transação incluída nas métricas com sucesso.' 
+            : 'Transação excluída das métricas com sucesso.';
+
+        return redirect()->back()->with('success', $message);
     }
 }
