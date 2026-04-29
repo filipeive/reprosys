@@ -250,12 +250,10 @@
                                                             <i class="fas {{ $transaction->include_in_metrics ? 'fa-chart-line' : 'fa-chart-line' }}" style="{{ $transaction->include_in_metrics ? '' : 'text-decoration: line-through;' }}"></i>
                                                         </button>
                                                     </form>
-                                                    <form action="{{ route('finances.transactions.revert', $transaction) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja reverter/excluir esta transação? Esta ação não pode ser desfeita.')">
-                                                        @csrf
-                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Reverter/Excluir">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Reverter/Excluir" onclick="confirmReversal({{ $transaction->id }})">
                                                             <i class="fas fa-undo"></i>
                                                         </button>
-                                                    </form>
+                                                    @endif
                                                 @endif
                                             </div>
                                         </td>
@@ -428,12 +426,48 @@
         </div>
     </div>
 </div>
+@if(auth()->check() && auth()->user()->isAdmin())
+<div class="modal fade" id="revertTransactionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2 text-danger"></i>Confirmar Reversão
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja reverter/excluir esta transação?</p>
+                <div class="alert alert-warning small mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Esta ação irá restaurar o saldo da conta e marcar o movimento como revertido. Esta operação não pode ser desfeita.
+                </div>
+            </div>
+            <div class="modal-footer bg-white">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="revertTransactionForm" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-undo me-1"></i>Confirmar Reversão
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 @endif
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+function confirmReversal(transactionId) {
+    const form = document.getElementById('revertTransactionForm');
+    form.action = `{{ url('finances/transactions') }}/${transactionId}/revert`;
+    const modal = new bootstrap.Modal(document.getElementById('revertTransactionModal'));
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const canvas = document.getElementById('financeFlowChart');
     if (!canvas) return;
