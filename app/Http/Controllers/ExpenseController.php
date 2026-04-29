@@ -36,6 +36,9 @@ class ExpenseController extends Controller
             ->outflows()
             ->confirmed();
 
+        // Excluir ajustes técnicos da lista de despesas (ajustes não são gastos reais)
+        $query->whereNotIn('type', ['cash_adjustment_out']);
+
         // Somente Admin e Super Admin veem todas as transações. 
         // Gerentes e outros usuários veem apenas o que registraram.
         if (! auth()->user()->isAdmin()) {
@@ -55,21 +58,23 @@ class ExpenseController extends Controller
         if ($operationalOnly) {
             // No FinancialTransaction, despesas operacionais são identificadas pelo tipo ou pela referência
             $query->where(function ($subQuery) {
-                $subQuery->where('type', 'expense')
+                $subQuery->whereIn('type', ['expense', 'expense_payment'])
                     ->whereHasMorph('reference', [\App\Models\Expense::class], function ($q) {
                         $q->whereNotNull('product_id')
                             ->orWhereHas('category', fn ($cat) => $cat->where('is_operational', true));
                     })
-                    ->orWhere('type', 'payroll'); // Salários são sempre operacionais
+                    ->orWhereIn('type', ['payroll', 'salary_payment']); // Salários são sempre operacionais
             });
         }
 
         $transactions = $query->latest('transaction_date')->latest('id')->paginate(10);
 
-        $totalExpenses = (clone $query)->sum('amount');
-        $averageExpense = (clone $query)->avg('amount') ?: 0;
-        $highestExpense = (clone $query)->max('amount') ?: 0;
-        $lowestExpense = (clone $query)->min('amount') ?: 0;
+        // Totais devem respeitar a flag de inclusão nas métricas
+        $metricsQuery = (clone $query)->inMetrics();
+        $totalExpenses = $metricsQuery->sum('amount');
+        $averageExpense = $metricsQuery->avg('amount') ?: 0;
+        $highestExpense = $metricsQuery->max('amount') ?: 0;
+        $lowestExpense = $metricsQuery->min('amount') ?: 0;
 
         // Carregar categorias para o offcanvas
         $categories = $operationalOnly
