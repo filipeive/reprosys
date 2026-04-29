@@ -32,8 +32,9 @@ echo "🚀 Iniciando deploy para produção..."
 ssh -i "$KEY" "$SERVER" "cd $PROJECT_DIR && \
     echo '🔧 Corrigindo permissões do git...' && \
     sudo chown -R ubuntu:ubuntu .git && \
-    echo '📥 Atualizando código com fast-forward only...' && \
-    git pull --ff-only origin $BRANCH && \
+    echo '📥 Atualizando código (force sync)...' && \
+    git fetch origin $BRANCH && \
+    git reset --hard origin/$BRANCH && \
     echo '📦 Instalando dependências...' && \
     composer install --optimize-autoloader --no-dev --no-interaction && \
     echo '🧱 Criando tabelas de suporte legadas faltantes...' && \
