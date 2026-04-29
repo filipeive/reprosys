@@ -425,6 +425,8 @@
         </div>
     </div>
 </div>
+@endif
+
 @if(auth()->check() && auth()->user()->isAdmin())
 <div class="modal fade" id="revertTransactionModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
