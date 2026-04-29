@@ -31,9 +31,12 @@ class ExpenseController extends Controller
 
     private function renderExpenseIndex(Request $request, bool $operationalOnly)
     {
-        $query = Expense::with(['user', 'category', 'financialAccount']);
+        // Agora buscamos todas as saídas financeiras confirmadas, unificando despesas e pagamentos de salários
+        $query = \App\Models\FinancialTransaction::with(['user', 'account', 'reference'])
+            ->outflows()
+            ->confirmed();
 
-        // Se não for admin nem gerente, vê apenas as suas próprias despesas
+        // Se não for admin nem gerente, vê apenas as suas próprias transações (se aplicável)
         if (! auth()->user()->isAdmin() && ! auth()->user()->hasPermission('view_all_expenses')) {
             $query->where('user_id', auth()->id());
         }
@@ -42,23 +45,28 @@ class ExpenseController extends Controller
             $query->where('description', 'like', '%'.$request->search.'%');
         }
         if ($request->filled('date_from')) {
-            $query->whereDate('expense_date', '>=', $request->date_from);
+            $query->whereDate('transaction_date', '>=', $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('expense_date', '<=', $request->date_to);
+            $query->whereDate('transaction_date', '<=', $request->date_to);
         }
 
         if ($operationalOnly) {
+            // No FinancialTransaction, despesas operacionais são identificadas pelo tipo ou pela referência
             $query->where(function ($subQuery) {
-                $subQuery->whereNotNull('product_id')
-                    ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('is_operational', true));
+                $subQuery->where('type', 'expense')
+                    ->whereHasMorph('reference', [\App\Models\Expense::class], function ($q) {
+                        $q->whereNotNull('product_id')
+                            ->orWhereHas('category', fn ($cat) => $cat->where('is_operational', true));
+                    })
+                    ->orWhere('type', 'payroll'); // Salários são sempre operacionais
             });
         }
 
-        $expenses = $query->latest()->paginate(10);
+        $transactions = $query->latest('transaction_date')->latest('id')->paginate(10);
 
         $totalExpenses = (clone $query)->sum('amount');
-        $averageExpense = (clone $query)->avg('amount');
+        $averageExpense = (clone $query)->avg('amount') ?: 0;
         $highestExpense = (clone $query)->max('amount') ?: 0;
         $lowestExpense = (clone $query)->min('amount') ?: 0;
 
@@ -72,14 +80,14 @@ class ExpenseController extends Controller
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
-                'data' => $expenses->items(),
+                'data' => $transactions->items(),
                 'pagination' => [
-                    'current_page' => $expenses->currentPage(),
-                    'last_page' => $expenses->lastPage(),
-                    'total' => $expenses->total(),
-                    'per_page' => $expenses->perPage(),
-                    'from' => $expenses->firstItem(),
-                    'to' => $expenses->lastItem(),
+                    'current_page' => $transactions->currentPage(),
+                    'last_page' => $transactions->lastPage(),
+                    'total' => $transactions->total(),
+                    'per_page' => $transactions->perPage(),
+                    'from' => $transactions->firstItem(),
+                    'to' => $transactions->lastItem(),
                 ],
             ]);
         }
@@ -90,19 +98,19 @@ class ExpenseController extends Controller
             ? 'Controle de renda, compras operacionais e custos ligados ao funcionamento do negócio'
             : 'Registre e acompanhe todas as despesas da reprografia';
 
-        return view('expenses.index', compact(
-            'expenses',
-            'totalExpenses',
-            'averageExpense',
-            'highestExpense',
-            'lowestExpense',
-            'categories',
-            'financialAccounts',
-            'products',
-            'pageMode',
-            'pageTitle',
-            'pageSubtitle',
-        ));
+        return view('expenses.index', [
+            'expenses' => $transactions, // Passamos como 'expenses' para manter compatibilidade com a variável no Blade
+            'totalExpenses' => $totalExpenses,
+            'averageExpense' => $averageExpense,
+            'highestExpense' => $highestExpense,
+            'lowestExpense' => $lowestExpense,
+            'categories' => $categories,
+            'financialAccounts' => $financialAccounts,
+            'products' => $products,
+            'pageMode' => $pageMode,
+            'pageTitle' => $pageTitle,
+            'pageSubtitle' => $pageSubtitle,
+        ]);
     }
 
     /**

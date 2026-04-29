@@ -60,6 +60,11 @@ class FinancialTransaction extends Model
         return $this->belongsTo(self::class, 'reversal_of');
     }
 
+    public function reference()
+    {
+        return $this->morphTo();
+    }
+
     // ── Scopes ──
 
     public function scopeConfirmed($query)

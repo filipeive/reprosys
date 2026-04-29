@@ -359,23 +359,41 @@
                     </thead>
                     <tbody>
                         @forelse($expenses as $expense)
-                            <tr data-id="{{ $expense->id }}" data-category="{{ $expense->category?->name }}"
-                                data-description="{{ $expense->description }}" data-amount="{{ $expense->amount }}"
-                                data-date="{{ $expense->expense_date->format('Y-m-d') }}"
-                                data-receipt="{{ $expense->receipt_number }}" data-notes="{{ $expense->notes }}"
+                            <tr data-id="{{ $expense->id }}" 
+                                data-type="{{ $expense->type }}"
+                                data-description="{{ $expense->description }}" 
+                                data-category="{{ $expense->type === 'payroll' ? 'Folha de Pagamento' : ($expense->reference->category->name ?? 'N/A') }}"
+                                data-amount="{{ $expense->amount }}"
+                                data-date="{{ $expense->transaction_date->format('Y-m-d') }}"
                                 data-user="{{ $expense->user?->name }}"
-                                data-account="{{ $expense->financialAccount?->name }}">
+                                data-account="{{ $expense->account?->name }}"
+                                data-notes="{{ $expense->notes }}">
                                 <td><strong class="text-danger">#{{ $expense->id }}</strong></td>
-                                <td><strong>{{ $expense->expense_date->format('d/m/Y') }}</strong></td>
-                                <td><span class="badge bg-light text-dark">{{ $expense->category?->name ?? 'N/A' }}</span></td>
+                                <td><strong>{{ $expense->transaction_date->format('d/m/Y') }}</strong></td>
+                                <td>
+                                    @if($expense->type === 'payroll')
+                                        <span class="badge bg-info">Salários</span>
+                                    @else
+                                        <span class="badge bg-light text-dark">{{ $expense->reference->category->name ?? 'N/A' }}</span>
+                                    @endif
+                                </td>
                                 <td>
                                     {{ Str::limit($expense->description, 35) }}
-                                    <br><small class="text-muted">{{ $expense->financialAccount?->name }}</small>
+                                    <br><small class="text-muted">{{ $expense->account?->name }}</small>
                                 </td>
                                 <td><strong class="text-danger">{{ number_format($expense->amount, 2, ',', '.') }} MT</strong></td>
                                 <td class="text-center">
-                                    @if($expense->receipt_file_path)
-                                        <a href="{{ Storage::url($expense->receipt_file_path) }}" target="_blank" class="btn btn-xs btn-success" title="Ver Recibo Digitalizado">
+                                    @php
+                                        $receiptPath = null;
+                                        if ($expense->type === 'expense' && isset($expense->reference->receipt_file_path)) {
+                                            $receiptPath = $expense->reference->receipt_file_path;
+                                        } elseif ($expense->type === 'payroll' && isset($expense->reference->signed_receipt_path)) {
+                                            $receiptPath = $expense->reference->signed_receipt_path;
+                                        }
+                                    @endphp
+
+                                    @if($receiptPath)
+                                        <a href="{{ Storage::url($receiptPath) }}" target="_blank" class="btn btn-xs btn-success" title="Ver Comprovante">
                                             <i class="fas fa-file-invoice"></i>
                                         </a>
                                     @else
@@ -384,29 +402,42 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-@if($expense->isRentExpense())
-                                             <a href="{{ route('expenses.rent-receipt', $expense) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo de Renda">
-                                                 <i class="fas fa-print"></i>
-                                             </a>
-                                             <a href="{{ route('expenses.show', $expense) }}" class="btn btn-outline-info" title="Ver Detalhes">
-                                                 <i class="fas fa-file-contract"></i>
-                                             </a>
-                                         @endif
-                                        <button type="button" class="btn btn-outline-success" onclick="openExpenseUploadModal({{ $expense->id }})" title="Carregar Recibo Assinado">
-                                            <i class="fas fa-upload"></i>
-                                        </button>
+                                        @if($expense->type === 'expense')
+                                            @if($expense->reference && method_exists($expense->reference, 'isRentExpense') && $expense->reference->isRentExpense())
+                                                <a href="{{ route('expenses.rent-receipt', $expense->reference->id) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo de Renda">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                                <a href="{{ route('expenses.show', $expense->reference->id) }}" class="btn btn-outline-info" title="Ver Detalhes">
+                                                    <i class="fas fa-file-contract"></i>
+                                                </a>
+                                            @endif
+                                            <button type="button" class="btn btn-outline-success" onclick="openExpenseUploadModal({{ $expense->reference->id ?? 0 }})" title="Carregar Comprovante">
+                                                <i class="fas fa-upload"></i>
+                                            </button>
+                                        @elseif($expense->type === 'payroll' && $expense->reference)
+                                            <a href="{{ route('users.salary-payments.receipt', ['user' => $expense->reference->user_id, 'payment' => $expense->reference->id]) }}" target="_blank" class="btn btn-outline-primary" title="Gerar Recibo Salarial">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-outline-success" onclick="openPayrollUploadModal({{ $expense->reference->user_id }}, {{ $expense->reference->id }})" title="Carregar Recibo Assinado">
+                                                <i class="fas fa-upload"></i>
+                                            </button>
+                                        @endif
+                                        
                                         <button class="btn btn-outline-info view-btn" title="Ver Detalhes">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <form method="POST" action="{{ route('expenses.destroy', $expense) }}"
-                                            class="d-inline"
-                                            onsubmit="return confirmDelete('{{ $expense->description }}')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger" title="Excluir">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
+
+                                        @if($expense->type === 'expense')
+                                            <form method="POST" action="{{ route('expenses.destroy', $expense->reference->id ?? 0) }}"
+                                                class="d-inline"
+                                                onsubmit="return confirmDelete('{{ $expense->description }}')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-outline-danger" title="Excluir">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -464,6 +495,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal para Carregar Recibo de Salário (Payroll) -->
+    <div class="modal fade" id="uploadPayrollReceiptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="uploadPayrollReceiptForm" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-upload me-2"></i>Carregar Recibo Salarial</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Carregue a foto ou scan do recibo de salário assinado pelo funcionário.</p>
+                        <div class="mb-3">
+                            <label class="form-label">Arquivo (JPEG, PNG ou PDF)</label>
+                            <input type="file" name="signed_receipt" class="form-control" accept="image/*,.pdf" required>
+                            <div class="form-text">Tamanho máximo: 5MB</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Salvar Recibo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('styles')
@@ -483,6 +541,14 @@
             const form = document.getElementById('uploadExpenseReceiptForm');
             form.action = `/expenses/${expenseId}/receipt/upload`;
             const modal = new bootstrap.Modal(document.getElementById('uploadExpenseReceiptModal'));
+            modal.show();
+        }
+
+        function openPayrollUploadModal(userId, paymentId) {
+            const form = document.getElementById('uploadPayrollReceiptForm');
+            // Usamos a mesma estrutura de URL que o usuário reportou, mas garantindo que o form POST funcione
+            form.action = `/users/${userId}/salary-payments/${paymentId}/receipt/upload`;
+            const modal = new bootstrap.Modal(document.getElementById('uploadPayrollReceiptModal'));
             modal.show();
         }
         // Limpar validação
@@ -633,10 +699,13 @@
 
                     // Preencher dados do data attributes
                     setTimeout(() => {
+                        const type = tr.dataset.type;
+                        const badgeClass = type === 'payroll' ? 'bg-info' : 'bg-danger';
+
                         content.innerHTML = `
-                            <div class="text-center mb-4 p-4 rounded-3" style="background: linear-gradient(135deg, rgba(220,53,69,0.05), rgba(220,53,69,0.1));">
-                                <h4 class="text-danger fw-bold mb-2">${tr.dataset.description}</h4>
-                                <span class="badge bg-light text-dark fs-6 mb-2">${tr.dataset.category || 'Sem categoria'}</span>
+                            <div class="text-center mb-4 p-4 rounded-3" style="background: linear-gradient(135deg, rgba(0,0,0,0.02), rgba(0,0,0,0.05));">
+                                <h4 class="fw-bold mb-2">${tr.dataset.description}</h4>
+                                <span class="badge ${badgeClass} fs-6 mb-2">${tr.dataset.category}</span>
                                 <div class="mt-2">
                                     <span class="badge bg-danger fs-4 px-4 py-2">
                                         ${parseFloat(tr.dataset.amount).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT

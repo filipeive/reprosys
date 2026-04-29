@@ -432,7 +432,9 @@
     <script>
         function openUploadModal(paymentId) {
             const form = document.getElementById('uploadReceiptForm');
-            form.action = `/users/{{ $user->id }}/salary-payments/${paymentId}/receipt/upload`;
+            // Usando a rota nomeada para evitar erros de URL absoluta/relativa
+            let url = "{{ route('users.salary-payments.receipt.upload', ['user' => $user->id, 'payment' => ':payment']) }}";
+            form.action = url.replace(':payment', paymentId);
             const modal = new bootstrap.Modal(document.getElementById('uploadReceiptModal'));
             modal.show();
         }
