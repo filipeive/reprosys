@@ -29,6 +29,12 @@ class SaleController extends Controller
     public function index(Request $request)
     {
         $query = Sale::with(['user', 'items.product']);
+
+        // Somente Admin e Super Admin veem todas as vendas.
+        // Gerentes e Staff veem apenas o que registraram.
+        if (! auth()->user()->isAdmin()) {
+            $query->where('user_id', auth()->id());
+        }
         
         // Filtros existentes mantidos...
         if ($request->filled('search')) {

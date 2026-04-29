@@ -22,6 +22,11 @@ class ReportController extends Controller
     public function __construct(private FinancialService $financialService)
     {
     }
+
+    private function getUserIdFilter()
+    {
+        return auth()->user()->isAdmin() ? null : auth()->id();
+    }
     public function index(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
@@ -29,7 +34,7 @@ class ReportController extends Controller
         $reportType = $request->input('report_type', 'all');
     
         // Métricas principais com verificações de consistência
-        $metricas = $this->calcularMetricasPrincipais($dateFrom, $dateTo);
+        $metricas = $this->calcularMetricasPrincipais($dateFrom, $dateTo, $this->getUserIdFilter());
         
         // Gráficos
         $salesChart = $this->getSalesChartData($dateFrom, $dateTo);
@@ -46,7 +51,7 @@ class ReportController extends Controller
             ->get();
     
         // Tabelas detalhadas baseadas no tipo de relatório
-        $dados = $this->getDadosDetalhados($reportType, $dateFrom, $dateTo);
+        $dados = $this->getDadosDetalhados($reportType, $dateFrom, $dateTo, $this->getUserIdFilter());
     
         return view('reports.index', array_merge(
             $metricas,
@@ -73,8 +78,13 @@ class ReportController extends Controller
                 \DB::raw('DATE(sale_date) as date'),
                 \DB::raw('SUM(total_amount) as total')
             )
-            ->whereBetween('sale_date', [$dateFrom, $dateTo])
-            ->groupBy('date')
+            ->whereBetween('sale_date', [$dateFrom, $dateTo]);
+        
+        if ($userId = $this->getUserIdFilter()) {
+            $query->where('user_id', $userId);
+        }
+
+        $sales = $query->groupBy('date')
             ->orderBy('date')
             ->get();
 
@@ -133,17 +143,27 @@ class ReportController extends Controller
     /**
      * Métricas principais — usa FinancialService centralizado para dados de transações.
      */
-    private function calcularMetricasPrincipais($dateFrom, $dateTo)
+    private function calcularMetricasPrincipais($dateFrom, $dateTo, $userId = null)
     {
-        // Total de vendas (número de transações)
-        $totalSales = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->count();
+        // Resumo centralizado via FinancialService
+        $financeSummary = $this->financialService->getPeriodSummary($dateFrom, $dateTo, $userId);
+        
+        $salesQuery = Sale::whereBetween('sale_date', [$dateFrom, $dateTo]);
+        if ($userId) $salesQuery->where('user_id', $userId);
+        
+        $totalSales = (clone $salesQuery)->count();
+        $totalVendas = (clone $salesQuery)->sum('total_amount');
+        
+        $expensesQuery = Expense::whereBetween('expense_date', [$dateFrom, $dateTo]);
+        if ($userId) $expensesQuery->where('user_id', $userId);
+        $totalDespesas = $expensesQuery->sum('amount');
         
         // Receita bruta (soma de todas as vendas)
-        $totalRevenue = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->sum('total_amount');
+        $totalRevenue = $totalVendas;
 
         // Use centralized FinancialService — consistent with Dashboard and FinanceController
-        $totalReceived = $this->financialService->sumTransactions($dateFrom, $dateTo, 'in');
-        $totalOutflows = $this->financialService->sumTransactions($dateFrom, $dateTo, 'out');
+        $totalReceived = $this->financialService->sumTransactions($dateFrom, $dateTo, 'in', true, $userId);
+        $totalOutflows = $this->financialService->sumTransactions($dateFrom, $dateTo, 'out', true, $userId);
         
         // Custo dos produtos vendidos (COGS) — com COALESCE para null safety
         $costOfGoodsSold = DB::table('sale_items')
@@ -196,7 +216,7 @@ class ReportController extends Controller
         ];
     }
 
-    private function getDadosDetalhados($reportType, $dateFrom, $dateTo)
+    private function getDadosDetalhados($reportType, $dateFrom, $dateTo, $userId = null)
     {
         $dados = [
             'sales' => collect(),
@@ -205,9 +225,12 @@ class ReportController extends Controller
         ];
 
         if ($reportType === 'sales' || $reportType === 'all') {
-            $dados['sales'] = Sale::with(['user', 'items.product'])
-                ->whereBetween('sale_date', [$dateFrom, $dateTo])
-                ->select([
+            $salesQuery = Sale::with(['user', 'items.product'])
+                ->whereBetween('sale_date', [$dateFrom, $dateTo]);
+            
+            if ($userId) $salesQuery->where('user_id', $userId);
+
+            $dados['sales'] = $salesQuery->select([
                     'id', 'sale_date', 'customer_name', 'customer_phone', 
                     'total_amount', 'payment_method', 'user_id'
                 ])
@@ -226,9 +249,12 @@ class ReportController extends Controller
         }
 
         if ($reportType === 'expenses' || $reportType === 'all') {
-            $dados['expenses'] = Expense::with(['user', 'category'])
-                ->whereBetween('expense_date', [$dateFrom, $dateTo])
-                ->select([
+            $expensesQuery = Expense::with(['user', 'category'])
+                ->whereBetween('expense_date', [$dateFrom, $dateTo]);
+
+            if ($userId) $expensesQuery->where('user_id', $userId);
+
+            $dados['expenses'] = $expensesQuery->select([
                     'id', 'expense_date', 'description', 'amount', 
                     'receipt_number', 'user_id', 'expense_category_id'
                 ])
@@ -271,25 +297,33 @@ class ReportController extends Controller
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->input('date_to', now()->format('Y-m-d'));
+        $userId = $this->getUserIdFilter();
 
         // Receitas
-        $salesRevenue = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->sum('total_amount');
+        $salesRevenueQuery = Sale::whereBetween('sale_date', [$dateFrom, $dateTo]);
+        if ($userId) $salesRevenueQuery->where('user_id', $userId);
+        $salesRevenue = $salesRevenueQuery->sum('total_amount');
         
         // Custos dos produtos vendidos — COALESCE para evitar NULL
-        $costOfGoodsSold = DB::table('sale_items')
+        $cogsQuery = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
-            ->whereBetween('sales.sale_date', [$dateFrom, $dateTo])
-            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+            ->whereBetween('sales.sale_date', [$dateFrom, $dateTo]);
+        
+        if ($userId) $cogsQuery->where('sales.user_id', $userId);
+        $costOfGoodsSold = $cogsQuery->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
 
         // Lucro bruto
         $grossProfit = $salesRevenue - $costOfGoodsSold;
 
         // Despesas operacionais por categoria
-        $expensesByCategory = Expense::with('category')
-            ->whereBetween('expense_date', [$dateFrom, $dateTo])
-            ->get()
-            ->groupBy('category.name')
+        $expensesQuery = Expense::with('category')
+            ->whereBetween('expense_date', [$dateFrom, $dateTo]);
+        
+        if ($userId) $expensesQuery->where('user_id', $userId);
+
+        $expensesByCategory = $expensesQuery->get()
+            ->groupBy(fn($e) => $e->category->name ?? 'Sem Categoria')
             ->map(function ($expenses) {
                 return $expenses->sum('amount');
             });

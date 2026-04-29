@@ -389,18 +389,24 @@ class FinancialService
      * Base query for active (non-reversed) transactions.
      * ALL financial queries MUST use this as base.
      */
-    private function activeTransactionsQuery()
+    private function activeTransactionsQuery(?int $userId = null)
     {
-        return FinancialTransaction::where('status', 'confirmed');
+        $query = FinancialTransaction::where('status', 'confirmed');
+        
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+        
+        return $query;
     }
 
     /**
      * Sum transactions by direction within a date range.
      * Excludes adjustments from operational totals by default.
      */
-    public function sumTransactions(string $dateFrom, string $dateTo, string $direction, bool $excludeAdjustments = true): float
+    public function sumTransactions(string $dateFrom, string $dateTo, string $direction, bool $excludeAdjustments = true, ?int $userId = null): float
     {
-        $query = $this->activeTransactionsQuery()
+        $query = $this->activeTransactionsQuery($userId)
             ->whereBetween('transaction_date', [$dateFrom, $dateTo])
             ->where('direction', $direction);
 
@@ -415,14 +421,14 @@ class FinancialService
     /**
      * Resumo do mês — fonte única para Dashboard, Finance e Relatórios.
      */
-    public function getMonthSummary(?Carbon $date = null): array
+    public function getMonthSummary(?Carbon $date = null, ?int $userId = null): array
     {
         $date ??= now();
         $monthStart = $date->copy()->startOfMonth()->toDateString();
         $monthEnd   = $date->copy()->endOfMonth()->toDateString();
 
-        $inflows  = $this->sumTransactions($monthStart, $monthEnd, 'in');
-        $outflows = $this->sumTransactions($monthStart, $monthEnd, 'out');
+        $inflows  = $this->sumTransactions($monthStart, $monthEnd, 'in', true, $userId);
+        $outflows = $this->sumTransactions($monthStart, $monthEnd, 'out', true, $userId);
 
         return [
             'inflows'  => $inflows,
@@ -435,10 +441,10 @@ class FinancialService
      * Resumo financeiro de um período arbitrário.
      * Usado por Dashboard, Relatórios e APIs.
      */
-    public function getPeriodSummary(string $dateFrom, string $dateTo): array
+    public function getPeriodSummary(string $dateFrom, string $dateTo, ?int $userId = null): array
     {
-        $inflows  = $this->sumTransactions($dateFrom, $dateTo, 'in');
-        $outflows = $this->sumTransactions($dateFrom, $dateTo, 'out');
+        $inflows  = $this->sumTransactions($dateFrom, $dateTo, 'in', true, $userId);
+        $outflows = $this->sumTransactions($dateFrom, $dateTo, 'out', true, $userId);
 
         return [
             'inflows'  => $inflows,
@@ -460,20 +466,24 @@ class FinancialService
     /**
      * Total a receber (dívidas activas).
      */
-    public function getAccountsReceivable(): float
+    public function getAccountsReceivable(?int $userId = null): float
     {
-        return (float) Debt::where('status', 'active')->sum('remaining_amount');
+        $query = Debt::where('status', 'active');
+        if ($userId) {
+            $query->where('user_id', $userId);
+        }
+        return (float) $query->sum('remaining_amount');
     }
 
     /**
      * Dados para gráfico de fluxo de caixa dos últimos N dias.
      */
-    public function getCashFlowChartData(int $days = 7): array
+    public function getCashFlowChartData(int $days = 7, ?int $userId = null): array
     {
         $startDate = Carbon::today()->subDays($days - 1);
         $endDate   = Carbon::today();
 
-        $transactions = $this->activeTransactionsQuery()
+        $transactions = $this->activeTransactionsQuery($userId)
             ->select(
                 DB::raw('DATE(transaction_date) as date'),
                 DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflows"),

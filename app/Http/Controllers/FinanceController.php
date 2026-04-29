@@ -29,16 +29,20 @@ class FinanceController extends Controller
             return $account;
         });
 
-        $currentCapital = $this->financialService->getCurrentCapital();
-        $receivables = $this->financialService->getAccountsReceivable();
-        $monthSummary = $this->financialService->getMonthSummary();
         $transactionTypes = $this->financialService->transactionTypes();
         $manualTransactionTypes = $this->financialService->manualTransactionTypes();
 
+        // Filtro de usuário para métricas se não for admin
+        $userIdFilter = auth()->user()->isAdmin() ? null : auth()->id();
+
+        $currentCapital = $this->financialService->getCurrentCapital();
+        $receivables = $this->financialService->getAccountsReceivable($userIdFilter);
+        $monthSummary = $this->financialService->getMonthSummary(null, $userIdFilter);
+
         // Use centralized FinancialService for today's totals
         $todayStr = today()->toDateString();
-        $todayInflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'in');
-        $todayOutflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'out');
+        $todayInflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'in', true, $userIdFilter);
+        $todayOutflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'out', true, $userIdFilter);
 
         $filters = [
             'date_from' => request('date_from', now()->startOfMonth()->format('Y-m-d')),
@@ -50,10 +54,16 @@ class FinanceController extends Controller
         ];
 
         // Show only confirmed transactions (excludes reversed/soft-deleted)
-        $transactions = FinancialTransaction::with(['account', 'user'])
+        $query = FinancialTransaction::with(['account', 'user'])
             ->where('status', 'confirmed')
-            ->whereBetween('transaction_date', [$filters['date_from'], $filters['date_to']])
-            ->when($filters['financial_account_id'], fn ($query, $accountId) => $query->where('financial_account_id', $accountId))
+            ->whereBetween('transaction_date', [$filters['date_from'], $filters['date_to']]);
+
+        // Restrição para não-admins
+        if (! auth()->user()->isAdmin()) {
+            $query->where('user_id', auth()->id());
+        }
+
+        $transactions = $query->when($filters['financial_account_id'], fn ($query, $accountId) => $query->where('financial_account_id', $accountId))
             ->when($filters['direction'], fn ($query, $direction) => $query->where('direction', $direction))
             ->when($filters['type'], fn ($query, $type) => $query->where('type', $type))
             ->when($filters['search'], function ($query, $search) {
@@ -68,7 +78,7 @@ class FinanceController extends Controller
             ->withQueryString();
 
         // Use centralized cash flow chart data
-        $cashFlowChart = $this->financialService->getCashFlowChartData(7);
+        $cashFlowChart = $this->financialService->getCashFlowChartData(7, $userIdFilter);
         $cashFlowLabels = $cashFlowChart['labels'];
         $cashFlowInflows = $cashFlowChart['inflowsData'];
         $cashFlowOutflows = $cashFlowChart['outflowsData'];

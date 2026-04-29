@@ -36,8 +36,9 @@ class ExpenseController extends Controller
             ->outflows()
             ->confirmed();
 
-        // Se não for admin nem gerente, vê apenas as suas próprias transações (se aplicável)
-        if (! auth()->user()->isAdmin() && ! auth()->user()->hasPermission('view_all_expenses')) {
+        // Somente Admin e Super Admin veem todas as transações. 
+        // Gerentes e outros usuários veem apenas o que registraram.
+        if (! auth()->user()->isAdmin()) {
             $query->where('user_id', auth()->id());
         }
 

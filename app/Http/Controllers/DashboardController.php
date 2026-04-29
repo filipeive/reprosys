@@ -23,23 +23,32 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        $user = auth()->user();
+        $userIdFilter = $user->isAdmin() ? null : $user->id;
+
         // --- CÁLCULOS DE HOJE ---
         $today = Carbon::today();
         $todayStr = $today->toDateString();
 
-        $todaySales = Sale::whereDate('sale_date', $today)->sum('total_amount');
-        $todayOutflows = $this->financialService->sumTransactions($todayStr, $todayStr, 'out');
-        $todayProductsSold = Sale::whereDate('sale_date', $today)
-            ->withCount('items')
-            ->get()
-            ->sum('items_count');
+        $todaySalesQuery = Sale::whereDate('sale_date', $today);
+        if ($userIdFilter) $todaySalesQuery->where('user_id', $userIdFilter);
+        $todaySales = $todaySalesQuery->sum('total_amount');
+
+        $todayOutflows = $this->financialService->sumTransactions($todayStr, $todayStr, 'out', true, $userIdFilter);
+        
+        $todayProductsSoldQuery = Sale::whereDate('sale_date', $today);
+        if ($userIdFilter) $todayProductsSoldQuery->where('user_id', $userIdFilter);
+        $todayProductsSold = $todayProductsSoldQuery->withCount('items')->get()->sum('items_count');
 
         // --- CÁLCULOS DE COMPARAÇÃO (HOJE vs ONTEM) ---
         $yesterday = Carbon::yesterday();
         $yesterdayStr = $yesterday->toDateString();
 
-        $yesterdaySales = Sale::whereDate('sale_date', $yesterday)->sum('total_amount');
-        $yesterdayOutflows = $this->financialService->sumTransactions($yesterdayStr, $yesterdayStr, 'out');
+        $yesterdaySalesQuery = Sale::whereDate('sale_date', $yesterday);
+        if ($userIdFilter) $yesterdaySalesQuery->where('user_id', $userIdFilter);
+        $yesterdaySales = $yesterdaySalesQuery->sum('total_amount');
+
+        $yesterdayOutflows = $this->financialService->sumTransactions($yesterdayStr, $yesterdayStr, 'out', true, $userIdFilter);
 
         $salesChange = $this->calculatePercentageChange($todaySales, $yesterdaySales);
         $outflowsChange = $this->calculatePercentageChange($todayOutflows, $yesterdayOutflows);
@@ -50,33 +59,42 @@ class DashboardController extends Controller
         $monthStartStr = $monthStart->toDateString();
         $monthEndStr = $monthEnd->toDateString();
 
-        $monthSales = Sale::where('sale_date', '>=', $monthStart)->sum('total_amount');
-        $monthExpenses = Expense::where('expense_date', '>=', $monthStart)->sum('amount');
+        $monthSalesQuery = Sale::where('sale_date', '>=', $monthStart);
+        if ($userIdFilter) $monthSalesQuery->where('user_id', $userIdFilter);
+        $monthSales = $monthSalesQuery->sum('total_amount');
+
+        $monthExpensesQuery = Expense::where('expense_date', '>=', $monthStart);
+        if ($userIdFilter) $monthExpensesQuery->where('user_id', $userIdFilter);
+        $monthExpenses = $monthExpensesQuery->sum('amount');
 
         // Use centralized FinancialService for transaction-based metrics
-        $monthSummary = $this->financialService->getPeriodSummary($monthStartStr, $monthEndStr);
+        $monthSummary = $this->financialService->getPeriodSummary($monthStartStr, $monthEndStr, $userIdFilter);
         $monthReceived = $monthSummary['inflows'];
         $monthOutflows = $monthSummary['outflows'];
 
         $monthProfit = $monthSales - $monthExpenses;
-        $monthCostOfGoods = DB::table('sale_items')
+        
+        $monthCostOfGoodsQuery = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
-            ->where('sales.sale_date', '>=', $monthStart)
-            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+            ->where('sales.sale_date', '>=', $monthStart);
+        if ($userIdFilter) $monthCostOfGoodsQuery->where('sales.user_id', $userIdFilter);
+        $monthCostOfGoods = $monthCostOfGoodsQuery->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+
         $monthGrossProfit = $monthSales - $monthCostOfGoods;
         $monthRealProfit = $monthGrossProfit - $monthExpenses;
         $monthInvestment = $monthCostOfGoods + $monthExpenses;
         $monthRoi = $monthInvestment > 0 ? ($monthRealProfit / $monthInvestment) * 100 : 0;
         $monthGrossMargin = $monthSales > 0 ? ($monthGrossProfit / $monthSales) * 100 : 0;
         $monthNetMargin = $monthSales > 0 ? ($monthRealProfit / $monthSales) * 100 : 0;
-        $monthActiveCustomers = Sale::where('sale_date', '>=', $monthStart)
-                                    ->distinct('customer_name')
-                                    ->count('customer_name');
+
+        $monthActiveCustomersQuery = Sale::where('sale_date', '>=', $monthStart);
+        if ($userIdFilter) $monthActiveCustomersQuery->where('user_id', $userIdFilter);
+        $monthActiveCustomers = $monthActiveCustomersQuery->distinct('customer_name')->count('customer_name');
 
         // Use centralized FinancialService for capital and receivables
         $currentCapital = $this->financialService->getCurrentCapital();
-        $accountsReceivable = $this->financialService->getAccountsReceivable();
+        $accountsReceivable = $this->financialService->getAccountsReceivable($userIdFilter);
         $monthNetCashFlow = $monthReceived - $monthOutflows;
 
         // --- CÁLCULOS DO MÊS ANTERIOR (PARA COMPARAÇÃO) ---
@@ -85,25 +103,34 @@ class DashboardController extends Controller
         $prevMonthStartStr = $prevMonthStart->toDateString();
         $prevMonthEndStr = $prevMonthEnd->toDateString();
 
-        $prevMonthSales = Sale::whereBetween('sale_date', [$prevMonthStart, $prevMonthEnd])->sum('total_amount');
-        $prevMonthExpenses = Expense::whereBetween('expense_date', [$prevMonthStart, $prevMonthEnd])->sum('amount');
-        $prevMonthSummary = $this->financialService->getPeriodSummary($prevMonthStartStr, $prevMonthEndStr);
+        $prevMonthSalesQuery = Sale::whereBetween('sale_date', [$prevMonthStart, $prevMonthEnd]);
+        if ($userIdFilter) $prevMonthSalesQuery->where('user_id', $userIdFilter);
+        $prevMonthSales = $prevMonthSalesQuery->sum('total_amount');
+
+        $prevMonthExpensesQuery = Expense::whereBetween('expense_date', [$prevMonthStart, $prevMonthEnd]);
+        if ($userIdFilter) $prevMonthExpensesQuery->where('user_id', $userIdFilter);
+        $prevMonthExpenses = $prevMonthExpensesQuery->sum('amount');
+
+        $prevMonthSummary = $this->financialService->getPeriodSummary($prevMonthStartStr, $prevMonthEndStr, $userIdFilter);
         $prevMonthReceived = $prevMonthSummary['inflows'];
         $prevMonthProfit = $prevMonthSales - $prevMonthExpenses;
-        $prevMonthCostOfGoods = DB::table('sale_items')
+        
+        $prevMonthCostOfGoodsQuery = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
-            ->whereBetween('sales.sale_date', [$prevMonthStart, $prevMonthEnd])
-            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+            ->whereBetween('sales.sale_date', [$prevMonthStart, $prevMonthEnd]);
+        if ($userIdFilter) $prevMonthCostOfGoodsQuery->where('sales.user_id', $userIdFilter);
+        $prevMonthCostOfGoods = $prevMonthCostOfGoodsQuery->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
+        
         $prevMonthRealProfit = ($prevMonthSales - $prevMonthCostOfGoods) - $prevMonthExpenses;
 
         $monthSalesChange = $this->calculatePercentageChange($monthSales, $prevMonthSales);
         $monthReceivedChange = $this->calculatePercentageChange($monthReceived, $prevMonthReceived);
         $monthProfitChange = $this->calculatePercentageChange($monthRealProfit, $prevMonthRealProfit);
 
-        // --- DADOS DO GRÁFICO (via FinancialService centralizado) ---
-        $salesChartData = $this->getSalesChartData();
-        $cashFlowChartData = $this->financialService->getCashFlowChartData(7);
+        // --- DADOS DO GRÁFICO ---
+        $salesChartData = $this->getSalesChartData($userIdFilter);
+        $cashFlowChartData = $this->financialService->getCashFlowChartData(7, $userIdFilter);
 
         // --- PRODUTOS COM ESTOQUE BAIXO ---
         $lowStockProducts = Product::whereRaw('stock_quantity <= min_stock_level')
@@ -112,10 +139,9 @@ class DashboardController extends Controller
             ->get();
         
         // --- VENDAS RECENTES ---
-        $recentSales = Sale::with('user', 'items.product')
-            ->latest()
-            ->limit(5)
-            ->get();
+        $recentSalesQuery = Sale::with('user', 'items.product');
+        if ($userIdFilter) $recentSalesQuery->where('user_id', $userIdFilter);
+        $recentSales = $recentSalesQuery->latest()->limit(5)->get();
         
         // Extrair variáveis dos arrays para o compact()
         $salesChangePercent = $salesChange['percent'];
@@ -166,11 +192,18 @@ class DashboardController extends Controller
      */
     public function apiMetrics()
     {
+        $user = auth()->user();
+        $userIdFilter = $user->isAdmin() ? null : $user->id;
+
         $today = Carbon::today();
         $todayStr = $today->toDateString();
 
-        $todaySales = Sale::whereDate('sale_date', $today)->sum('total_amount');
-        $todayOutflows = $this->financialService->sumTransactions($todayStr, $todayStr, 'out');
+        $todaySalesQuery = Sale::whereDate('sale_date', $today);
+        if ($userIdFilter) $todaySalesQuery->where('user_id', $userIdFilter);
+        $todaySales = $todaySalesQuery->sum('total_amount');
+
+        $todayOutflows = $this->financialService->sumTransactions($todayStr, $todayStr, 'out', true, $userIdFilter);
+        
         $lowStockCount = Product::whereRaw('stock_quantity <= min_stock_level')
             ->where('type', 'product')
             ->where('is_active', true)
@@ -178,23 +211,30 @@ class DashboardController extends Controller
             
         $yesterday = Carbon::yesterday();
         $yesterdayStr = $yesterday->toDateString();
-        $yesterdaySales = Sale::whereDate('sale_date', $yesterday)->sum('total_amount');
-        $yesterdayOutflows = $this->financialService->sumTransactions($yesterdayStr, $yesterdayStr, 'out');
+        
+        $yesterdaySalesQuery = Sale::whereDate('sale_date', $yesterday);
+        if ($userIdFilter) $yesterdaySalesQuery->where('user_id', $userIdFilter);
+        $yesterdaySales = $yesterdaySalesQuery->sum('total_amount');
+
+        $yesterdayOutflows = $this->financialService->sumTransactions($yesterdayStr, $yesterdayStr, 'out', true, $userIdFilter);
 
         $salesChange = $this->calculatePercentageChange($todaySales, $yesterdaySales);
         $outflowsChange = $this->calculatePercentageChange($todayOutflows, $yesterdayOutflows);
         
         // Gráficos via FinancialService centralizado
-        $salesChartData = $this->getSalesChartData();
-        $cashFlowChartData = $this->financialService->getCashFlowChartData(7);
+        $salesChartData = $this->getSalesChartData($userIdFilter);
+        $cashFlowChartData = $this->financialService->getCashFlowChartData(7, $userIdFilter);
         
         $dynamicAlerts = $this->getDynamicAlerts($lowStockCount, $todayOutflows, $todaySales);
+
+        $activeSalesQuery = Sale::whereDate('sale_date', $today);
+        if ($userIdFilter) $activeSalesQuery->where('user_id', $userIdFilter);
 
         return response()->json([
             'todaySales' => $todaySales,
             'todayOutflows' => $todayOutflows,
             'lowStockCount' => $lowStockCount,
-            'activeSales' => Sale::whereDate('sale_date', $today)->count(),
+            'activeSales' => $activeSalesQuery->count(),
             
             'salesChangePercent' => $salesChange['percent'],
             'salesChangeDirection' => $salesChange['direction'],
@@ -242,23 +282,25 @@ class DashboardController extends Controller
     /**
      * Retorna dados dos últimos 7 dias para o gráfico de vendas.
      */
-    private function getSalesChartData()
+    private function getSalesChartData($userId = null)
     {
         $startDate = Carbon::today()->subDays(6);
         $endDate = Carbon::today();
 
-        $sales = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('SUM(total_amount) as total'))
+        $salesQuery = Sale::select(DB::raw('DATE(sale_date) as date'), DB::raw('SUM(total_amount) as total'))
             ->whereDate('sale_date', '>=', $startDate)
-            ->whereDate('sale_date', '<=', $endDate)
-            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->whereDate('sale_date', '<=', $endDate);
+        if ($userId) $salesQuery->where('user_id', $userId);
+        $sales = $salesQuery->groupBy(DB::raw('DATE(sale_date)'))
             ->orderBy(DB::raw('DATE(sale_date)'), 'ASC')
             ->pluck('total', 'date')
             ->toArray();
 
-        $expenses = Expense::select(DB::raw('DATE(expense_date) as date'), DB::raw('SUM(amount) as total'))
+        $expensesQuery = Expense::select(DB::raw('DATE(expense_date) as date'), DB::raw('SUM(amount) as total'))
             ->whereDate('expense_date', '>=', $startDate)
-            ->whereDate('expense_date', '<=', $endDate)
-            ->groupBy(DB::raw('DATE(expense_date)'))
+            ->whereDate('expense_date', '<=', $endDate);
+        if ($userId) $expensesQuery->where('user_id', $userId);
+        $expenses = $expensesQuery->groupBy(DB::raw('DATE(expense_date)'))
             ->orderBy(DB::raw('DATE(expense_date)'), 'ASC')
             ->pluck('total', 'date')
             ->toArray();
