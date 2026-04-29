@@ -29,20 +29,16 @@ class FinanceController extends Controller
             return $account;
         });
 
-        $currentCapital = (float) $accounts->sum('current_balance');
-        $receivables = (float) Debt::where('status', 'active')->sum('remaining_amount');
+        $currentCapital = $this->financialService->getCurrentCapital();
+        $receivables = $this->financialService->getAccountsReceivable();
         $monthSummary = $this->financialService->getMonthSummary();
         $transactionTypes = $this->financialService->transactionTypes();
         $manualTransactionTypes = $this->financialService->manualTransactionTypes();
 
-        $todayInflow = (float) FinancialTransaction::whereDate('transaction_date', today())
-            ->where('direction', 'in')
-            ->whereNotIn('type', ['cash_adjustment_in'])
-            ->sum('amount');
-        $todayOutflow = (float) FinancialTransaction::whereDate('transaction_date', today())
-            ->where('direction', 'out')
-            ->whereNotIn('type', ['cash_adjustment_out'])
-            ->sum('amount');
+        // Use centralized FinancialService for today's totals
+        $todayStr = today()->toDateString();
+        $todayInflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'in');
+        $todayOutflow = $this->financialService->sumTransactions($todayStr, $todayStr, 'out');
 
         $filters = [
             'date_from' => request('date_from', now()->startOfMonth()->format('Y-m-d')),
@@ -53,7 +49,9 @@ class FinanceController extends Controller
             'search' => request('search'),
         ];
 
+        // Show only confirmed transactions (excludes reversed/soft-deleted)
         $transactions = FinancialTransaction::with(['account', 'user'])
+            ->where('status', 'confirmed')
             ->whereBetween('transaction_date', [$filters['date_from'], $filters['date_to']])
             ->when($filters['financial_account_id'], fn ($query, $accountId) => $query->where('financial_account_id', $accountId))
             ->when($filters['direction'], fn ($query, $direction) => $query->where('direction', $direction))
@@ -69,27 +67,11 @@ class FinanceController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $dailyFlow = FinancialTransaction::select(
-                DB::raw('DATE(transaction_date) as date'),
-                DB::raw("SUM(CASE WHEN direction = 'in' AND type != 'cash_adjustment_in' THEN amount ELSE 0 END) as inflows"),
-                DB::raw("SUM(CASE WHEN direction = 'out' AND type != 'cash_adjustment_out' THEN amount ELSE 0 END) as outflows")
-            )
-            ->whereDate('transaction_date', '>=', Carbon::today()->subDays(6))
-            ->groupBy(DB::raw('DATE(transaction_date)'))
-            ->orderBy(DB::raw('DATE(transaction_date)'))
-            ->get()
-            ->keyBy('date');
-
-        $cashFlowLabels = [];
-        $cashFlowInflows = [];
-        $cashFlowOutflows = [];
-
-        for ($date = Carbon::today()->subDays(6); $date->lte(Carbon::today()); $date->addDay()) {
-            $dateKey = $date->format('Y-m-d');
-            $cashFlowLabels[] = $date->format('d/m');
-            $cashFlowInflows[] = (float) optional($dailyFlow->get($dateKey))->inflows;
-            $cashFlowOutflows[] = (float) optional($dailyFlow->get($dateKey))->outflows;
-        }
+        // Use centralized cash flow chart data
+        $cashFlowChart = $this->financialService->getCashFlowChartData(7);
+        $cashFlowLabels = $cashFlowChart['labels'];
+        $cashFlowInflows = $cashFlowChart['inflowsData'];
+        $cashFlowOutflows = $cashFlowChart['outflowsData'];
 
         return view('finances.index', compact(
             'accounts',
@@ -119,26 +101,32 @@ class FinanceController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $transaction = $this->financialService->createManualTransaction([
-            'financial_account_id' => $validated['financial_account_id'],
-            'user_id' => auth()->id(),
-            'type' => $validated['type'],
-            'direction' => $this->financialService->transactionDirection($validated['type']),
-            'amount' => $validated['amount'],
-            'transaction_date' => $validated['transaction_date'],
-            'description' => $validated['description'],
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        $direction = $this->financialService->transactionDirection($validated['type']);
+        $isOutflow = $direction === 'out';
 
-        UserActivity::create([
-            'user_id' => auth()->id(),
-            'action' => 'financial_transaction_create',
-            'model_type' => FinancialTransaction::class,
-            'model_id' => $transaction->id,
-            'description' => "Registrou movimento financeiro manual: {$transaction->description}",
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
+        try {
+            $transaction = DB::transaction(function () use ($validated, $direction, $isOutflow) {
+                return $this->financialService->createTransaction([
+                    'financial_account_id' => $validated['financial_account_id'],
+                    'user_id' => auth()->id(),
+                    'type' => $validated['type'],
+                    'direction' => $direction,
+                    'amount' => $validated['amount'],
+                    'transaction_date' => $validated['transaction_date'],
+                    'description' => $validated['description'],
+                    'notes' => $validated['notes'] ?? null,
+                ], $isOutflow); // Validate balance for outflows
+            });
+        } catch (\Exception $e) {
+            return redirect()->route('finances.index')->with('error', $e->getMessage());
+        }
+
+        $this->financialService->logActivity(
+            'financial_transaction_create',
+            FinancialTransaction::class,
+            $transaction->id,
+            "Registrou movimento financeiro manual: {$transaction->description}"
+        );
 
         return redirect()->route('finances.index')->with('success', 'Movimento financeiro registrado com sucesso.');
     }
@@ -179,51 +167,59 @@ class FinanceController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $currentBalance = (float) $account->current_balance;
-        $requestedAmount = round((float) $validated['amount'], 2);
+        try {
+            $transaction = DB::transaction(function () use ($validated, $account) {
+                // Lock the account to prevent race conditions
+                $currentBalance = $this->financialService->getLockedBalance($account->id);
+                $requestedAmount = round((float) $validated['amount'], 2);
 
-        $delta = match ($validated['mode']) {
-            'add' => $requestedAmount,
-            'remove' => -$requestedAmount,
-            'set' => round($requestedAmount - $currentBalance, 2),
-        };
+                $delta = match ($validated['mode']) {
+                    'add' => $requestedAmount,
+                    'remove' => -$requestedAmount,
+                    'set' => round($requestedAmount - $currentBalance, 2),
+                };
 
-        if (abs($delta) < 0.01) {
+                if (abs($delta) < 0.01) {
+                    return null; // No change needed
+                }
+
+                $type = $delta > 0 ? 'cash_adjustment_in' : 'cash_adjustment_out';
+                $actionLabel = match ($validated['mode']) {
+                    'add' => 'acréscimo',
+                    'remove' => 'redução',
+                    'set' => 'definição manual de saldo',
+                };
+
+                return $this->financialService->createTransaction([
+                    'financial_account_id' => $account->id,
+                    'user_id' => auth()->id(),
+                    'type' => $type,
+                    'direction' => $this->financialService->transactionDirection($type),
+                    'amount' => abs($delta),
+                    'transaction_date' => $validated['transaction_date'],
+                    'description' => "Ajuste administrativo da conta {$account->name}",
+                    'notes' => trim(implode(' | ', array_filter([
+                        "Operação: {$actionLabel}",
+                        "Saldo anterior: " . number_format($currentBalance, 2, '.', ''),
+                        "Saldo alvo: " . number_format($validated['mode'] === 'set' ? $requestedAmount : $currentBalance + $delta, 2, '.', ''),
+                        $validated['notes'] ?? null,
+                    ]))),
+                ]);
+            });
+        } catch (\Exception $e) {
+            return redirect()->route('finances.index')->with('error', $e->getMessage());
+        }
+
+        if (!$transaction) {
             return redirect()->route('finances.index')->with('success', "Saldo da conta {$account->name} já estava ajustado.");
         }
 
-        $type = $delta > 0 ? 'cash_adjustment_in' : 'cash_adjustment_out';
-        $actionLabel = match ($validated['mode']) {
-            'add' => 'acréscimo',
-            'remove' => 'redução',
-            'set' => 'definição manual de saldo',
-        };
-
-        $transaction = $this->financialService->createManualTransaction([
-            'financial_account_id' => $account->id,
-            'user_id' => auth()->id(),
-            'type' => $type,
-            'direction' => $this->financialService->transactionDirection($type),
-            'amount' => abs($delta),
-            'transaction_date' => $validated['transaction_date'],
-            'description' => "Ajuste administrativo da conta {$account->name}",
-            'notes' => trim(implode(' | ', array_filter([
-                "Operação: {$actionLabel}",
-                "Saldo anterior: " . number_format($currentBalance, 2, '.', ''),
-                "Saldo alvo: " . number_format($validated['mode'] === 'set' ? $requestedAmount : $currentBalance + $delta, 2, '.', ''),
-                $validated['notes'] ?? null,
-            ]))),
-        ]);
-
-        UserActivity::create([
-            'user_id' => auth()->id(),
-            'action' => 'financial_account_adjustment',
-            'model_type' => FinancialTransaction::class,
-            'model_id' => $transaction->id,
-            'description' => "Ajustou o saldo da conta {$account->name}",
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
+        $this->financialService->logActivity(
+            'financial_account_adjustment',
+            FinancialTransaction::class,
+            $transaction->id,
+            "Ajustou o saldo da conta {$account->name}"
+        );
 
         return redirect()->route('finances.index')->with('success', "Saldo da conta {$account->name} ajustado com sucesso.");
     }

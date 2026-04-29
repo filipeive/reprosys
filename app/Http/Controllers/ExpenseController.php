@@ -140,36 +140,57 @@ class ExpenseController extends Controller
             $receiptPath = $request->file('receipt_file')->store('expense-receipts', 'public');
         }
 
-        $expense = Expense::create([
-            'user_id' => auth()->id(),
-            'expense_category_id' => $validated['expense_category_id'],
-            'financial_account_id' => $validated['financial_account_id'],
-            'description' => $validated['description'],
-            'amount' => $validated['amount'],
-            'expense_date' => $validated['expense_date'],
-            'receipt_number' => $validated['receipt_number'],
-            'notes' => $validated['notes'],
-            'product_id' => $productId,
-            'quantity' => $quantity,
-            'receipt_file_path' => $receiptPath,
-        ]);
+        try {
+            $expense = \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $productId, $quantity, $receiptPath) {
+                $expense = Expense::create([
+                    'user_id' => auth()->id(),
+                    'expense_category_id' => $validated['expense_category_id'],
+                    'financial_account_id' => $validated['financial_account_id'],
+                    'description' => $validated['description'],
+                    'amount' => $validated['amount'],
+                    'expense_date' => $validated['expense_date'],
+                    'receipt_number' => $validated['receipt_number'],
+                    'notes' => $validated['notes'],
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                    'receipt_file_path' => $receiptPath,
+                ]);
 
-        if ($productId) {
-            $product = Product::findOrFail($productId);
-            $product->increment('stock_quantity', $quantity);
+                if ($productId) {
+                    $product = Product::findOrFail($productId);
+                    $product->increment('stock_quantity', $quantity);
 
-            StockMovement::create([
-                'product_id' => $product->id,
-                'user_id' => auth()->id(),
-                'movement_type' => 'in',
-                'quantity' => $quantity,
-                'reason' => "Compra - Despesa #$expense->id",
-                'reference_id' => $expense->id,
-                'movement_date' => $validated['expense_date'],
-            ]);
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'user_id' => auth()->id(),
+                        'movement_type' => 'in',
+                        'quantity' => $quantity,
+                        'reason' => "Compra - Despesa #$expense->id",
+                        'reference_id' => $expense->id,
+                        'movement_date' => $validated['expense_date'],
+                    ]);
+                }
+
+                // This validates balance and throws exception if insufficient
+                $this->financialService->syncExpenseTransaction($expense);
+
+                return $expense;
+            });
+        } catch (\Exception $e) {
+            // Clean up uploaded file if transaction failed
+            if ($receiptPath) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($receiptPath);
+            }
+
+            $errorMessage = str_contains($e->getMessage(), 'Saldo insuficiente')
+                ? $e->getMessage()
+                : 'Erro ao registrar despesa: ' . $e->getMessage();
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errorMessage], 422);
+            }
+            return redirect()->back()->withInput()->with('error', $errorMessage);
         }
-
-        $this->financialService->syncExpenseTransaction($expense);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([

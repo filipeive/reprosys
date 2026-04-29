@@ -13,7 +13,7 @@ use Carbon\Carbon;
 use App\Http\Controllers\AppBaseController;
 
 // HERDA DO SEU NOVO BASECONTROLLER
-class ProductController extends AppBaseController
+class ProductController extends Controller
 {
     /**
      * Display a listing of the products.

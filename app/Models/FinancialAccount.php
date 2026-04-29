@@ -31,10 +31,16 @@ class FinancialAccount extends Model
         return $query->where('is_active', true);
     }
 
+    /**
+     * Saldo actual = opening_balance + inflows - outflows
+     * APENAS transações confirmadas (exclui revertidas/canceladas).
+     */
     public function getCurrentBalanceAttribute(): float
     {
-        $inflows = (float) $this->transactions()->where('direction', 'in')->sum('amount');
-        $outflows = (float) $this->transactions()->where('direction', 'out')->sum('amount');
+        $confirmedTransactions = $this->transactions()->where('status', 'confirmed');
+
+        $inflows  = (float) (clone $confirmedTransactions)->where('direction', 'in')->sum('amount');
+        $outflows = (float) (clone $confirmedTransactions)->where('direction', 'out')->sum('amount');
 
         return (float) $this->opening_balance + $inflows - $outflows;
     }

@@ -9,24 +9,36 @@ use App\Models\FinancialAccount;
 use App\Models\FinancialTransaction;
 use App\Models\SalaryPayment;
 use App\Models\Sale;
+use App\Models\UserActivity;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * FinancialService — Fonte ÚNICA de verdade para TODOS os cálculos financeiros.
+ *
+ * Dashboard, Relatórios, APIs e Controllers devem usar ESTE serviço.
+ * Nenhum controller deve calcular totais financeiros diretamente.
+ */
 class FinancialService
 {
+    // ──────────────────────────────────────────────
+    //  TRANSACTION TYPE DEFINITIONS
+    // ──────────────────────────────────────────────
+
     public function transactionTypes(): array
     {
         return [
-            'owner_investment' => ['label' => 'Aporte do Proprietário', 'direction' => 'in'],
-            'debt_payment_receipt' => ['label' => 'Recebimento Manual', 'direction' => 'in'],
-            'other_income' => ['label' => 'Outra Entrada', 'direction' => 'in'],
-            'sale_receipt' => ['label' => 'Recebimento de Venda', 'direction' => 'in'],
-            'salary_payment' => ['label' => 'Pagamento de Salário', 'direction' => 'out'],
-            'expense_payment' => ['label' => 'Pagamento de Despesa', 'direction' => 'out'],
-            'money_debt_disbursement' => ['label' => 'Empréstimo em Dinheiro', 'direction' => 'out'],
-            'owner_withdrawal' => ['label' => 'Retirada do Proprietário', 'direction' => 'out'],
-            'cash_adjustment_out' => ['label' => 'Ajuste de Caixa (-)', 'direction' => 'out'],
-            'cash_adjustment_in' => ['label' => 'Ajuste de Caixa (+)', 'direction' => 'in'],
-            'other_outflow' => ['label' => 'Outra Saída', 'direction' => 'out'],
+            'owner_investment'        => ['label' => 'Aporte do Proprietário',   'direction' => 'in'],
+            'debt_payment_receipt'    => ['label' => 'Recebimento Manual',       'direction' => 'in'],
+            'other_income'            => ['label' => 'Outra Entrada',            'direction' => 'in'],
+            'sale_receipt'            => ['label' => 'Recebimento de Venda',     'direction' => 'in'],
+            'salary_payment'          => ['label' => 'Pagamento de Salário',     'direction' => 'out'],
+            'expense_payment'         => ['label' => 'Pagamento de Despesa',     'direction' => 'out'],
+            'money_debt_disbursement' => ['label' => 'Empréstimo em Dinheiro',   'direction' => 'out'],
+            'owner_withdrawal'        => ['label' => 'Retirada do Proprietário', 'direction' => 'out'],
+            'cash_adjustment_out'     => ['label' => 'Ajuste de Caixa (-)',      'direction' => 'out'],
+            'cash_adjustment_in'      => ['label' => 'Ajuste de Caixa (+)',      'direction' => 'in'],
+            'other_outflow'           => ['label' => 'Outra Saída',              'direction' => 'out'],
         ];
     }
 
@@ -53,6 +65,16 @@ class FinancialService
         return $this->transactionTypes()[$type]['label'] ?? ucfirst(str_replace('_', ' ', $type));
     }
 
+    /** Types excluded from operational totals (adjustments are bookkeeping, not real flow). */
+    public function adjustmentTypes(): array
+    {
+        return ['cash_adjustment_in', 'cash_adjustment_out'];
+    }
+
+    // ──────────────────────────────────────────────
+    //  ACCOUNT RESOLUTION
+    // ──────────────────────────────────────────────
+
     public function getDefaultAccountForPaymentMethod(?string $paymentMethod): ?FinancialAccount
     {
         $slug = match ($paymentMethod) {
@@ -68,209 +90,446 @@ class FinancialService
         return FinancialAccount::where('slug', $slug)->where('is_active', true)->first();
     }
 
+    // ──────────────────────────────────────────────
+    //  BALANCE VALIDATION (Prevents overdraw)
+    // ──────────────────────────────────────────────
+
+    /**
+     * Verifica se a conta tem saldo suficiente para uma saída.
+     * Usa lock pessimista para evitar race conditions.
+     *
+     * DEVE ser chamado dentro de DB::transaction().
+     */
+    public function validateSufficientBalance(int $accountId, float $amount): bool
+    {
+        // Lock the account rows to prevent race conditions
+        $account = FinancialAccount::lockForUpdate()->find($accountId);
+
+        if (!$account) {
+            return false;
+        }
+
+        return $account->current_balance >= $amount;
+    }
+
+    /**
+     * Obtém o saldo da conta com lock para operações atômicas.
+     * DEVE ser chamado dentro de DB::transaction().
+     */
+    public function getLockedBalance(int $accountId): float
+    {
+        $account = FinancialAccount::lockForUpdate()->find($accountId);
+        return $account ? (float) $account->current_balance : 0;
+    }
+
+    // ──────────────────────────────────────────────
+    //  TRANSACTION CREATION (Single entry point)
+    // ──────────────────────────────────────────────
+
+    /**
+     * Cria uma transação financeira com validação, snapshot de saldo e auditoria.
+     *
+     * @param array $data Dados da transação
+     * @param bool $validateBalance Se true, valida saldo antes de saídas
+     * @return FinancialTransaction
+     * @throws \Exception Se saldo insuficiente
+     */
+    public function createTransaction(array $data, bool $validateBalance = false): FinancialTransaction
+    {
+        $direction = $data['direction'];
+        $amount = (float) $data['amount'];
+        $accountId = $data['financial_account_id'];
+
+        // Validate balance for outflows if requested
+        if ($validateBalance && $direction === 'out') {
+            $balance = $this->getLockedBalance($accountId);
+            if ($balance < $amount) {
+                throw new \Exception(
+                    "Saldo insuficiente na conta. Saldo atual: MT " .
+                    number_format($balance, 2, ',', '.') .
+                    " | Valor solicitado: MT " .
+                    number_format($amount, 2, ',', '.')
+                );
+            }
+        }
+
+        $transaction = FinancialTransaction::create([
+            'financial_account_id' => $accountId,
+            'user_id'              => $data['user_id'] ?? auth()->id(),
+            'type'                 => $data['type'],
+            'direction'            => $direction,
+            'amount'               => $amount,
+            'transaction_date'     => $data['transaction_date'],
+            'description'          => $data['description'],
+            'reference_type'       => $data['reference_type'] ?? null,
+            'reference_id'         => $data['reference_id'] ?? null,
+            'payment_method'       => $data['payment_method'] ?? null,
+            'notes'                => $data['notes'] ?? null,
+            'status'               => $data['status'] ?? 'confirmed',
+        ]);
+
+        // Snapshot balance after transaction for audit trail
+        $account = FinancialAccount::find($accountId);
+        if ($account) {
+            $transaction->update(['balance_after' => $account->current_balance]);
+        }
+
+        return $transaction;
+    }
+
+    /** Backward-compatible alias */
     public function createManualTransaction(array $data): FinancialTransaction
     {
-        return FinancialTransaction::create([
-            'financial_account_id' => $data['financial_account_id'],
-            'user_id' => $data['user_id'] ?? auth()->id(),
-            'type' => $data['type'],
-            'direction' => $data['direction'],
-            'amount' => $data['amount'],
-            'transaction_date' => $data['transaction_date'],
-            'description' => $data['description'],
-            'reference_type' => $data['reference_type'] ?? null,
-            'reference_id' => $data['reference_id'] ?? null,
-            'payment_method' => $data['payment_method'] ?? null,
-            'notes' => $data['notes'] ?? null,
-        ]);
+        return $this->createTransaction($data, false);
     }
+
+    // ──────────────────────────────────────────────
+    //  DOMAIN-SPECIFIC TRANSACTION CREATION
+    // ──────────────────────────────────────────────
 
     public function createSalaryPayment(array $data): SalaryPayment
     {
-        $transaction = $this->createManualTransaction([
-            'financial_account_id' => $data['financial_account_id'],
-            'user_id' => $data['paid_by'] ?? auth()->id(),
-            'type' => 'salary_payment',
-            'direction' => 'out',
-            'amount' => $data['amount'],
-            'transaction_date' => $data['payment_date'],
-            'description' => $data['description'],
-            'reference_type' => SalaryPayment::class,
-            'reference_id' => null,
-            'payment_method' => 'cash',
-            'notes' => $data['notes'] ?? null,
-        ]);
+        return DB::transaction(function () use ($data) {
+            $transaction = $this->createTransaction([
+                'financial_account_id' => $data['financial_account_id'],
+                'user_id'              => $data['paid_by'] ?? auth()->id(),
+                'type'                 => 'salary_payment',
+                'direction'            => 'out',
+                'amount'               => $data['amount'],
+                'transaction_date'     => $data['payment_date'],
+                'description'          => $data['description'],
+                'reference_type'       => SalaryPayment::class,
+                'reference_id'         => null,
+                'payment_method'       => 'cash',
+                'notes'                => $data['notes'] ?? null,
+            ], true); // validate balance
 
-        $salaryPayment = SalaryPayment::create([
-            'user_id' => $data['user_id'],
-            'financial_account_id' => $data['financial_account_id'],
-            'financial_transaction_id' => $transaction->id,
-            'paid_by' => $data['paid_by'] ?? auth()->id(),
-            'amount' => $data['amount'],
-            'base_amount' => $data['base_amount'] ?? $data['amount'],
-            'variable_amount' => $data['variable_amount'] ?? 0,
-            'payment_date' => $data['payment_date'],
-            'reference_month' => $data['reference_month'] ?? null,
-            'description' => $data['description'],
-            'notes' => $data['notes'] ?? null,
-        ]);
+            $salaryPayment = SalaryPayment::create([
+                'user_id'                  => $data['user_id'],
+                'financial_account_id'     => $data['financial_account_id'],
+                'financial_transaction_id' => $transaction->id,
+                'paid_by'                  => $data['paid_by'] ?? auth()->id(),
+                'amount'                   => $data['amount'],
+                'base_amount'              => $data['base_amount'] ?? $data['amount'],
+                'variable_amount'          => $data['variable_amount'] ?? 0,
+                'payment_date'             => $data['payment_date'],
+                'reference_month'          => $data['reference_month'] ?? null,
+                'description'              => $data['description'],
+                'notes'                    => $data['notes'] ?? null,
+            ]);
 
-        $transaction->update([
-            'reference_id' => $salaryPayment->id,
-        ]);
+            $transaction->update(['reference_id' => $salaryPayment->id]);
 
-        return $salaryPayment;
+            $this->logActivity('salary_payment_create', SalaryPayment::class, $salaryPayment->id,
+                "Pagamento de salário registrado: MT " . number_format($data['amount'], 2, ',', '.'));
+
+            return $salaryPayment;
+        });
     }
 
     public function syncSaleTransaction(Sale $sale): void
     {
-        $this->removeTransactionsForReference(Sale::class, $sale->id);
+        DB::transaction(function () use ($sale) {
+            $this->reverseTransactionsForReference(Sale::class, $sale->id);
 
-        if ($sale->payment_method === 'credit') {
-            return;
-        }
+            if ($sale->payment_method === 'credit') {
+                return;
+            }
 
-        $account = $this->getDefaultAccountForPaymentMethod($sale->payment_method);
+            $account = $this->getDefaultAccountForPaymentMethod($sale->payment_method);
+            if (!$account) {
+                return;
+            }
 
-        if (!$account) {
-            return;
-        }
-
-        $this->createManualTransaction([
-            'financial_account_id' => $account->id,
-            'user_id' => $sale->user_id,
-            'type' => 'sale_receipt',
-            'direction' => 'in',
-            'amount' => $sale->total_amount,
-            'transaction_date' => optional($sale->sale_date)->format('Y-m-d') ?? now()->toDateString(),
-            'description' => "Recebimento da venda #{$sale->id}",
-            'reference_type' => Sale::class,
-            'reference_id' => $sale->id,
-            'payment_method' => $sale->payment_method,
-            'notes' => $sale->notes,
-        ]);
+            $this->createTransaction([
+                'financial_account_id' => $account->id,
+                'user_id'              => $sale->user_id,
+                'type'                 => 'sale_receipt',
+                'direction'            => 'in',
+                'amount'               => $sale->total_amount,
+                'transaction_date'     => optional($sale->sale_date)->format('Y-m-d') ?? now()->toDateString(),
+                'description'          => "Recebimento da venda #{$sale->id}",
+                'reference_type'       => Sale::class,
+                'reference_id'         => $sale->id,
+                'payment_method'       => $sale->payment_method,
+                'notes'                => $sale->notes,
+            ]);
+        });
     }
 
     public function syncExpenseTransaction(Expense $expense): void
     {
-        $this->removeTransactionsForReference(Expense::class, $expense->id);
+        DB::transaction(function () use ($expense) {
+            $this->reverseTransactionsForReference(Expense::class, $expense->id);
 
-        $account = $expense->financialAccount ?: FinancialAccount::find($expense->financial_account_id);
+            $account = $expense->financialAccount ?: FinancialAccount::find($expense->financial_account_id);
+            if (!$account) {
+                $account = $this->getDefaultAccountForPaymentMethod('cash');
+            }
+            if (!$account) {
+                return;
+            }
 
-        if (!$account) {
-            $account = $this->getDefaultAccountForPaymentMethod('cash');
-        }
-
-        if (!$account) {
-            return;
-        }
-
-        $this->createManualTransaction([
-            'financial_account_id' => $account->id,
-            'user_id' => $expense->user_id,
-            'type' => 'expense_payment',
-            'direction' => 'out',
-            'amount' => $expense->amount,
-            'transaction_date' => optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString(),
-            'description' => $expense->description,
-            'reference_type' => Expense::class,
-            'reference_id' => $expense->id,
-            'payment_method' => 'cash',
-            'notes' => $expense->notes,
-        ]);
+            $this->createTransaction([
+                'financial_account_id' => $account->id,
+                'user_id'              => $expense->user_id,
+                'type'                 => 'expense_payment',
+                'direction'            => 'out',
+                'amount'               => $expense->amount,
+                'transaction_date'     => optional($expense->expense_date)->format('Y-m-d') ?? now()->toDateString(),
+                'description'          => $expense->description,
+                'reference_type'       => Expense::class,
+                'reference_id'         => $expense->id,
+                'payment_method'       => 'cash',
+                'notes'                => $expense->notes,
+            ], true); // validate balance
+        });
     }
 
     public function syncDebtPaymentTransaction(DebtPayment $payment): void
     {
-        $this->removeTransactionsForReference(DebtPayment::class, $payment->id);
+        DB::transaction(function () use ($payment) {
+            $this->reverseTransactionsForReference(DebtPayment::class, $payment->id);
 
-        $account = $this->getDefaultAccountForPaymentMethod($payment->payment_method);
+            $account = $this->getDefaultAccountForPaymentMethod($payment->payment_method);
+            if (!$account) {
+                return;
+            }
 
-        if (!$account) {
-            return;
-        }
-
-        $this->createManualTransaction([
-            'financial_account_id' => $account->id,
-            'user_id' => $payment->user_id,
-            'type' => 'debt_payment_receipt',
-            'direction' => 'in',
-            'amount' => $payment->amount,
-            'transaction_date' => optional($payment->payment_date)->format('Y-m-d') ?? now()->toDateString(),
-            'description' => "Recebimento da dívida #{$payment->debt_id}",
-            'reference_type' => DebtPayment::class,
-            'reference_id' => $payment->id,
-            'payment_method' => $payment->payment_method,
-            'notes' => $payment->notes,
-        ]);
+            $this->createTransaction([
+                'financial_account_id' => $account->id,
+                'user_id'              => $payment->user_id,
+                'type'                 => 'debt_payment_receipt',
+                'direction'            => 'in',
+                'amount'               => $payment->amount,
+                'transaction_date'     => optional($payment->payment_date)->format('Y-m-d') ?? now()->toDateString(),
+                'description'          => "Recebimento da dívida #{$payment->debt_id}",
+                'reference_type'       => DebtPayment::class,
+                'reference_id'         => $payment->id,
+                'payment_method'       => $payment->payment_method,
+                'notes'                => $payment->notes,
+            ]);
+        });
     }
 
     public function syncMoneyDebtDisbursement(Debt $debt): void
     {
-        $this->removeTypedReferenceTransactions(Debt::class, $debt->id, 'money_debt_disbursement');
+        DB::transaction(function () use ($debt) {
+            $this->reverseTypedReferenceTransactions(Debt::class, $debt->id, 'money_debt_disbursement');
 
-        if (!$debt->isMoneyDebt()) {
-            return;
-        }
+            if (!$debt->isMoneyDebt()) {
+                return;
+            }
 
-        $account = $this->getDefaultAccountForPaymentMethod('cash');
+            $account = $this->getDefaultAccountForPaymentMethod('cash');
+            if (!$account) {
+                return;
+            }
 
-        if (!$account) {
-            return;
-        }
-
-        $this->createManualTransaction([
-            'financial_account_id' => $account->id,
-            'user_id' => $debt->user_id,
-            'type' => 'money_debt_disbursement',
-            'direction' => 'out',
-            'amount' => $debt->original_amount,
-            'transaction_date' => optional($debt->debt_date)->format('Y-m-d') ?? now()->toDateString(),
-            'description' => "Dinheiro entregue em dívida #{$debt->id}",
-            'reference_type' => Debt::class,
-            'reference_id' => $debt->id,
-            'payment_method' => 'cash',
-            'notes' => $debt->notes,
-        ]);
+            $this->createTransaction([
+                'financial_account_id' => $account->id,
+                'user_id'              => $debt->user_id,
+                'type'                 => 'money_debt_disbursement',
+                'direction'            => 'out',
+                'amount'               => $debt->original_amount,
+                'transaction_date'     => optional($debt->debt_date)->format('Y-m-d') ?? now()->toDateString(),
+                'description'          => "Dinheiro entregue em dívida #{$debt->id}",
+                'reference_type'       => Debt::class,
+                'reference_id'         => $debt->id,
+                'payment_method'       => 'cash',
+                'notes'                => $debt->notes,
+            ], true); // validate balance
+        });
     }
 
-    public function removeTransactionsForReference(string $referenceType, int $referenceId): void
+    // ──────────────────────────────────────────────
+    //  TRANSACTION REVERSAL (Ledger approach — immutable)
+    // ──────────────────────────────────────────────
+
+    /**
+     * Soft-deletes transactions for a reference.
+     * In a true ledger system these would be reversal entries,
+     * but for backward compatibility we use soft delete.
+     */
+    public function reverseTransactionsForReference(string $referenceType, int $referenceId): void
     {
         FinancialTransaction::where('reference_type', $referenceType)
             ->where('reference_id', $referenceId)
-            ->delete();
+            ->where('status', '!=', 'reversed')
+            ->update(['status' => 'reversed', 'deleted_at' => now()]);
     }
 
-    public function removeTypedReferenceTransactions(string $referenceType, int $referenceId, string $type): void
+    /** Backward-compatible alias */
+    public function removeTransactionsForReference(string $referenceType, int $referenceId): void
+    {
+        $this->reverseTransactionsForReference($referenceType, $referenceId);
+    }
+
+    public function reverseTypedReferenceTransactions(string $referenceType, int $referenceId, string $type): void
     {
         FinancialTransaction::where('reference_type', $referenceType)
             ->where('reference_id', $referenceId)
             ->where('type', $type)
-            ->delete();
+            ->where('status', '!=', 'reversed')
+            ->update(['status' => 'reversed', 'deleted_at' => now()]);
     }
 
+    /** Backward-compatible alias */
+    public function removeTypedReferenceTransactions(string $referenceType, int $referenceId, string $type): void
+    {
+        $this->reverseTypedReferenceTransactions($referenceType, $referenceId, $type);
+    }
+
+    // ──────────────────────────────────────────────
+    //  CENTRALIZED FINANCIAL CALCULATIONS
+    //  All controllers MUST use these methods.
+    // ──────────────────────────────────────────────
+
+    /**
+     * Base query for active (non-reversed) transactions.
+     * ALL financial queries MUST use this as base.
+     */
+    private function activeTransactionsQuery()
+    {
+        return FinancialTransaction::where('status', 'confirmed');
+    }
+
+    /**
+     * Sum transactions by direction within a date range.
+     * Excludes adjustments from operational totals by default.
+     */
+    public function sumTransactions(string $dateFrom, string $dateTo, string $direction, bool $excludeAdjustments = true): float
+    {
+        $query = $this->activeTransactionsQuery()
+            ->whereBetween('transaction_date', [$dateFrom, $dateTo])
+            ->where('direction', $direction);
+
+        if ($excludeAdjustments) {
+            $adjustmentType = $direction === 'in' ? 'cash_adjustment_in' : 'cash_adjustment_out';
+            $query->where('type', '!=', $adjustmentType);
+        }
+
+        return (float) $query->sum('amount');
+    }
+
+    /**
+     * Resumo do mês — fonte única para Dashboard, Finance e Relatórios.
+     */
     public function getMonthSummary(?Carbon $date = null): array
     {
         $date ??= now();
-
         $monthStart = $date->copy()->startOfMonth()->toDateString();
-        $monthEnd = $date->copy()->endOfMonth()->toDateString();
+        $monthEnd   = $date->copy()->endOfMonth()->toDateString();
 
-        // Exclude adjustment transactions from month summary to avoid inflating real transaction totals
-        $inflows = (float) FinancialTransaction::whereBetween('transaction_date', [$monthStart, $monthEnd])
-            ->where('direction', 'in')
-            ->whereNotIn('type', ['cash_adjustment_in'])
-            ->sum('amount');
-
-        $outflows = (float) FinancialTransaction::whereBetween('transaction_date', [$monthStart, $monthEnd])
-            ->where('direction', 'out')
-            ->whereNotIn('type', ['cash_adjustment_out'])
-            ->sum('amount');
+        $inflows  = $this->sumTransactions($monthStart, $monthEnd, 'in');
+        $outflows = $this->sumTransactions($monthStart, $monthEnd, 'out');
 
         return [
-            'inflows' => $inflows,
+            'inflows'  => $inflows,
             'outflows' => $outflows,
-            'net' => $inflows - $outflows,
+            'net'      => $inflows - $outflows,
         ];
+    }
+
+    /**
+     * Resumo financeiro de um período arbitrário.
+     * Usado por Dashboard, Relatórios e APIs.
+     */
+    public function getPeriodSummary(string $dateFrom, string $dateTo): array
+    {
+        $inflows  = $this->sumTransactions($dateFrom, $dateTo, 'in');
+        $outflows = $this->sumTransactions($dateFrom, $dateTo, 'out');
+
+        return [
+            'inflows'  => $inflows,
+            'outflows' => $outflows,
+            'net'      => $inflows - $outflows,
+        ];
+    }
+
+    /**
+     * Capital actual = soma do saldo de todas as contas operacionais activas.
+     */
+    public function getCurrentCapital(): float
+    {
+        return (float) FinancialAccount::operational()
+            ->get()
+            ->sum(fn($account) => $account->current_balance);
+    }
+
+    /**
+     * Total a receber (dívidas activas).
+     */
+    public function getAccountsReceivable(): float
+    {
+        return (float) Debt::where('status', 'active')->sum('remaining_amount');
+    }
+
+    /**
+     * Dados para gráfico de fluxo de caixa dos últimos N dias.
+     */
+    public function getCashFlowChartData(int $days = 7): array
+    {
+        $startDate = Carbon::today()->subDays($days - 1);
+        $endDate   = Carbon::today();
+
+        $transactions = $this->activeTransactionsQuery()
+            ->select(
+                DB::raw('DATE(transaction_date) as date'),
+                DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflows"),
+                DB::raw("SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) as outflows")
+            )
+            ->whereBetween('transaction_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->groupBy(DB::raw('DATE(transaction_date)'))
+            ->orderBy(DB::raw('DATE(transaction_date)'), 'ASC')
+            ->get()
+            ->keyBy('date')
+            ->toArray();
+
+        $labels = [];
+        $inflowsData = [];
+        $outflowsData = [];
+        $netFlowData = [];
+
+        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            $dateString = $date->format('Y-m-d');
+            $labels[]   = $date->format('d/m');
+
+            $inflow  = isset($transactions[$dateString]) ? (float) $transactions[$dateString]['inflows'] : 0.0;
+            $outflow = isset($transactions[$dateString]) ? (float) $transactions[$dateString]['outflows'] : 0.0;
+
+            $inflowsData[]  = $inflow;
+            $outflowsData[] = $outflow;
+            $netFlowData[]  = $inflow - $outflow;
+        }
+
+        return [
+            'labels'       => $labels,
+            'inflowsData'  => $inflowsData,
+            'outflowsData' => $outflowsData,
+            'netFlowData'  => $netFlowData,
+        ];
+    }
+
+    // ──────────────────────────────────────────────
+    //  AUDIT LOGGING
+    // ──────────────────────────────────────────────
+
+    public function logActivity(string $action, ?string $modelType, ?int $modelId, string $description): void
+    {
+        try {
+            UserActivity::create([
+                'user_id'     => auth()->id(),
+                'action'      => $action,
+                'model_type'  => $modelType,
+                'model_id'    => $modelId,
+                'description' => $description,
+                'ip_address'  => request()->ip(),
+                'user_agent'  => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            // Don't let logging failures break financial operations
+            \Log::warning('Failed to log financial activity: ' . $e->getMessage());
+        }
     }
 }

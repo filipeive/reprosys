@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
-class ProfileController extends AppBaseController
+class ProfileController extends Controller
 {
     /**
      * Display the user's profile form.

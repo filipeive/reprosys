@@ -12,12 +12,16 @@ use App\Models\Expense;
 use App\Models\Product;
 use App\Models\SaleItem;
 use App\Models\StockMovement;
+use App\Services\FinancialService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+    public function __construct(private FinancialService $financialService)
+    {
+    }
     public function index(Request $request)
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
@@ -126,6 +130,9 @@ class ReportController extends Controller
 
         return view('reports.sales_by_product', compact('sales', 'dateFrom', 'dateTo'));
     }
+    /**
+     * Métricas principais — usa FinancialService centralizado para dados de transações.
+     */
     private function calcularMetricasPrincipais($dateFrom, $dateTo)
     {
         // Total de vendas (número de transações)
@@ -133,14 +140,12 @@ class ReportController extends Controller
         
         // Receita bruta (soma de todas as vendas)
         $totalRevenue = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->sum('total_amount');
-        $totalReceived = (float) FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])
-            ->where('direction', 'in')
-            ->sum('amount');
-        $totalOutflows = (float) FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])
-            ->where('direction', 'out')
-            ->sum('amount');
+
+        // Use centralized FinancialService — consistent with Dashboard and FinanceController
+        $totalReceived = $this->financialService->sumTransactions($dateFrom, $dateTo, 'in');
+        $totalOutflows = $this->financialService->sumTransactions($dateFrom, $dateTo, 'out');
         
-        // Custo dos produtos vendidos (COGS)
+        // Custo dos produtos vendidos (COGS) — com COALESCE para null safety
         $costOfGoodsSold = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
@@ -151,8 +156,8 @@ class ReportController extends Controller
         $totalExpenses = Expense::whereBetween('expense_date', [$dateFrom, $dateTo])->sum('amount');
         
         // Cálculos de margem e lucro
-        $grossProfit = $totalRevenue - $costOfGoodsSold; // Lucro bruto
-        $netProfit = $grossProfit - $totalExpenses; // Lucro líquido
+        $grossProfit = $totalRevenue - $costOfGoodsSold;
+        $netProfit = $grossProfit - $totalExpenses;
         
         $grossMargin = $totalRevenue > 0 ? (($grossProfit / $totalRevenue) * 100) : 0;
         $netMargin = $totalRevenue > 0 ? (($netProfit / $totalRevenue) * 100) : 0;
@@ -167,12 +172,10 @@ class ReportController extends Controller
         
         $previousRevenue = Sale::whereBetween('sale_date', [$previousDateFrom, $previousDateTo])->sum('total_amount');
         $revenueGrowth = $previousRevenue > 0 ? ((($totalRevenue - $previousRevenue) / $previousRevenue) * 100) : 0;
-        $accountsReceivable = (float) Debt::where('status', 'active')
-            ->whereDate('debt_date', '<=', $dateTo)
-            ->sum('remaining_amount');
-        $currentCapital = (float) FinancialAccount::operational()
-            ->get()
-            ->sum(fn ($account) => $account->current_balance);
+
+        // Use centralized FinancialService for capital and receivables
+        $accountsReceivable = $this->financialService->getAccountsReceivable();
+        $currentCapital = $this->financialService->getCurrentCapital();
         
         return [
             'totalSales' => $totalSales,
@@ -272,12 +275,12 @@ class ReportController extends Controller
         // Receitas
         $salesRevenue = Sale::whereBetween('sale_date', [$dateFrom, $dateTo])->sum('total_amount');
         
-        // Custos dos produtos vendidos
+        // Custos dos produtos vendidos — COALESCE para evitar NULL
         $costOfGoodsSold = DB::table('sale_items')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->whereBetween('sales.sale_date', [$dateFrom, $dateTo])
-            ->sum(DB::raw('sale_items.quantity * products.purchase_price'));
+            ->sum(DB::raw('sale_items.quantity * COALESCE(products.purchase_price, 0)'));
 
         // Lucro bruto
         $grossProfit = $salesRevenue - $costOfGoodsSold;
@@ -537,7 +540,9 @@ class ReportController extends Controller
         $dateFrom = $request->input('date_from', now()->startOfMonth()->format('Y-m-d'));
         $dateTo = $request->input('date_to', now()->format('Y-m-d'));
 
-        $transactions = FinancialTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->get();
+        // Only use confirmed transactions for cash flow reports
+        $transactions = FinancialTransaction::where('status', 'confirmed')
+            ->whereBetween('transaction_date', [$dateFrom, $dateTo])->get();
 
         $cashInflows = $transactions
             ->where('direction', 'in')
@@ -562,6 +567,7 @@ class ReportController extends Controller
                 DB::raw("SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END) as inflow"),
                 DB::raw("SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END) as outflow")
             )
+            ->where('status', 'confirmed')
             ->whereBetween('transaction_date', [$dateFrom, $dateTo])
             ->groupBy(DB::raw('DATE(transaction_date)'))
             ->orderBy(DB::raw('DATE(transaction_date)'))
