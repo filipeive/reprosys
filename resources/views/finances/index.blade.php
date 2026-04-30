@@ -22,7 +22,7 @@
                 <a href="{{ route('reports.index') }}" class="btn btn-white bg-white shadow-sm border-0 px-3 py-2 text-dark rounded-pill">
                     <i class="fas fa-chart-pie text-info me-2"></i>Relatórios
                 </a>
-                <a href="{{ route('payroll.index') }}" class="btn btn-white bg-white shadow-sm border-0 px-3 py-2 text-dark rounded-pill">
+                <a href="{{ route('users.employees.payroll') }}" class="btn btn-white bg-white shadow-sm border-0 px-3 py-2 text-dark rounded-pill">
                     <i class="fas fa-users-cog text-secondary me-2"></i>Folha de Pagamento
                 </a>
             </div>
